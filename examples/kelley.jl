@@ -59,7 +59,9 @@ function kelley(xmin::Float64=-10.1, xmax::Float64=12.3, niter::Int64=10)
     return V
 end
 
-
+"""
+Test if Kelley's algorithm is working.
+"""
 function main()
 
     # get positions of all cuts:
