@@ -43,6 +43,7 @@ end
 
 type SDDPinstance
     model::SPModel
+    solver::MathProgBase. #TODO
     
     valueFunctionsApprox::Vector{polyhedralFunction}
     
