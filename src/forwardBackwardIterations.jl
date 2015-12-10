@@ -6,14 +6,54 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
+"""
+Make a forward pass of the algorithm
+
+Simulate a scenario of noise and compute an optimal trajectory on this
+scenario according to the current value functions.
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+- V (bellmanFunctions)
+    the current estimation of Bellman's functions
+
+- n (int)
+    number of forward simulation 
+    
+- xi (Array{float}) 
+    the noise scenarios on which we simulate, each line being one scenario. 
+    Generated if not given.
+
+- returnCosts (Bool)
+    return the cost of each simulated scenario if true
+
+- returnStocks (Bool)
+    return the trajectory of the stocks if true
+
+- returnControls (Bool)
+    return the trajectory of controls if true
 
 
-function forwardSimulations(n::int, 
+Returns (according to the last parameters):
+- costs (Array{float,1})
+    an array of the simulated costs
+- stocks (Array{float})
+    the simulated stock trajectories. stocks(k,t,:) is the stock for scenario k at time t.
+- controls (Array{float})
+    the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
+"""
+function forward_simulations(model::SPmodel,
+                            param::SDDPparameters,
+                            V::Array{PolyhedralFunction},
+                            n::int, 
                             xi = nothing,
                             returnCosts::Bool = true,  
-                            returnStocks::Bool=true, 
+                            returnStocks::Bool= true, 
                             returnControls::Bool = false)
-# Simulate n trajectories given by the value functions V
 
 # TODO simplify if returnStocks=false 
 # TODO stock Controls
@@ -41,25 +81,66 @@ end
 return costs,stocks # adjust according to what is asked
 end
 
-function addCut(t,x, beta, lambda)
-    #TODO add >= beta + <lambda,.-x>,
+"""
+add to Vt a cut of the form Vt >= beta + <lambda,.>
+
+Parameters:
+- Vt (bellmanFunction) 
+    Current lower approximation of the Bellman function at time t
+- beta (Float) 
+    affine part of the cut to add
+- lambda (Array{float,1})
+    subgradient of the cut to add
+"""
+function addcut!(Vt::PolyhedralFunction, beta::Float, lambda::Array{float,1})
+    #TODO add >= beta + <lambda,.>,
 end
 
-function backwardPass(stockTrajectories)
+
+
+"""
+Make a backward pass of the algorithm
+
+For t:T-1 -> 0, compute a valid cut of the Bellman function
+Vt at the state given by stockTrajectories and add them to 
+the current estimation of Vt.
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+    
+- V (bellmanFunctions)
+    the current estimation of Bellman's functions
+
+- stockTrajectories (Array{float,3})
+    stockTrajectories[k,t,:] is the vector of stock where the cut is computed
+    for scenario k and time t.
+
+Return nothing
+"""
+function backward_pass(model::SPmodel,
+                      param::SDDPparameters,
+                      V::Array{PolyhedralFunction},
+                      stockTrajectories::Array{float,3})
+                      
 for t=T-1:0
-    for k in #TODO
+    for k in #TODO number of trajectories
         cost = zeros(1);
         subgradient = zeros(dimStates[t]);#TODO access
-        for w in 1:nXi[t] #TODO + can be parallelized
+        for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
             subgradientw, costw = solveOneStepOneAlea(t,stockTrajectories[k,t],xi[t,],
                                         returnOptNextStep=false, 
                                         returnOptControl=false,
                                         returnSubgradient=true,
                                         returnCost=true);
-            cost+= prob[w,t]*costw;#TODO
+            cost+= prob[w,t]*costw;#TODO obtain probabilityz
             subgradientw+=prob[w,t]*subgradientw;#TODO                      
         end
-    addCut(t,stockTrajectories[k,t],subgradient,cost);
+        beta = cost - subgradientw*stockTrajectories[k,t,:]#TODO dot product not working
+        addCut!(V[t],beta,subgradientw); #TODO access of V[t]
     end
 end
 end

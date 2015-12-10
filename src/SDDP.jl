@@ -21,9 +21,7 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 
-type SPModel 
-    SPModelType::str # TODO specify the model type (structure of costs, etc) among a given list
-    
+abstract SPModel 
     # problem dimension
     stageNumber::int
     dimControls
@@ -33,30 +31,41 @@ type SPModel
     
     costFunctions # TODO collection of cost function
     dynamics # TODO collection of dynamic function
-    noises # TODO collection of noises law
+    noises::Vector{NoiseLaw} # TODO collection of noises law
 end
 
-function SPModel()
-#TODO standard constructor
+type LinearDynamicLinearCostSPmodel :< SPModel 
+    # problem dimension
+    stageNumber::int
+    dimControls
+    dimStates
+    
+    initialState
+    
+    costFunctions # TODO collection of cost function
+    dynamics # TODO collection of dynamic function
+    noises::Vector{NoiseLaw} # TODO collection of noises law
 end
 
 
-type SDDPinstance
-    model::SPModel
+type NoiseLaw
+    supportSize::Int16 
+    support::Array{AbstractFloat,2}
+    proba::Tuple{Float16}
+end
+
+type SDDPparameters
     solver::MathProgBase. #TODO
-    
-    valueFunctionsApprox::Vector{polyhedralFunction}
-    
     forwardPassNumber::int # number of simulated scenario in the forward pass
-    
-    
     initialization #TODO 
     stoppingTest #TODO
     
 end
 
-type polyhedralFunction
-# TODO collection of functions defined by cuts
+type PolyhedralFunction
+    #function defined by max_k betas[k] + lambdas[k,:]*x
+    betas::Vector{Float64}
+    lambdas::Array{Float64,2} #lambdas[k,:] is the subgradient
 end
 
 
