@@ -35,7 +35,7 @@ function solve_riccati_backward(Tf, A, B, Q, R, Sf)
     L = zeros(Tf, 1, 2)
     P = Sf
 
-    for i=(n-1):-1:1
+    for i=(Tf-1):-1:1
         K = -inv(R + B'*P*B)*B'*P*A
         P = Q + A'*P*A + A'*P*B*K
         L[i, :, :] = K
@@ -54,9 +54,9 @@ Test Riccati equation upon a toy example.
 function main(rho = .3)
 
     Tf = 20
-    t = 1:n
-    y = zeros(n)
-    ctrl = zeros(n)
+    t = 1:Tf
+    y = zeros(Tf)
+    ctrl = zeros(Tf)
 
     # Define system's matrix:
     # x(t+1) = A x(t) + B u(t)
@@ -77,7 +77,7 @@ function main(rho = .3)
     x = [1;0]
 
     # Simulate system's evolution and apply LQR control:
-    for i=1:n
+    for i=1:Tf
         # Get gain stored in L:
         K = reshape(L[i, :, :], 1, 2)
         # control is straightforward:
