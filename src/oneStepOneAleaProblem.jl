@@ -11,6 +11,22 @@
 using MathProgBase #TODO interface with JuMP
 using GLPKMathProgInterface
 
+T=3
+
+Cx 		= [3 4 2];
+Cu 		= [2 1 1];
+Cxi 		= [1 4 5];
+X		= [5 3 3];
+Xi 		= [1 2 3];
+Vbetas		= [7 25 6];
+Vlambdas	= [7 5 2];
+time 		= 2;
+
+A1        	= [1.0 -1.0 -1.0 0.0];
+A2        	= [1.0 -1.0 -1.0 0.0];
+A3 	  	= []; #TODO integrate the fact that there is no dynamic for the final step
+dynamique 	=[A1' A2'];
+
 function solveOneStepOneAlea(t::int,
                                     x,
                                     xi,
@@ -48,15 +64,14 @@ function solveOneStepOneAleaLinear(t::int,
 	Lambdas = Vlambdas[:,t+1]; 
 	Betas 	= Vbetas[:,t+1];
 
-	#multiplicateur
+	#multiplier
 	sensemul = ['=' for i in 1:(lengthV)];
 	Amul 	 = [eye(lengthx) zeros(1,lengthu+lengthx+1)];
 	bmul	 = [x];
 
-	#dynamique
+	#dynamic
 	sensedyn = ['=' for i in 1:(lengthV)]
 	Adyn	 = dynamique[:,t]';
-	#TODO régler le problème des Xi en paramètre bdyn	 = [(-1.0).*Xi[:,t]]
 	bdyn	 = [(-1.0).*xi]	
 
 	#The inequality constraint are the le linearisation of 'theta = max_of_cuts'
@@ -65,7 +80,7 @@ function solveOneStepOneAleaLinear(t::int,
 	sensecut= ['>' for i in 1:(lengthV)]
 
 	#We define aggregate matrix to give the problem to a solver
-	#TODO inclure les matrices A[t]	
+	#TODO Define properly the matric A[t]
 	#A 	= [A[t];Acut];
 	#b 	= [b[t];bcut];
 	#sense 	= [sense[t] ; sensecut];
