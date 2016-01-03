@@ -8,55 +8,86 @@
 # see TODO
 #############################################################################
 
-module SDDP
+#module SDDP
 
 import JuMP #TODO : require JuMP ?
 
-export TODO
-#Objects
-    SPModel
+#export #TODO
+#Objects SPModel
     
-include("utils.jl")
+include("utility.jl")
 include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 
-type SPModel 
-    SPModelType::str # TODO specify the model type (structure of costs, etc) among a given list
+type NoiseLaw
+    supportSize::Int16 
+    support::Array{AbstractFloat,2}
+    proba::Tuple{Float16}
+end
+
+abstract SPModel
     
-    # problem dimension
-    stageNumber::int
+type DeterministSPModel <: SPModel
+    #problemDimension
+    stageNumber
     dimControls
     dimStates
-    
     initialState
-    
     costFunctions # TODO collection of cost function
     dynamics # TODO collection of dynamic function
-    noises # TODO collection of noises law
+    #noises::Vector{NoiseLaw} # TODO collection of noises law
 end
 
-function SPModel()
-#TODO standard constructor
+type RandomSPModel <: SPModel
+    #problemDimension
+    stageNumber
+    dimControls
+    dimStates
+    initialState
+    costFunctions # TODO collection of cost function
+    dynamics # TODO collection of dynamic function
+    noises::Vector{NoiseLaw} # TODO collection of noises law
 end
 
+#type LinearDynamicLinearCostSPmodel <: SPModel
+#    problemDimension
+#    stageNumber#::int
+#    dimControls
+#    dimStates
+#    
+#    initialState
+#    
+#    costFunctions # TODO collection of cost function
+#    dynamics # TODO collection of dynamic function
+#    noises::Vector{NoiseLaw} # TODO collection of noises law
+#end
 
-type SDDPinstance
-    model::SPModel
-    
-    valueFunctionsApprox::Vector{polyhedralFunction}
-    
-    forwardPassNumber::int # number of simulated scenario in the forward pass
-    
-    
+
+
+
+type SDDPparameters
+    solver#::MathProgBase. #TODO
+    forwardPassNumber#::int # number of simulated scenario in the forward pass
     initialization #TODO 
     stoppingTest #TODO
     
 end
 
-type polyhedralFunction
-# TODO collection of functions defined by cuts
+type PolyhedralFunction
+    #function defined by max_k betas[k] + lambdas[k,:]*x
+    betas::Vector{Float64}
+    lambdas::Array{Float64,2} #lambdas[k,:] is the subgradient
 end
 
+test = DeterministSPModel(3,[2;2;2],[2;2;2],[1;1],costFunction,dynamic);
 
-end
+cut1 = PolyhedralFunction([1;1],[1 0;0 1]);
+cut2 = PolyhedralFunction([2;2],[2 0;0 2]);
+cut3 = PolyhedralFunction([3;3],[3 0;0 3]);
+
+cut = Any[cut1,cut2,cut3];
+
+stockTrajectories = Any[[1;1],[2;2],[3;3]];
+
+#end

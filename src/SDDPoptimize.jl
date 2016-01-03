@@ -11,17 +11,14 @@ function optimize()
     
     # TODO initialization
     
-    stopping_test::Bool = false;
-    iteration_count::int = 0;
-    
-    while(!stopping_test)
-        stockTrajectories = forwardSimulations(forwardPassNumber, 
-                            returnCosts = false,  
-                            returnStocks=true, 
-                            returnControls= false);
+    #stopping_test::Bool = false;
+    #iteration_count::int = 0;
+    it = 0;
+    while(it<20)
+        forwardSimulations(1);
         backwardPass(stockTrajectories);
         #TODO stopping test
         
-        iteration_count+=1;
+        it+=1;
     end
 end

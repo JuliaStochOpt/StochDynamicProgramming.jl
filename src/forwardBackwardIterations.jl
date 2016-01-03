@@ -8,11 +8,7 @@
 
 
 
-function forwardSimulations(n::int, 
-                            xi = nothing,
-                            returnCosts::Bool = true,  
-                            returnStocks::Bool=true, 
-                            returnControls::Bool = false)
+function forwardSimulations(n)
 # Simulate n trajectories given by the value functions V
 
 # TODO simplify if returnStocks=false 
@@ -21,45 +17,50 @@ function forwardSimulations(n::int,
 # TODO declare stock as an array of states
 # specify initial state stocks[k,0]=x0
 # TODO generate scenarios xi
-if returnCosts  
-    costs = zeros(k); 
-end
+#if returnCosts  
+#    costs = zeros(k); 
+#end
 
-for k = 1:n #TODO can be parallelized + some can be dropped if too long
+#for k = 1:n #TODO can be parallelized + some can be dropped if too long
     
-    for t=0:T-1 #TODO get T
-        stocks[k,t+1], opt_control = solveOneStepOneAlea(t,stocks[k,t],xi[k,t],
-                                    returnOptNextStep=true, 
-                                    returnOptControl=true,
-                                    returnSubgradient=false,
-                                    returnCost=false);
-        if returnCosts 
-            costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]); #TODO
-        end
+    for t=1:(test.stageNumber-1) #TODO get T
+        sol = solveOneStepOneAleaLinear(t,stockTrajectories[t],zeros(test.dimStates[t],1),
+                                    false, 
+                                    true,
+                                    false,
+                                    false);
+	
+	#stockTrajectories[t+1]=sol[1:test.dimStates[t]];
+	stockTrajectories[t+1] = convert(typeof(stockTrajectories[t]),sol[1:test.dimStates[t]])
+	#opt_control
+
+        #if returnCosts 
+        #    costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]); #TODO
+        #end
     end
-end
-return costs,stocks # adjust according to what is asked
+#end
+#return costs,stocks # adjust according to what is asked
 end
 
-function addCut(t,x, beta, lambda)
+function addCut(beta, lambda, polyfunction)
     #TODO add >= beta + <lambda,.-x>,
+	polyfunction.betas = [polyfunction.betas;beta];
+	polyfunction.lambdas = [polyfunction.lambdas;lambda];
 end
 
 function backwardPass(stockTrajectories)
-for t=T-1:0
-    for k in #TODO
+for t=(test.stageNumber-1):-1:1
+    #for k = 1:1#TODO
         cost = zeros(1);
-        subgradient = zeros(dimStates[t]);#TODO access
-        for w in 1:nXi[t] #TODO + can be parallelized
-            subgradientw, costw = solveOneStepOneAlea(t,stockTrajectories[k,t],xi[t,],
-                                        returnOptNextStep=false, 
-                                        returnOptControl=false,
-                                        returnSubgradient=true,
-                                        returnCost=true);
-            cost+= prob[w,t]*costw;#TODO
-            subgradientw+=prob[w,t]*subgradientw;#TODO                      
-        end
-    addCut(t,stockTrajectories[k,t],subgradient,cost);
-    end
+        subgradient = zeros(test.dimStates[t]);#TODO access
+        sol = solveOneStepOneAleaLinear(t,stockTrajectories[t],zeros(test.dimStates[t],1),
+                                        true, 
+                                        false,
+                                        true,
+                                        false);
+            cost = sol[1];#TODO
+            subgradient = sol[2:end];#TODO                      
+    addCut(cost,subgradient',cut[t]);
+    #end
 end
 end

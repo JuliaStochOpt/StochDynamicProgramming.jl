@@ -9,10 +9,27 @@
 
 function costFunction(t,x,u,xi)
     #TODO
-    return cost
+    	Cx 	= [3 4 2; 3 4 2];
+	Cu 	= [2 1 1; 2 1 1];
+	Cxi 	= [1 4 5; 1 4 5];
+
+	lengthx  = length(Cx[:,t]);
+	lengthu  = length(Cu[:,t]);
+	lengthxi = length(Cxi[:,t]);
+
+	cost 	= [Cx[:,t];Cu[:,t];Cxi[:,t];1.0];
+
+	return cost
 end
 
 function dynamic(t,x,u,xi)
     #TODO
-    return new_state
+	A1        = [1.0 0 -1.0 0 -1.0 0 0.0 ; 0 1.0 0 -1.0 -1.0 0 0.0];
+	A2        = [1.0 0 -1.0 0 -1.0 0 0.0 ; 0 1.0 0 -1.0 0 -1.0 0.0];
+	A3 	  = []; #TODO integrate the fact that there is no dynamic for the final step
+	dynamique = Any[A1',A2'];
+
+	new_state = dynamique[t]';
+    	
+	return new_state
 end
