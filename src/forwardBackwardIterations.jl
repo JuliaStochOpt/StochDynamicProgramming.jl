@@ -21,7 +21,7 @@ Parameters:
 - V (bellmanFunctions)
     the current estimation of Bellman's functions
 
-- n (int)
+- forwardPassNumber (int)
     number of forward simulation 
     
 - xi (Array{float}) 
@@ -49,7 +49,7 @@ Returns (according to the last parameters):
 function forward_simulations(model::SPmodel,
                             param::SDDPparameters,
                             V::Array{PolyhedralFunction},
-                            n::int, 
+                            forwardPassNumber::int, 
                             xi = nothing,
                             returnCosts::Bool = true,  
                             returnStocks::Bool= true, 
@@ -65,7 +65,7 @@ if returnCosts
     costs = zeros(k); 
 end
 
-for k = 1:n #TODO can be parallelized + some can be dropped if too long
+for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if too long
     
     for t=0:T-1 #TODO get T
         stocks[k,t+1], opt_control = solveOneStepOneAlea(t,stocks[k,t],xi[k,t],

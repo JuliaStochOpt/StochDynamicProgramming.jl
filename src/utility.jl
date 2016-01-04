@@ -57,3 +57,9 @@ function generateLaw(support,probas)
     return NoiseLaw(n,support,probas)
 end
 
+function simulate(law::NoiseLaw,n::Int)
+    
+end
+
+
+

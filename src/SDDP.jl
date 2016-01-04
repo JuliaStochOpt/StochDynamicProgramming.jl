@@ -11,6 +11,7 @@
 module SDDP
 
 import JuMP #TODO : require JuMP ?
+import Distibutions
 
 export TODO
 #Objects
@@ -48,11 +49,6 @@ type LinearDynamicLinearCostSPmodel :< SPModel
 end
 
 
-type NoiseLaw
-    supportSize::Int16 
-    support::Array{AbstractFloat,2}
-    proba::Tuple{Float16}
-end
 
 type SDDPparameters
     solver::MathProgBase. #TODO

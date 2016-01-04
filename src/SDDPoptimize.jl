@@ -7,19 +7,47 @@
 #
 #############################################################################
 
-function optimize()
+
+"""
+Make a forward pass of the algorithm
+
+Simulate a scenario of noise and compute an optimal trajectory on this
+scenario according to the current value functions.
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
     
-    # TODO initialization
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+
+
+Returns :
+- V::Array{PolyhedralFunction}
+    the collection of approximation of the bellman functions
+
+"""
+function optimize(model::SPmodel,
+                  param::SDDPparameters)
+    # TODO initialization (V and so on)
     
     stopping_test::Bool = false;
     iteration_count::int = 0;
     
+    n = param.forwardPassNumber
+    
     while(!stopping_test)
-        stockTrajectories = forwardSimulations(forwardPassNumber, 
+        stockTrajectories = forwardSimulations(model,
+                            param,
+                            V,
+                            n, 
                             returnCosts = false,  
                             returnStocks=true, 
                             returnControls= false);
-        backwardPass(stockTrajectories);
+        backwardPass(model,
+                      param,
+                      V,
+                      stockTrajectories);
         #TODO stopping test
         
         iteration_count+=1;
