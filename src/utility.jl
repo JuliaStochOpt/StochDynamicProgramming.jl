@@ -19,47 +19,45 @@ function dynamic(t,x,u,xi)
 end
 
 
+
+
 """
-construct a NoiseLaw from the support and associated proba
+Estimate the upper bound with the Monte-Carlo error
+
 
 Parameters:
-- support (Array{Float})
-    an array of the support of the noise
-- proba (Tuple{Float})
-    an array of the proba associated to the support. should be of the same size as support
-    and sum to 1.
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
     
-Returns
-- the NoiseLaw
+- V (bellmanFunctions)
+    the current estimation of Bellman's functions 
+    
+- forwardPassNumber (int)
+    number of Monte-Carlo simulation
+    
+- returnMCerror (Bool)
+    return or not the estimation of the MC error
+    
+
+Returns :
+- estimated-upper bound
+- Monte-Carlo error on the upper bound (if returnMCerror)
+
 """
-function generateLaw(support,probas)
-    
-    if ndims(support) ==1
-        #TODO le passer à 2
-    elseif ndims(support)==2
-        n = size(support)[2]
-    else
-        error("the support is an array of dimension greater than 2")
-    end    
-    
-    
-    if length(probas)!=n
-        error("size of support does not match the number of probability weight")
+function upper_bound(model::SPmodel,
+                     param::SDDPparameters,
+                     V::Vector{PolyhedralFunction},
+                     forwardPassNumber::Int64,
+                     returnMCerror::Bool)
+
+    C = forward_simulations(model,param,V,forwardPassNumber,nothing,true, false, false);
+    m = mean(C) 
+    if returnMCerror
+        return m, 1.96*std(C)/sqrt(forwardPassNumber)
+    else 
+        return m
     end
-    if sum(a)!=1
-        error("probability weights does not sum to 1")
-    end
-    
-    convert(Int16,n)
-    convert(Array{AbstractFloat,2},support)
-    convert(Tuple{Float16},collect(probas))
-    
-    return NoiseLaw(n,support,probas)
 end
-
-function simulate(law::NoiseLaw,n::Int)
-    
-end
-
-
-

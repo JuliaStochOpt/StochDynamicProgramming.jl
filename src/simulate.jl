@@ -12,13 +12,13 @@
 using Distributions
 
 type NoiseLaw
-    supportSize::UInt16 
-    support::Array{Float64,2}#TODO risque de poser des problèmes
+    supportSize::Int64 
+    support::Array{Float64,2}
     proba::Vector{Float64}
 end
 
 function NoiseLaw_const(supportSize,support,proba)
-    supportSize = convert(UInt16,supportSize)
+    supportSize = convert(Int64,supportSize)
     if ndims(support)==1
         support = reshape(support,1,length(support))
     end
@@ -53,16 +53,16 @@ Parameters:
     number of simulations computed
 
 Returns :
-- scenarios Array(Float32,n,T)
+- scenarios Array(Float64,n,T)
     an Array of scenario, scenarios[i,:] being the ith noise scenario
 """
 
-function simulate(law::Vector{NoiseLaw},n::Int)
+function simulate(law::Vector{NoiseLaw},n::Int64)
     if n <= 0 
         error("negative number of simulations")
     end
     Tf = length(law)
-    scenarios = Array{Float32}(n,Tf)
+    scenarios = Array{Float64}(n,Tf)
     for i = 1:n#TODO can be parallelized
         scenario = []
         for t=1:Tf
@@ -76,10 +76,6 @@ function simulate(law::Vector{NoiseLaw},n::Int)
 end
 
 ### test
-supp = [1, 2, 3] 
-p = [0.1 0.4 0.5] 
-w1 = NoiseLaw_const(3,supp,p)
-w2 = NoiseLaw(supp,p)
-simulate([w1,w2],3)
+
 
 

@@ -40,7 +40,7 @@ Parameters:
 - xi (Array{float}) 
     current noise value
 
-- returnOptNextStep (Bool)
+- returnOptNextStage (Bool)
     return the optimal state at t+1
 
 - returnOptcontrol (Bool)
@@ -65,9 +65,9 @@ function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
                             t,
-                            x::Vector{AbstractFloat},
-                            xi::Vector{AbstractFloat},
-                            returnOptNextStep::Bool=false, 
+                            x::Vector{Float64},
+                            xi::Vector{Float64},
+                            returnOptNextStage::Bool=false, 
                             returnOptControl::Bool=false,
                             returnSubgradient::Bool=false,
                             returnCost::Bool=false)

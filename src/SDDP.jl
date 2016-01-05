@@ -23,23 +23,13 @@ include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 
 abstract SPModel 
-    # problem dimension
-    stageNumber::int
-    dimControls
-    dimStates
-    
-    initialState
-    
-    costFunctions # TODO collection of cost function
-    dynamics # TODO collection of dynamic function
-    noises::Vector{NoiseLaw} # TODO collection of noises law
-end
+   
 
 type LinearDynamicLinearCostSPmodel :< SPModel 
     # problem dimension
-    stageNumber::int
-    dimControls
-    dimStates
+    stageNumber::Int64
+    dimControls::Int64
+    dimStates::Int64
     
     initialState
     
@@ -52,9 +42,9 @@ end
 
 type SDDPparameters
     solver::MathProgBase. #TODO
-    forwardPassNumber::int # number of simulated scenario in the forward pass
+    forwardPassNumber::Int64 # number of simulated scenario in the forward pass
     initialization #TODO 
-    stoppingTest #TODO
+    maxItNumber #TODO
     
 end
 

@@ -19,7 +19,7 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 - V (bellmanFunctions)
-    the current estimation of Bellman's functions
+    the current estimation of Bellman's functions 
 
 - forwardPassNumber (int)
     number of forward simulation 
@@ -48,8 +48,8 @@ Returns (according to the last parameters):
 """
 function forward_simulations(model::SPmodel,
                             param::SDDPparameters,
-                            V::Array{PolyhedralFunction},
-                            forwardPassNumber::int, 
+                            V::Vector{PolyhedralFunction},
+                            forwardPassNumber::Int64, 
                             xi = nothing,
                             returnCosts::Bool = true,  
                             returnStocks::Bool= true, 
@@ -69,7 +69,7 @@ for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if t
     
     for t=0:T-1 #TODO get T
         stocks[k,t+1], opt_control = solveOneStepOneAlea(t,stocks[k,t],xi[k,t],
-                                    returnOptNextStep=true, 
+                                    returnOptNextStage=true, 
                                     returnOptControl=true,
                                     returnSubgradient=false,
                                     returnCost=false);
@@ -80,6 +80,12 @@ for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if t
 end
 return costs,stocks # adjust according to what is asked
 end
+
+
+
+
+
+
 
 """
 add to Vt a cut of the form Vt >= beta + <lambda,.>
@@ -95,6 +101,13 @@ Parameters:
 function addcut!(Vt::PolyhedralFunction, beta::Float, lambda::Array{float,1})
     #TODO add >= beta + <lambda,.>,
 end
+
+
+
+
+
+
+
 
 
 
@@ -115,7 +128,7 @@ Parameters:
 - V (bellmanFunctions)
     the current estimation of Bellman's functions
 
-- stockTrajectories (Array{float,3})
+- stockTrajectories (Array{Float64,3})
     stockTrajectories[k,t,:] is the vector of stock where the cut is computed
     for scenario k and time t.
 
@@ -132,7 +145,7 @@ for t=T-1:0
         subgradient = zeros(dimStates[t]);#TODO access
         for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
             subgradientw, costw = solveOneStepOneAlea(t,stockTrajectories[k,t],xi[t,],
-                                        returnOptNextStep=false, 
+                                        returnOptNextStage=false, 
                                         returnOptControl=false,
                                         returnSubgradient=true,
                                         returnCost=true);
