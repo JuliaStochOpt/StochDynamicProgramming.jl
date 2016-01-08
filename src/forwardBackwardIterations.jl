@@ -6,6 +6,8 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
+
+
 """
 Make a forward pass of the algorithm
 
@@ -19,13 +21,13 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 - V (bellmanFunctions)
-    the current estimation of Bellman's functions 
+    the current estimation of Bellman's functions
 
 - forwardPassNumber (int)
-    number of forward simulation 
-    
-- xi (Array{float}) 
-    the noise scenarios on which we simulate, each line being one scenario. 
+    number of forward simulation
+
+- xi (Array{float})
+    the noise scenarios on which we simulate, each line being one scenario.
     Generated if not given.
 
 - returnCosts (Bool)
@@ -49,65 +51,56 @@ Returns (according to the last parameters):
 function forward_simulations(model::SPmodel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
-                            forwardPassNumber::Int64, 
+                            forwardPassNumber::Int64,
                             xi = nothing,
-                            returnCosts::Bool = true,  
-                            returnStocks::Bool= true, 
+                            returnCosts::Bool = true,
+                            returnStocks::Bool= true,
                             returnControls::Bool = false)
 
-# TODO simplify if returnStocks=false 
-# TODO stock Controls
+    # TODO simplify if returnStocks=false
+    # TODO stock Controls
 
-# TODO declare stock as an array of states
-# specify initial state stocks[k,0]=x0
-# TODO generate scenarios xi
-if returnCosts  
-    costs = zeros(k); 
-end
+    # TODO declare stock as an array of states
+    # specify initial state stocks[k,0]=x0
+    # TODO generate scenarios xi
+    if returnCosts
+        costs = zeros(k);
+    end
 
-for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if too long
-    
-    for t=0:T-1 #TODO get T
-        stocks[k,t+1], opt_control = solveOneStepOneAlea(t,stocks[k,t],xi[k,t],
-                                    returnOptNextStage=true, 
-                                    returnOptControl=true,
-                                    returnSubgradient=false,
-                                    returnCost=false);
-        if returnCosts 
-            costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]); #TODO
+    for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if too long
+
+        for t=0:T-1 #TODO get T
+            stocks[k,t+1], opt_control = solveOneStepOneAlea(t,stocks[k,t],xi[k,t],
+                                        returnOptNextStage=true,
+                                        returnOptControl=true,
+                                        returnSubgradient=false,
+                                        returnCost=false);
+            if returnCosts
+                costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]); #TODO
+            end
         end
     end
+    return costs,stocks # adjust according to what is asked
 end
-return costs,stocks # adjust according to what is asked
-end
-
-
-
-
 
 
 
 """
-add to Vt a cut of the form Vt >= beta + <lambda,.>
+Add to Vt a cut of the form Vt >= beta + <lambda,.>
 
 Parameters:
-- Vt (bellmanFunction) 
+- Vt (bellmanFunction)
     Current lower approximation of the Bellman function at time t
-- beta (Float) 
+- beta (Float)
     affine part of the cut to add
 - lambda (Array{float,1})
     subgradient of the cut to add
 """
 function addcut!(Vt::PolyhedralFunction, beta::Float, lambda::Array{float,1})
     #TODO add >= beta + <lambda,.>,
+    Vt.lambdas = vcat(Vt.lambdas, lambda)
+    Vt.betas = vcat(Vt.betas, beta)
 end
-
-
-
-
-
-
-
 
 
 
@@ -115,7 +108,7 @@ end
 Make a backward pass of the algorithm
 
 For t:T-1 -> 0, compute a valid cut of the Bellman function
-Vt at the state given by stockTrajectories and add them to 
+Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
 
 Parameters:
@@ -124,7 +117,7 @@ Parameters:
 
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
-    
+
 - V (bellmanFunctions)
     the current estimation of Bellman's functions
 
@@ -138,22 +131,22 @@ function backward_pass(model::SPmodel,
                       param::SDDPparameters,
                       V::Array{PolyhedralFunction},
                       stockTrajectories::Array{float,3})
-                      
-for t=T-1:0
-    for k in #TODO number of trajectories
-        cost = zeros(1);
-        subgradient = zeros(dimStates[t]);#TODO access
-        for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
-            subgradientw, costw = solveOneStepOneAlea(t,stockTrajectories[k,t],xi[t,],
-                                        returnOptNextStage=false, 
-                                        returnOptControl=false,
-                                        returnSubgradient=true,
-                                        returnCost=true);
-            cost+= prob[w,t]*costw;#TODO obtain probabilityz
-            subgradientw+=prob[w,t]*subgradientw;#TODO                      
+
+    for t=T-1:0
+        for k in #TODO number of trajectories
+            cost = zeros(1);
+            subgradient = zeros(dimStates[t]);#TODO access
+            for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
+                subgradientw, costw = solveOneStepOneAlea(t,stockTrajectories[k,t],xi[t,],
+                                            returnOptNextStage=false,
+                                            returnOptControl=false,
+                                            returnSubgradient=true,
+                                            returnCost=true);
+                cost+= prob[w,t]*costw;#TODO obtain probabilityz
+                subgradientw+=prob[w,t]*subgradientw;#TODO
+            end
+            beta = cost - subgradientw*stockTrajectories[k,t,:]#TODO dot product not working
+            addCut!(V[t],beta,subgradientw); #TODO access of V[t]
         end
-        beta = cost - subgradientw*stockTrajectories[k,t,:]#TODO dot product not working
-        addCut!(V[t],beta,subgradientw); #TODO access of V[t]
     end
-end
 end

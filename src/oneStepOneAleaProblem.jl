@@ -8,7 +8,7 @@
 # - used to compute the cuts in the Backward phase
 #############################################################################
 
-
+using JuMP
 
 
 """
@@ -17,7 +17,7 @@ with the current evaluation of Vt+1
 
 The function solve
 min_u current_cost(t,x,u,xi) + current_Bellman_Value_{t+1}(dynamic(t,x,u,xi))
-and can return the optimal control and a subgradient of the value of the 
+and can return the optimal control and a subgradient of the value of the
 problem with respect to the initial state x
 
 
@@ -27,17 +27,17 @@ Parameters:
 
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
-    
+
 - V (bellmanFunctions)
     the current estimation of Bellman's functions
-    
+
 - t (int)
     time step at which the problem is solved
 
 - x (Array{Float})
-    current starting state 
-    
-- xi (Array{float}) 
+    current starting state
+
+- xi (Array{float})
     current noise value
 
 - returnOptNextStage (Bool)
@@ -67,11 +67,11 @@ function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
                             t,
                             x::Vector{Float64},
                             xi::Vector{Float64},
-                            returnOptNextStage::Bool=false, 
+                            returnOptNextStage::Bool=false,
                             returnOptControl::Bool=false,
                             returnSubgradient::Bool=false,
                             returnCost::Bool=false)
-    
+
     #TODO call the right following function
     # return (optNextStep, optControl, subgradient, cost) #depending on which is asked
 end
