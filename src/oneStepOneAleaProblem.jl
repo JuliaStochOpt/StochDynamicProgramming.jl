@@ -34,7 +34,7 @@ Parameters:
 - t (int)
     time step at which the problem is solved
 
-- x (Array{Float})
+- xt (Array{Float})
     current starting state
 
 - xi (Array{float})
@@ -61,19 +61,60 @@ Returns (according to the last parameters):
 - controls (Array{float})
     the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
 """
-function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
+function solve_one_step_one_alea(model::LinearDynamicLinearCostSPmodel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
                             t,
-                            x::Vector{Float64},
+                            xt::Vector{Float64},
                             xi::Vector{Float64},
                             returnOptNextStage::Bool=false,
                             returnOptControl::Bool=false,
                             returnSubgradient::Bool=false,
                             returnCost::Bool=false)
 
-    #TODO call the right following function
-    # return (optNextStep, optControl, subgradient, cost) #depending on which is asked
+
+    cost = model.costFunctions[t]
+    dynamic = model.dynamics[t]
+
+    lambdas = V.lambdas
+    betas = V.betas
+
+    m = Model(solver=param.solver)
+    @defVar(m, x)
+    @defVar(m, u)
+    @defVar(m, alpha)
+
+    @addConstraints(m, state_constraint, x = xt)
+
+    cuts_number = V.numCuts
+
+    for i=1:cuts_number
+        @addConstraints(m, betas[i] + lambdas[i]*(dynamic(x, u)-xt) <= alpha)
+    end
+
+    @setObjective(m, Min, cost(x, u) + alpha)
+
+    solve(m)
+
+
+    result = []
+    if (returnOptNextStep)
+        uopt = getValue(u)
+        result = [result; dynamic(x, u)]
+    end
+    if (returnOptControl)
+        result = [result; getValue(u)]
+    end
+    if (returnSubgradient)
+        lambda = getDual(state_constraint)
+        result = [result; lambda]
+    end
+    if (returnCost)
+        beta_opt = getObjectiveValue(m)
+        result = [result; beta_opt]
+    end
+
+    return result
 end
 
 
