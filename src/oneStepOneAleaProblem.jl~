@@ -103,7 +103,7 @@ function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
 
 	#The inequality constraint are the le linearisation of 'theta = max_of_cuts'
 	Acut 	= [-Lambdas zeros(lengthV,lengthu+lengthx) ones(lengthV,1)];
-	bcut 	= -Lambdas*(squeeze(stockTrajectories[1,t+1,:],1)'[:,1])+Betas;
+	bcut 	= -Lambdas*(squeeze(stockTrajectories[k,t+1,:],1)'[:,1])+Betas;
 	sensecut= ['>' for i in 1:(lengthV)];
 
 	#We define aggregate matrix to give the problem to a solver

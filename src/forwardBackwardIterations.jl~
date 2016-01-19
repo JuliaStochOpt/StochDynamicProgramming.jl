@@ -151,7 +151,7 @@ Return nothing
 function backward_pass(  model::LinearDynamicLinearCostSPmodel,
                          param::SDDPparameters,
                          V::Vector{PolyhedralFunction},
-                         stockTrajectories,#::Array{float,3}
+                         stockTrajectories#::Array{float,3}
                          xi
                         )
                       

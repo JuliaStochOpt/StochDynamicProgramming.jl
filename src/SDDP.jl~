@@ -56,9 +56,9 @@ type PolyhedralFunction
 end
 println("Polyhedral Type defined");
 
-println(" ");
+prinln(" ");
 println("All types well defined")
-println(" ");
+prinln(" ");
 
 include("oneStepOneAleaProblem.jl")
 println("oneStepOneAleaProblem.jl file included");
