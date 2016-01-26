@@ -10,7 +10,8 @@
 
 using JuMP
 using CPLEX
-include("utility.jl")
+
+# include("utility.jl")
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi
@@ -62,9 +63,9 @@ Returns (according to the last parameters):
 - controls (Array{float})
     the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
 """
-function solve_one_step_one_alea(model::LinearDynamicLinearCostSPmodel,
-                            param::SDDPparameters,
-                            V::Vector{PolyhedralFunction},
+function solve_one_step_one_alea(model::SDDP.LinearDynamicLinearCostSPmodel,
+                            param::SDDP.SDDPparameters,
+                            V::Vector{SDDP.PolyhedralFunction},
                             t,
                             xt::Vector{Float64},
                             xi::Vector{Float64},
@@ -73,30 +74,24 @@ function solve_one_step_one_alea(model::LinearDynamicLinearCostSPmodel,
                             returnSubgradient::Bool=false,
                             returnCost::Bool=false)
 
-    # cost = model.costFunctions[t]
-    # dynamic = model.dynamics[t]
-
-    lambdas = V.lambdas
-    betas = V.betas
+    lambdas = V[t].lambdas
+    betas = V[t].betas
 
     # Get JuMP model stored in SDDPparameters:
-    m = SDDPparameters.solver
+    m = Model(param.solver)
     @defVar(m, x)
     @defVar(m, u)
     @defVar(m, alpha)
 
-    @addConstraints(m, state_constraint, x = xt)
+    @addConstraint(m, state_constraint, x == xt)
 
-    cuts_number = V.numCuts
-
-    for i=1:cuts_number
-        @addConstraints(m, betas[i] + lambdas[i]*(dynamic(x, u, xi)-xt) <= alpha)
+    for i=1:V[t].numCuts
+        @addConstraint(m, betas[i] + lambdas[i]*(model.dynamics(x, u, xi)-xt) <= alpha)
     end
 
-    @setObjective(m, Min, cost_function(x, u, xi) + alpha)
+    @setObjective(m, Min, model.costFunctions(x, u, xi) + alpha)
 
     solve(m)
-
 
     result = []
     if (returnOptNextStep)
