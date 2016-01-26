@@ -59,11 +59,11 @@ function simulate(law::Vector{NoiseLaw},n::Int64)
         error("negative number of simulations")
     end
     Tf = length(law)
-    scenarios = Array{Float64}(n,Tf)
+    scenarios = Array{Vector{Float64}}(n,Tf)
     for i = 1:n#TODO can be parallelized
         scenario = []
         for t=1:Tf
-            new_val = law[t].support[rand(Categorical(law[t].proba))]
+            new_val = law[t].support[:,rand(Categorical(law[t].proba))]
             push!(scenario, new_val)
         end
         scenarios[i,:]=scenario
