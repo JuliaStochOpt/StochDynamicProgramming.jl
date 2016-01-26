@@ -20,11 +20,8 @@ using CPLEX
 #Objects SPModel
     
 
-type NoiseLaw
-    supportSize::Int16 
-    support::Array{AbstractFloat,2}
-    proba::Tuple{Float16}
-end
+include("simulate.jl");
+
 println("NoiseLaw Type defined");
 
 abstract SPModel
@@ -35,16 +32,19 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     dimControls
     dimStates
     initialState
-    costFunctions # TODO collection of cost function
-    dynamics # TODO collection of dynamic function
-    #noises#::Vector{NoiseLaw} # TODO collection of noises law
+    costFunctions#::Tuple{Vector{Float64}}
+    dynamics#::Tuple{Array{Float64,2}}
+    #constraints#::Tuple{Array{Float64,2}}
+    lowerbounds#::Tuple{Vector{Float64}}
+    upperbounds#::Tuple{Vector{Float64}}
+    noises#::Vector{NoiseLaw} # TODO collection of noises law
 end
 println("SPModel Type defined");
 
 type SDDPparameters
     solver#::MathProgBase #TODO
     forwardPassNumber::Int64#::int # number of simulated scenario in the forward pass
-    #initialization #TODO 
+    initialization #TODO 
     stoppingTest #TODO 
 end
 println("SDDPparameters Type defined");

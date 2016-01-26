@@ -82,7 +82,7 @@ function forward_simulations(model::LinearDynamicLinearCostSPmodel,
                                                   false)
                stocks[k,t+1,:] = solution[1:model.dimStates[t]];
                opt_control[k,t+1,:]= solution[model.dimStates[t]+1:model.dimStates[t]+model.dimControls[t]];
-               #stockTrajectories[t+1] = convert(typeof(stockTrajectories[t]),sol[1:model.dimStates[t]])
+               #stocks[t+1] = convert(typeof(stocks[t]),sol[1:model.dimStates[t]])
                
                if returnCosts 
                  #costs[k] += costFunction(t,stocks[k,t,:],opt_control[k,t,:],xi[k,t]); #TODO
@@ -127,7 +127,7 @@ end
 "
 Make a backward pass of the algorithm
 For t:T-1 -> 0, compute a valid cut of the Bellman function
-Vt at the state given by stockTrajectories and add them to 
+Vt at the state given by stocks and add them to 
 the current estimation of Vt.
 Parameters:
 - model (SPmodel)
@@ -137,8 +137,8 @@ Parameters:
     
 - V (bellmanFunctions)
     the current estimation of Bellman's functions
-- stockTrajectories (Array{Float64,3})
-    stockTrajectories[k,t,:] is the vector of stock where the cut is computed
+- stocks (Array{Float64,3})
+    stocks[k,t,:] is the vector of stock where the cut is computed
     for scenario k and time t.
 Return nothing
 
@@ -151,7 +151,7 @@ Return nothing
 function backward_pass(  model::LinearDynamicLinearCostSPmodel,
                          param::SDDPparameters,
                          V::Vector{PolyhedralFunction},
-                         stockTrajectories,#::Array{float,3}
+                         stocks,#::Array{float,3}
                          xi
                         )
                       
@@ -164,7 +164,7 @@ function backward_pass(  model::LinearDynamicLinearCostSPmodel,
                                                   param,
                                                   V,
                                                   t,
-                                                  squeeze(stockTrajectories[k,t,:],1)'[:,1],
+                                                  squeeze(stocks[k,t,:],1)'[:,1],
                                                   xi[:,t],
                                                   false, 
                                                   false,
@@ -175,7 +175,7 @@ function backward_pass(  model::LinearDynamicLinearCostSPmodel,
                #cost+= prob[w,t]*costw;#TODO obtain probabilityz
                #subgradientw+=prob[w,t]*subgradientw;#TODO                      
              #end
-             #beta = cost - subgradientw*stockTrajectories[k,t,:]#TODO dot product not working
+             #beta = cost - subgradientw*stocks[k,t,:]#TODO dot product not working
              addCut!(V[t],cost,subgradient');
          end
      end

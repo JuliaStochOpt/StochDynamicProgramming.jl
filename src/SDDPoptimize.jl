@@ -45,11 +45,11 @@ function optimize(model::LinearDynamicLinearCostSPmodel,
                                  true, 
                                  false)
              
-             stockTrajectories = auxiliaire.sto
+             stocks = auxiliaire.sto
              backward_pass(model,
                            param,
                            V,
-                           stockTrajectories,
+                           stocks,
                            xi);
              #TODO stopping test
              
