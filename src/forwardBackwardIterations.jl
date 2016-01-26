@@ -6,7 +6,7 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-
+include("SDDP.jl")
 
 """
 Make a forward pass of the algorithm
@@ -48,9 +48,9 @@ Returns (according to the last parameters):
 - controls (Array{float})
     the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
 """
-function forward_simulations(model::SPmodel,
-                            param::SDDPparameters,
-                            V::Vector{PolyhedralFunction},
+function forward_simulations(model::SDDP.SPModel,
+                            param::SDDP.SDDPparameters,
+                            V::Vector{SDDP.PolyhedralFunction},
                             forwardPassNumber::Int64,
                             xi = nothing,
                             returnCosts::Bool = true,
@@ -64,7 +64,7 @@ function forward_simulations(model::SPmodel,
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
     if returnCosts
-        costs = zeros(k);
+        costs = zeros(k)
     end
 
     for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if too long
@@ -76,7 +76,7 @@ function forward_simulations(model::SPmodel,
                                         returnSubgradient=false,
                                         returnCost=false);
             if returnCosts
-                costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]); #TODO
+                costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]) #TODO
             end
         end
     end
@@ -96,10 +96,11 @@ Parameters:
 - lambda (Array{float,1})
     subgradient of the cut to add
 """
-function addcut!(Vt::PolyhedralFunction, beta::Float, lambda::Array{float,1})
+function addcut!(Vt::SDDP.PolyhedralFunction, beta::Float64, lambda)
     #TODO add >= beta + <lambda,.>,
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
+    Vt.numCuts += 1
 end
 
 
@@ -127,26 +128,28 @@ Parameters:
 
 Return nothing
 """
-function backward_pass(model::SPmodel,
-                      param::SDDPparameters,
-                      V::Array{PolyhedralFunction},
-                      stockTrajectories::Array{float,3})
+function backward_pass(model::SDDP.SPModel,
+                      param::SDDP.SDDPparameters,
+                      V::Array{SDDP.PolyhedralFunction},
+                      stockTrajectories)
 
-    for t=T-1:0
-        for k in #TODO number of trajectories
+    for t = T-1:0
+        for k = 1:20 #TODO number of trajectories
             cost = zeros(1);
             subgradient = zeros(dimStates[t]);#TODO access
             for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
-                subgradientw, costw = solveOneStepOneAlea(t,stockTrajectories[k,t],xi[t,],
+                subgradientw, costw = solveOneStepOneAlea(t,
+                                            stockTrajectories[k,t],
+                                            xi[t,],
                                             returnOptNextStage=false,
                                             returnOptControl=false,
                                             returnSubgradient=true,
-                                            returnCost=true);
-                cost+= prob[w,t]*costw;#TODO obtain probabilityz
-                subgradientw+=prob[w,t]*subgradientw;#TODO
+                                            returnCost=true)
+                cost += prob[w, t]*costw #TODO obtain probability
+                subgradientw += prob[w, t]*subgradientw #TODO
             end
-            beta = cost - subgradientw*stockTrajectories[k,t,:]#TODO dot product not working
-            addCut!(V[t],beta,subgradientw); #TODO access of V[t]
+            beta = cost - subgradientw*stockTrajectories[k, t, :] #TODO dot product not working
+            addCut!(V[t], beta, subgradientw) #TODO access of V[t]
         end
     end
 end

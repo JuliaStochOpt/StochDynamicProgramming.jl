@@ -9,7 +9,8 @@
 #############################################################################
 
 using JuMP
-
+using CPLEX
+include("utility.jl")
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi
@@ -72,13 +73,14 @@ function solve_one_step_one_alea(model::LinearDynamicLinearCostSPmodel,
                             returnSubgradient::Bool=false,
                             returnCost::Bool=false)
 
-    cost = model.costFunctions[t]
-    dynamic = model.dynamics[t]
+    # cost = model.costFunctions[t]
+    # dynamic = model.dynamics[t]
 
     lambdas = V.lambdas
     betas = V.betas
 
-    m = Model(solver=param.solver)
+    # Get JuMP model stored in SDDPparameters:
+    m = SDDPparameters.solver
     @defVar(m, x)
     @defVar(m, u)
     @defVar(m, alpha)
@@ -88,10 +90,10 @@ function solve_one_step_one_alea(model::LinearDynamicLinearCostSPmodel,
     cuts_number = V.numCuts
 
     for i=1:cuts_number
-        @addConstraints(m, betas[i] + lambdas[i]*(dynamic(x, u)-xt) <= alpha)
+        @addConstraints(m, betas[i] + lambdas[i]*(dynamic(x, u, xi)-xt) <= alpha)
     end
 
-    @setObjective(m, Min, cost(x, u) + alpha)
+    @setObjective(m, Min, cost_function(x, u, xi) + alpha)
 
     solve(m)
 
@@ -115,5 +117,3 @@ function solve_one_step_one_alea(model::LinearDynamicLinearCostSPmodel,
 
     return result
 end
-
-

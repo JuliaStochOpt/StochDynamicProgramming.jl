@@ -11,21 +11,21 @@
 module SDDP
 
 import JuMP #TODO : require JuMP ?
-import Distibutions
+# import Distibutions
 
-export TODO
-#Objects
-    SPModel
+# export TODO
+# #Objects
+#     SPModel
 
-include("utils.jl")
-include("oneStepOneAleaProblem.jl")
-include("forwardBackwardIterations.jl")
-include("SDDPoptimize.jl")
+# include("utility.jl")
+# include("oneStepOneAleaProblem.jl")
+# include("forwardBackwardIterations.jl")
+# include("SDDPoptimize.jl")
 
 abstract SPModel
 
 
-type LinearDynamicLinearCostSPmodel :< SPModel
+type LinearDynamicLinearCostSPmodel <: SPModel
     # problem dimension
     stageNumber::Int64
     dimControls::Int64
@@ -35,16 +35,16 @@ type LinearDynamicLinearCostSPmodel :< SPModel
 
     costFunctions # TODO collection of cost function
     dynamics # TODO collection of dynamic function
-    noises::Vector{NoiseLaw} # TODO collection of noises law
+    # noises::Vector{NoiseLaw} # TODO collection of noises law
 end
 
 
 
 type SDDPparameters
-    solver::MathProgBase #TODO
+    solver::JuMP.Model #TODO
     forwardPassNumber::Int64 # number of simulated scenario in the forward pass
-    initialization #TODO
-    maxItNumber #TODO
+    # initialization #TODO
+    # maxItNumber #TODO
 end
 
 type PolyhedralFunction
