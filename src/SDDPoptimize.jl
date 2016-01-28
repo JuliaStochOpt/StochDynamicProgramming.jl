@@ -52,8 +52,8 @@ function optimize(model::SDDP.SPModel,
     # Initialize value functions:
     V = initialize_value_functions_array(model)
     aleas = rand(param.forwardPassNumber, model.stageNumber, 1)
-    stopping_test::Bool = false;
-    iteration_count::Int64 = 0;
+    stopping_test::Bool = false
+    iteration_count::Int64 = 0
 
     n = param.forwardPassNumber
 
@@ -62,16 +62,18 @@ function optimize(model::SDDP.SPModel,
                             param,
                             V,
                             n,
-                            aleas)
+                            aleas)[2]
                             # returnCosts = false,
                             # returnStocks=true,
                             # returnControls= false);
         backward_pass(model,
                       param,
                       V,
-                      stockTrajectories);
+                      stockTrajectories,
+                      aleas)
         # TODO stopping test
 
         iteration_count+=1;
     end
+    println(V[1])
 end

@@ -7,34 +7,34 @@
 #############################################################################
 
 
-#TODO _const should not exist 
+#TODO _const should not exist
 
 using Distributions
 
 type NoiseLaw
-    supportSize::Int64 
+    supportSize::Int64
     support::Array{Float64,2}
     proba::Vector{Float64}
 end
 
-function NoiseLaw_const(supportSize,support,proba)
+function NoiseLaw_const(supportSize, support, proba)
     supportSize = convert(Int64,supportSize)
     if ndims(support)==1
         support = reshape(support,1,length(support))
     end
-    
+
     if ndims(proba) == 2
         proba = vec(proba)
     elseif  ndims(proba) >= 2
         proba = squeeze(proba,1)
-    end    
-    
+    end
+
     if sum(proba) !=1 error("probability doesnot sum to 1") end
-    
-    return NoiseLaw(supportSize,support,proba) 
+
+    return NoiseLaw(supportSize,support,proba)
 end
 
-function NoiseLaw(support,proba)
+function NoiseLaw(support, proba)
     return NoiseLaw_const(length(proba),support,proba)
 end
 
@@ -48,7 +48,7 @@ Simulate n scenario according to a given NoiseLaw
 Parameters:
 - law::Vector{NoiseLaw}
     Vector of discrete independent random variables
-    
+
 - n::Int
     number of simulations computed
 
@@ -57,8 +57,8 @@ Returns :
     an Array of scenario, scenarios[i,:] being the ith noise scenario
 """
 
-function simulate(law::Vector{NoiseLaw},n::Int64)
-    if n <= 0 
+function simulate(law::Vector{NoiseLaw}, n::Int64)
+    if n <= 0
         error("negative number of simulations")
     end
     Tf = length(law)
@@ -74,8 +74,3 @@ function simulate(law::Vector{NoiseLaw},n::Int64)
 
     return scenarios
 end
-
-### test
-
-
-

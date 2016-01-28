@@ -27,7 +27,6 @@ Extract a vector stored in a 3D Array
 """
 function extract_vector_from_3Dmatrix(states::Array{Float64, 3}, time::Int64, passNumber::Int64)
     state_dimension = size(states)[3]
-
     return reshape(states[passNumber, time, :], state_dimension)
 end
 

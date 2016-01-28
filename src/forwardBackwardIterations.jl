@@ -60,11 +60,12 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             # returnStocks::Bool= true,
                             # returnControls::Bool = false)
 
+    # TODO: add a trick to return cost
     returnCosts = false
     # TODO simplify if returnStocks=false
     # TODO stock Controls
     T = model.stageNumber
-    stocks = zeros(param.forwardPassNumber, T, 1)
+    stocks = zeros(param.forwardPassNumber, T, model.dimStates)
     # TODO declare stock as an array of states
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
@@ -76,20 +77,22 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     for k = 1:param.forwardPassNumber #TODO can be parallelized + some can be dropped if too long
 
         for t=1:T-1
+            state_t = extract_vector_from_3Dmatrix(stocks, t, k)
+            alea_t = extract_vector_from_3Dmatrix(xi, t, k)
             status, nextstep = solve_one_step_one_alea(
                                             model,
                                             param,
                                             V,
                                             t,
-                                            extract_vector_from_3Dmatrix(stocks, t, k),
-                                            extract_vector_from_3Dmatrix(xi, t, k))
+                                            state_t,
+                                            alea_t)
 
             stocks[k, t+1] = nextstep.next_state[1]
             opt_control = nextstep.optimal_control
 
 
             if returnCosts
-                costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]) #TODO
+                costs[k] += model.costFunctions(state_t, opt_control,alea_t) #TODO
             end
         end
     end
@@ -109,7 +112,7 @@ Parameters:
 - lambda (Array{float,1})
     subgradient of the cut to add
 """
-function addcut!(Vt::SDDP.PolyhedralFunction, beta::Float64, lambda)
+function add_cut!(Vt, beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -144,29 +147,42 @@ Return nothing
 function backward_pass(model, #::SDDP.SPModel,
                       param, #::SDDP.SDDPparameters,
                       V, #::Array{SDDP.PolyhedralFunction, 1},
-                      stockTrajectories)
+                      stockTrajectories,
+                      aleaTrajectories)
 
     T = model.stageNumber
+    nXi = size(aleaTrajectories)[1]
+    subgradient = 0
+    state_t = zeros(Float64, model.dimStates)
 
-    for t = T-1:0
+    for t = T-1:-1:1
         for k = 1:param.forwardPassNumber
             cost = zeros(1);
-            subgradient = zeros(dimStates[t]);#TODO access
+            subgradient = zeros(model.dimStates);#TODO access
 
-            for w in 1:nXi #TODO number of alea at t + can be parallelized
-                nextstep = solve_one_step_one_alea(t,
-                                            stockTrajectories[k,t],
-                                            xi[t, w])
-                println("afer")
+            for w in 1:nXi #TODO: number of alea at t + can be parallelized
+                state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
+                alea_t  = extract_vector_from_3Dmatrix(aleaTrajectories, t, w)
+
+
+                nextstep = solve_one_step_one_alea(model,
+                                                   param,
+                                                   V,
+                                                   t,
+                                                   state_t,
+                                                   alea_t)[2]
                 subgradientw = nextstep.sub_gradient
                 costw = nextstep.cost
 
-                cost += prob[w, t] * costw #TODO obtain probability
-                subgradientw += prob[w, t]*subgradientw #TODO
+                #TODO: obtain probability cost += prob[w, t] * costw
+                #TODO: add non uniform distribution laws
+                cost += 1/nXi * costw
+
+                subgradient += 1/nXi * subgradientw
             end
 
-            beta = cost - subgradientw*stockTrajectories[k, t, :] #TODO dot product not working
-            addCut!(V[t], beta, subgradientw) #TODO access of V[t]
+            beta = cost - dot(subgradient, state_t) #TODO dot product not working
+            add_cut!(V[t], beta[1], subgradient) #TODO access of V[t]
         end
     end
 end

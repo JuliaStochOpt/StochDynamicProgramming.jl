@@ -1,4 +1,4 @@
-#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2014, Vincent Leclere, Francois Pacaud and Henri Gerard
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -54,6 +54,7 @@ Parameters:
 - returnCost (Bool)
     return the value of the problem
 
+TODO: update returns
 
 Returns (according to the last parameters):
 - costs (Array{float,1})
@@ -73,7 +74,7 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     lambdas = V[t].lambdas
     betas = V[t].betas
     # Get JuMP model stored in SDDPparameters:
-    m = Model(solver=CplexSolver())
+    m = Model(solver=CplexSolver(CPX_PARAM_SIMDISPLAY=0))
     @defVar(m, x)
     @defVar(m, u)
     @defVar(m, alpha)

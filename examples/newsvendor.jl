@@ -3,13 +3,10 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-# @TODO
+# Test SDDP with the newsvendor case study
 #############################################################################
 
-
-# Test SDDP upon newsvendor problem.
-
-include("SDDPoptimize.jl")
+include("../src/SDDPoptimize.jl")
 
 using CPLEX
 using JuMP
@@ -19,7 +16,7 @@ N_SCENARIOS = 1
 
 
 function cost(x, u, w)
-    h = 1
+    h = 5
     p = .5
 
     # if x[1] >= 0
@@ -49,16 +46,10 @@ function init_problem()
 end
 
 
-function simulate()
+function solve_newsvendor()
     model, params = init_problem()
-
     optimize(model, params)
-
+    # println(m)
 end
 
-
-
-
-
-simulate()
-
+solve_newsvendor()
