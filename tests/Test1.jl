@@ -25,7 +25,7 @@ cut1 = PolyhedralFunction([1;1],[1 0;0 1]);
 cut2 = PolyhedralFunction([2;2],[2 0;0 2]);
 cut3 = PolyhedralFunction([3;3],[3 0;0 3]);
 
-k=1;
+k=2;
 
 cut = PolyhedralFunction[cut1,cut2,cut3];
 
@@ -39,9 +39,12 @@ for t=1:test.stageNumber
      end;
 end;
 
-opt_control = zeros(1,3,2)
+opt_control = zeros(k,test.stageNumber,2)
 
-
+bruit     = NoiseLaw(test.stageNumber,[1 2 3;1 2 3],[1/3;1/3;1/3])
+bruitbis  = NoiseLaw(test.stageNumber,[4 5 6;4 5 6],[1/3;1/3;1/3])
+bruitter  = NoiseLaw(test.stageNumber,[7 8 9;7 8 9],[1/3;1/3;1/3])
+omeg = [bruit,bruitbis,bruitter]
 
 
 
@@ -51,37 +54,37 @@ function initialization( model::LinearDynamicLinearCostSPmodel,
                          stocks,#::Array{float,3}
                          xi
                         )
-                      
+     
      for t=(model.stageNumber-1):-1:1
          for k =1:param.forwardPassNumber
-             cost = zeros(1);
-             subgradient = zeros(model.dimStates[t]);#TODO access
-             #for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
+             costw = zeros(model.stageNumber);
+             subgradientw = zeros(omeg[t].supportSize,model.dimStates[t]);#TODO access
+             for w = 1:omeg[t].supportSize#nXi[t] #TODO number of alea at t + can be parallelized
                solution = solveOneStepOneAlea(  model,
                                                   param,
                                                   V,
                                                   t,
                                                   squeeze(stocks[k,t,:],1)'[:,1],
-                                                  xi[:,t],
+                                                  omeg[t].support[:,w],
                                                   false, 
                                                   false,
                                                   true,
                                                   true);
-               cost = solution[end];#TODO
-               subgradient = solution[1:(end-1)];#TODO  
-               #cost+= prob[w,t]*costw;#TODO obtain probabilityz
-               #subgradientw+=prob[w,t]*subgradientw;#TODO                      
-             #end
-             #beta = cost - subgradientw*stocks[k,t,:] #TODO dot product not working
-             V[t].betas       = [cost];
-             V[t].lambdas     = subgradient';
+               costw[w] = solution[end];#TODO
+               subgradientw[w,:] = solution[1:(end-1)];#TODO                        
+             end
+             cost = (omeg[t].proba)'*costw;#TODO obtain probabilityz
+             subgradient = (omeg[t].proba)'*subgradientw;#TODO
+             beta = cost - subgradient*squeeze(stocks[k,t,:],1)'[:,1] #TODO dot product not working
+             V[t].betas       = beta;
+             V[t].lambdas     = subgradient;
          end
      end
 end
 
 partest = SDDPparameters(GLPKSolverLP(),1,initialization,[0;20]);
 
-param.initialization(test,
+partest.initialization(test,
                partest,
                cut,
                stocks,

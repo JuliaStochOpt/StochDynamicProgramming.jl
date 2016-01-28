@@ -64,7 +64,7 @@ function forward_simulations(model::LinearDynamicLinearCostSPmodel,
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
      costs = zeros(0)
-
+     xi  = simulate([bruit,bruitbis,bruitter],forwardPassNumber)  
      for k=1:param.forwardPassNumber
      if returnCosts  
           costs = zeros(k); 
@@ -75,7 +75,7 @@ function forward_simulations(model::LinearDynamicLinearCostSPmodel,
                                                   V,
                                                   t,
                                                   squeeze(stocks[k,t,:],1)'[:,1],
-                                                  xi[:,t],
+                                                  xi[:,t][k],
                                                   false, 
                                                   true,
                                                   true,
@@ -154,29 +154,32 @@ function backward_pass(  model::LinearDynamicLinearCostSPmodel,
                          stocks,#::Array{float,3}
                          xi
                         )
-                      
+                  
      for t=(model.stageNumber-1):-1:1
          for k =1:param.forwardPassNumber
-             cost = zeros(1);
-             subgradient = zeros(model.dimStates[t]);#TODO access
-             #for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
+             costw = zeros(model.stageNumber);
+             subgradientw = zeros(omeg[t].supportSize,model.dimStates[t]);
+             for w in 1:omeg[t].supportSize#nXi[t] #TODO number of alea at t + can be parallelized
                solution = solveOneStepOneAlea(  model,
                                                   param,
                                                   V,
                                                   t,
                                                   squeeze(stocks[k,t,:],1)'[:,1],
-                                                  xi[:,t],
+                                                  omeg[t].support[:,w],
                                                   false, 
                                                   false,
                                                   true,
                                                   true);
-               cost = solution[end];#TODO
-               subgradient = solution[1:(end-1)];#TODO  
+               costw[w] = solution[end];#TODO
+               subgradientw[w,:] = solution[1:(end-1)];#TODO  
                #cost+= prob[w,t]*costw;#TODO obtain probabilityz
                #subgradientw+=prob[w,t]*subgradientw;#TODO                      
-             #end
+             end
+             cost = (omeg[t].proba)'*costw;#TODO obtain probabilityz
+             subgradient = (omeg[t].proba)'*subgradientw;#TODO
+             beta = cost - subgradient*squeeze(stocks[k,t,:],1)'[:,1]
              #beta = cost - subgradientw*stocks[k,t,:]#TODO dot product not working
-             addCut!(V[t],cost,subgradient');
+             addCut!(V[t],beta[1],subgradient);
          end
      end
 end
