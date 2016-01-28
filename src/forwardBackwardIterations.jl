@@ -7,6 +7,8 @@
 #############################################################################
 
 include("SDDP.jl")
+include("oneStepOneAleaProblem.jl")
+include("utility.jl")
 
 """
 Make a forward pass of the algorithm
@@ -47,40 +49,51 @@ Returns (according to the last parameters):
     the simulated stock trajectories. stocks(k,t,:) is the stock for scenario k at time t.
 - controls (Array{float})
     the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
-"""
-function forward_simulations(model::SDDP.SPModel,
-                            param::SDDP.SDDPparameters,
-                            V::Vector{SDDP.PolyhedralFunction},
-                            forwardPassNumber::Int64,
-                            xi = nothing,
-                            returnCosts::Bool = true,
-                            returnStocks::Bool= true,
-                            returnControls::Bool = false)
 
+"""
+function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
+                            param, #::SDDP.SDDPparameters,
+                            V, #::Vector{SDDP.PolyhedralFunction},
+                            forwardPassNumber::Int64,
+                            xi::Array{Float64, 3})
+                            # returnCosts::Bool = true,
+                            # returnStocks::Bool= true,
+                            # returnControls::Bool = false)
+
+    returnCosts = false
     # TODO simplify if returnStocks=false
     # TODO stock Controls
-
+    T = model.stageNumber
+    stocks = zeros(param.forwardPassNumber, T, 1)
     # TODO declare stock as an array of states
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
+    costs = nothing
     if returnCosts
-        costs = zeros(k)
+        costs = zeros(param.forwardPassNumber)
     end
 
-    for k = 1:forwardPassNumber #TODO can be parallelized + some can be dropped if too long
+    for k = 1:param.forwardPassNumber #TODO can be parallelized + some can be dropped if too long
 
-        for t=0:T-1 #TODO get T
-            stocks[k,t+1], opt_control = solveOneStepOneAlea(t,stocks[k,t],xi[k,t],
-                                        returnOptNextStage=true,
-                                        returnOptControl=true,
-                                        returnSubgradient=false,
-                                        returnCost=false);
+        for t=1:T-1
+            status, nextstep = solve_one_step_one_alea(
+                                            model,
+                                            param,
+                                            V,
+                                            t,
+                                            extract_vector_from_3Dmatrix(stocks, t, k),
+                                            extract_vector_from_3Dmatrix(xi, t, k))
+
+            stocks[k, t+1] = nextstep.next_state[1]
+            opt_control = nextstep.optimal_control
+
+
             if returnCosts
                 costs[k] += costFunction(t,stocks[k,t],opt_control,xi[k,t]) #TODO
             end
         end
     end
-    return costs,stocks # adjust according to what is asked
+    return costs, stocks # adjust according to what is asked
 end
 
 
@@ -97,7 +110,6 @@ Parameters:
     subgradient of the cut to add
 """
 function addcut!(Vt::SDDP.PolyhedralFunction, beta::Float64, lambda)
-    #TODO add >= beta + <lambda,.>,
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -127,27 +139,32 @@ Parameters:
     for scenario k and time t.
 
 Return nothing
+
 """
-function backward_pass(model::SDDP.SPModel,
-                      param::SDDP.SDDPparameters,
-                      V::Array{SDDP.PolyhedralFunction},
+function backward_pass(model, #::SDDP.SPModel,
+                      param, #::SDDP.SDDPparameters,
+                      V, #::Array{SDDP.PolyhedralFunction, 1},
                       stockTrajectories)
 
+    T = model.stageNumber
+
     for t = T-1:0
-        for k = 1:20 #TODO number of trajectories
+        for k = 1:param.forwardPassNumber
             cost = zeros(1);
             subgradient = zeros(dimStates[t]);#TODO access
-            for w in 1:nXi[t] #TODO number of alea at t + can be parallelized
-                subgradientw, costw = solveOneStepOneAlea(t,
+
+            for w in 1:nXi #TODO number of alea at t + can be parallelized
+                nextstep = solve_one_step_one_alea(t,
                                             stockTrajectories[k,t],
-                                            xi[t,],
-                                            returnOptNextStage=false,
-                                            returnOptControl=false,
-                                            returnSubgradient=true,
-                                            returnCost=true)
-                cost += prob[w, t]*costw #TODO obtain probability
+                                            xi[t, w])
+                println("afer")
+                subgradientw = nextstep.sub_gradient
+                costw = nextstep.cost
+
+                cost += prob[w, t] * costw #TODO obtain probability
                 subgradientw += prob[w, t]*subgradientw #TODO
             end
+
             beta = cost - subgradientw*stockTrajectories[k, t, :] #TODO dot product not working
             addCut!(V[t], beta, subgradientw) #TODO access of V[t]
         end

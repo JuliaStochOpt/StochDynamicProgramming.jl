@@ -8,8 +8,24 @@
 #############################################################################
 
 
-
+include("forwardBackwardIterations.jl")
 include("utility.jl")
+
+"""
+@TODO
+
+
+"""
+function initialize_value_functions_array(model::SDDP.SPModel)
+
+    V = Vector{SDDP.PolyhedralFunction}(model.stageNumber)
+    for t = 1:model.stageNumber
+        V[t] = initialize_value_functions()
+    end
+
+    return V
+end
+
 
 """
 Make a forward pass of the algorithm
@@ -32,26 +48,29 @@ Returns :
 """
 function optimize(model::SDDP.SPModel,
                   param::SDDP.SDDPparameters)
-    # TODO initialization (V and so on)
 
+    # Initialize value functions:
+    V = initialize_value_functions_array(model)
+    aleas = rand(param.forwardPassNumber, model.stageNumber, 1)
     stopping_test::Bool = false;
-    iteration_count::int = 0;
+    iteration_count::Int64 = 0;
 
     n = param.forwardPassNumber
 
     for i = 1:20
-        stockTrajectories = forwardSimulations(model,
+        stockTrajectories = forward_simulations(model,
                             param,
                             V,
                             n,
-                            returnCosts = false,
-                            returnStocks=true,
-                            returnControls= false);
-        backwardPass(model,
+                            aleas)
+                            # returnCosts = false,
+                            # returnStocks=true,
+                            # returnControls= false);
+        backward_pass(model,
                       param,
                       V,
                       stockTrajectories);
-        #TODO stopping test
+        # TODO stopping test
 
         iteration_count+=1;
     end

@@ -11,7 +11,7 @@
 using JuMP
 using CPLEX
 
-# include("utility.jl")
+include("SDDP.jl")
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi
@@ -63,52 +63,42 @@ Returns (according to the last parameters):
 - controls (Array{float})
     the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
 """
-function solve_one_step_one_alea(model::SDDP.LinearDynamicLinearCostSPmodel,
-                            param::SDDP.SDDPparameters,
-                            V::Vector{SDDP.PolyhedralFunction},
-                            t,
-                            xt::Vector{Float64},
-                            xi::Vector{Float64},
-                            returnOptNextStage::Bool=false,
-                            returnOptControl::Bool=false,
-                            returnSubgradient::Bool=false,
-                            returnCost::Bool=false)
+function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
+                                 param, #::SDDP.SDDPparameters,
+                                 V, #::Vector{SDDP.PolyhedralFunction},
+                                 t, #::Int64,
+                                 xt, #::Vector{Float64},
+                                 xi)
 
     lambdas = V[t].lambdas
     betas = V[t].betas
-
     # Get JuMP model stored in SDDPparameters:
-    m = Model(param.solver)
+    m = Model(solver=CplexSolver())
     @defVar(m, x)
     @defVar(m, u)
     @defVar(m, alpha)
 
-    @addConstraint(m, state_constraint, x == xt)
+    @addConstraint(m, state_constraint, x .== xt)
 
     for i=1:V[t].numCuts
-        @addConstraint(m, betas[i] + lambdas[i]*(model.dynamics(x, u, xi)-xt) <= alpha)
+        @addConstraint(m, betas[i] + lambdas[i]*(model.dynamics(x, u, xi)-xt) .<= alpha)
     end
 
     @setObjective(m, Min, model.costFunctions(x, u, xi) + alpha)
 
-    solve(m)
+    status = solve(m)
+    solved = (string(status) == "Optimal")
 
-    result = []
-    if (returnOptNextStep)
+    if solved
         uopt = getValue(u)
-        result = [result; dynamic(x, u)]
-    end
-    if (returnOptControl)
-        result = [result; getValue(u)]
-    end
-    if (returnSubgradient)
-        lambda = getDual(state_constraint)
-        result = [result; lambda]
-    end
-    if (returnCost)
-        beta_opt = getObjectiveValue(m)
-        result = [result; beta_opt]
+        result = SDDP.NextStep(model.dynamics(xt, uopt, xi),
+                          uopt,
+                          getDual(state_constraint),
+                          getObjectiveValue(m))
+    else
+        # If no solution is found, then return nothing
+        result = nothing
     end
 
-    return result
+    return solved, result
 end

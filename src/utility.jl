@@ -12,26 +12,24 @@ include("SDDP.jl")
 
 
 """
-Test SDDP upon a toy example (newspaper vendor)
+Instantiate a Polyhedral function with zeros.
+
 """
-function cost_function(t,x,u,xi)
-    h = .5
-    p = 3
-    if x > 0
-        cost = h * x
-    else
-        cost = -p * x
-    end
-
-    return cost
-end
-
-function dynamic(t,x,u,xi)
-    #TODO
-    return x + u - xi
+function initialize_value_functions()
+    V = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
+    return V
 end
 
 
+"""
+Extract a vector stored in a 3D Array
+
+"""
+function extract_vector_from_3Dmatrix(states::Array{Float64, 3}, time::Int64, passNumber::Int64)
+    state_dimension = size(states)[3]
+
+    return reshape(states[passNumber, time, :], state_dimension)
+end
 
 
 """

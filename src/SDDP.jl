@@ -39,9 +39,8 @@ type LinearDynamicLinearCostSPmodel <: SPModel
 end
 
 
-
 type SDDPparameters
-    solver::JuMP.Model #TODO
+    solver
     forwardPassNumber::Int64 # number of simulated scenario in the forward pass
     # initialization #TODO
     # maxItNumber #TODO
@@ -54,6 +53,14 @@ type PolyhedralFunction
 
     # number of cuts:
     numCuts::Int64
+end
+
+
+type NextStep
+    next_state::Array{Float64, 1}
+    optimal_control::Float64 #Array{Float64, 1}
+    sub_gradient
+    cost
 end
 
 
