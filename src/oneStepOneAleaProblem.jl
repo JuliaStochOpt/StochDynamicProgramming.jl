@@ -53,21 +53,15 @@ Parameters:
     return the value of the problem
 
 TODO: update returns
+TODO: add types in function parameters
 
-Returns (according to the last parameters):
-- costs (Array{float,1})
-    an array of the simulated costs
-- stocks (Array{float})
-    the simulated stock trajectories. stocks(k,t,:) is the stock for scenario k at time t.
-- controls (Array{float})
-    the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
 """
 function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                  param, #::SDDP.SDDPparameters,
                                  V, #::Vector{SDDP.PolyhedralFunction},
                                  t, #::Int64,
                                  xt, #::Vector{Float64},
-                                 xi)
+                                 xi) #::Vector{Float64},
 
     lambdas = V[t+1].lambdas
     betas = V[t+1].betas
@@ -81,6 +75,7 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
 
     @addConstraint(m, state_constraint, x .== xt)
+    # TODO: implement cost function in PolyhedralFunction
     @addConstraint(m, cost >= 5*x)
     @addConstraint(m, cost >= -2*x)
 

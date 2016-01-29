@@ -12,8 +12,9 @@ include("forwardBackwardIterations.jl")
 include("utility.jl")
 
 """
-@TODO
-
+TODO: add docstring
+TODO: move initialize in proper module
+TODO: fix initialize
 
 """
 function initialize_value_functions_array(model::SDDP.SPModel)

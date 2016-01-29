@@ -8,10 +8,9 @@
 # see TODO
 #############################################################################
 
-module SDDP
+#module SDDP
 
 import JuMP #TODO : require JuMP ?
-# import Distibutions
 
 # export TODO
 # #Objects
@@ -36,13 +35,22 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     costFunctions # TODO collection of cost function
     dynamics # TODO collection of dynamic function
     # noises::Vector{NoiseLaw} # TODO collection of noises law
+
+    # TODO: add this attributes to model
+    # lowerbounds#::Tuple{Vector{Float64}}
+    # upperbounds#::Tuple{Vector{Float64}}
+    # noises#::Vector{NoiseLaw} # TODO collection of noises law
 end
 
 
+
 type SDDPparameters
-    solver
+    solver # ::MathProgBaseMode
     forwardPassNumber::Int64 # number of simulated scenario in the forward pass
+
+    # TODO: add this attributes to SDDPparameters
     # initialization #TODO
+    # stoppingTest #TODO
     # maxItNumber #TODO
 end
 
@@ -63,5 +71,3 @@ type NextStep
     cost
 end
 
-
-end

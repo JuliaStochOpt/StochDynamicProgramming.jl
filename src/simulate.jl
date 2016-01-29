@@ -34,8 +34,9 @@ function NoiseLaw_const(supportSize, support, proba)
     return NoiseLaw(supportSize,support,proba)
 end
 
+
 function NoiseLaw(support, proba)
-    return NoiseLaw_const(length(proba),support,proba)
+    return NoiseLaw_const(length(proba), support, proba)
 end
 
 
@@ -44,7 +45,6 @@ end
 """
 Simulate n scenario according to a given NoiseLaw
 
-
 Parameters:
 - law::Vector{NoiseLaw}
     Vector of discrete independent random variables
@@ -52,21 +52,21 @@ Parameters:
 - n::Int
     number of simulations computed
 
+
 Returns :
 - scenarios Array(Float64,n,T)
     an Array of scenario, scenarios[i,:] being the ith noise scenario
 """
-
 function simulate(law::Vector{NoiseLaw}, n::Int64)
     if n <= 0
         error("negative number of simulations")
     end
     Tf = length(law)
-    scenarios = Array{Float64}(n,Tf)
+    scenarios = Array{Vector{Float64}}(n,Tf)
     for i = 1:n#TODO can be parallelized
         scenario = []
         for t=1:Tf
-            new_val = law[t].support[rand(Categorical(law[t].proba))]
+            new_val = law[t].support[:,rand(Categorical(law[t].proba))]
             push!(scenario, new_val)
         end
         scenarios[i,:]=scenario

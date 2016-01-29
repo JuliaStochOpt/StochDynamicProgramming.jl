@@ -60,6 +60,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             # returnStocks::Bool= true,
                             # returnControls::Bool = false)
 
+    # TODO: verify that loops are in the same order
     # TODO: add a trick to return cost
     returnCosts = false
     # TODO simplify if returnStocks=false
@@ -120,7 +121,6 @@ function add_cut!(Vt, beta::Float64, lambda::Array{Float64,1})
 end
 
 
-
 """
 Make a backward pass of the algorithm
 
@@ -176,6 +176,7 @@ function backward_pass(model, #::SDDP.SPModel,
                 costw = nextstep.cost
                 #TODO: obtain probability cost += prob[w, t] * costw
                 #TODO: add non uniform distribution laws
+                #TODO: compute probability of costs outside this loop
                 cost += 1/nXi * costw
 
                 subgradient += 1/nXi * subgradientw

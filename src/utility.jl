@@ -71,3 +71,11 @@ function upper_bound(model::SDDP.SPModel,
         return m
     end
 end
+
+function costFunction(t,x,u,xi)
+    #TODO
+end
+
+function dynamic(t,x,u,xi)
+    #TODO
+end
