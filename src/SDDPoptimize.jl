@@ -63,17 +63,13 @@ function optimize(model::SDDP.SPModel,
                             V,
                             n,
                             aleas)[2]
-                            # returnCosts = false,
-                            # returnStocks=true,
-                            # returnControls= false);
         backward_pass(model,
                       param,
                       V,
                       stockTrajectories,
                       aleas)
-        # TODO stopping test
+        # TODO: stopping test
 
         iteration_count+=1;
     end
-    println(V[1])
 end

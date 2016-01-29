@@ -8,7 +8,7 @@
 #############################################################################
 
 # TODO: ensure that dynamic and cost_functions are either linear or quadratic
-include("SDDP.jl")
+using SDDP
 
 
 """

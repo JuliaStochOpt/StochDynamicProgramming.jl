@@ -10,8 +10,7 @@
 
 using JuMP
 using CPLEX
-
-include("SDDP.jl")
+using SDDP
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi
@@ -74,25 +73,32 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     lambdas = V[t].lambdas
     betas = V[t].betas
     # Get JuMP model stored in SDDPparameters:
+    # TODO: factorize the definition of the model in PolyhedralFunction
     m = Model(solver=CplexSolver(CPX_PARAM_SIMDISPLAY=0))
     @defVar(m, x)
-    @defVar(m, u)
+    @defVar(m, u >= 0)
     @defVar(m, alpha)
+    @defVar(m, cost)
+
 
     @addConstraint(m, state_constraint, x .== xt)
+    @addConstraint(m, cost >= 5*x)
+    @addConstraint(m, cost >= -2*x)
 
     for i=1:V[t].numCuts
         @addConstraint(m, betas[i] + lambdas[i]*(model.dynamics(x, u, xi)-xt) .<= alpha)
     end
 
-    @setObjective(m, Min, model.costFunctions(x, u, xi) + alpha)
+    @setObjective(m, Min, cost + alpha)
 
     status = solve(m)
     solved = (string(status) == "Optimal")
 
     if solved
         uopt = getValue(u)
-        result = SDDP.NextStep(model.dynamics(xt, uopt, xi),
+        # println(getDual(state_constraint))
+        result = SDDP.NextStep(
+                          model.dynamics(xt, uopt, xi),
                           uopt,
                           getDual(state_constraint),
                           getObjectiveValue(m))

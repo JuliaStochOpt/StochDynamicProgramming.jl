@@ -6,7 +6,7 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-include("SDDP.jl")
+using SDDP
 include("oneStepOneAleaProblem.jl")
 include("utility.jl")
 
@@ -74,7 +74,8 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
         costs = zeros(param.forwardPassNumber)
     end
 
-    for k = 1:param.forwardPassNumber #TODO can be parallelized + some can be dropped if too long
+    #TODO: can be parallelized + some can be dropped if too long
+    for k = 1:param.forwardPassNumber
 
         for t=1:T-1
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
@@ -89,7 +90,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
             stocks[k, t+1] = nextstep.next_state[1]
             opt_control = nextstep.optimal_control
-
+            println(nextstep.next_state[1])
 
             if returnCosts
                 costs[k] += model.costFunctions(state_t, opt_control,alea_t) #TODO
@@ -181,8 +182,8 @@ function backward_pass(model, #::SDDP.SPModel,
                 subgradient += 1/nXi * subgradientw
             end
 
-            beta = cost - dot(subgradient, state_t) #TODO dot product not working
-            add_cut!(V[t], beta[1], subgradient) #TODO access of V[t]
+            beta = cost - dot(subgradient, state_t)
+            add_cut!(V[t], beta[1], subgradient)
         end
     end
 end

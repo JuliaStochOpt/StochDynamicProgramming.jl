@@ -11,7 +11,7 @@ include("../src/SDDPoptimize.jl")
 using CPLEX
 using JuMP
 
-N_STAGES = 20
+N_STAGES = 40
 N_SCENARIOS = 1
 
 
@@ -49,7 +49,6 @@ end
 function solve_newsvendor()
     model, params = init_problem()
     optimize(model, params)
-    # println(m)
 end
 
-solve_newsvendor()
+@time solve_newsvendor()

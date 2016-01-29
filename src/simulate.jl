@@ -29,7 +29,7 @@ function NoiseLaw_const(supportSize, support, proba)
         proba = squeeze(proba,1)
     end
 
-    if sum(proba) !=1 error("probability doesnot sum to 1") end
+    # if sum(proba) !=1 error("probability doesnot sum to 1") end
 
     return NoiseLaw(supportSize,support,proba)
 end
