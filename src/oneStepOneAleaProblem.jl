@@ -67,20 +67,20 @@ function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
     	#TODO call the right following function
     	# return (optNextStep, optControl, subgradient, cost) #depending on which is asked
 
-	#auxiliary variable
-	lengthx  = model.dimStates[t];
-	lengthu  = model.dimControls[t];
-	lengthxi = length(Cxi[:,t]);
-
-	Lambdas = V[t+1].lambdas;
-
-	lengthV  = length(Lambdas[:,1]);
-
 	#Cx is the cost matrix of the state x
 	#Cu is the cost matrix of the control u
 	#Cw is the cost matrix of the noise w
 	#cost 	= [Cx[:,t];Cu[:,t];zeros(lengthx,1);1.0];
 	cost = model.costFunctions(t,x,x,xi);
+	
+	#auxiliary variable
+	lengthx  = model.dimStates[t];
+	lengthu  = model.dimControls[t];
+	lengthxi = length(cost) -(lengthx+lengthu) -1;
+
+	Lambdas = V[t+1].lambdas;
+
+	lengthV  = length(Lambdas[:,1]);
 	
 
 	#Vlambdas and Vbetas let us define the cutting hyperplanes, Vlambdas containing the direction of the hyperplanes and Vbetas the origin intercep
@@ -93,7 +93,7 @@ function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
 	#multiplier
 	sensemul = ['=' for i in 1:(lengthx)];
 	Amul 	 = [eye(lengthx) zeros(lengthx,lengthu+lengthx+1)];
-	bmul	 = collect(x);
+	bmul	 =    collect(x);
 
 	#dynamic
 	sensedyn = ['=' for i in 1:(lengthxi)];
@@ -122,7 +122,6 @@ function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
 
 	#An external linear solver is called here
 	solution=linprog(cost[1:length(cost)], A, sense[1:length(sense)], b[1:length(b)], LB[1:length(LB)], UB[1:length(UB)], param.solver);
-	
 	#TODO retourner obj + le prix de l'aléa
 	result = Float64[]	
 	if (returnOptNextStage)

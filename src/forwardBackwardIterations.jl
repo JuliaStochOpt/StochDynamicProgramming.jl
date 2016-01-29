@@ -64,7 +64,8 @@ function forward_simulations(model::LinearDynamicLinearCostSPmodel,
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
      costs = zeros(0)
-     xi  = simulate([bruit,bruitbis,bruitter],forwardPassNumber)  
+    # xi  = simulate([bruit,bruitbis,bruitter],forwardPassNumber) 
+     xi  = simulate(omeg,forwardPassNumber) 
      for k=1:param.forwardPassNumber
      if returnCosts  
           costs = zeros(k); 

@@ -28,9 +28,9 @@ abstract SPModel
     
 type LinearDynamicLinearCostSPmodel <: SPModel
     #problemDimension
-    stageNumber
-    dimControls
-    dimStates
+    stageNumber::Int64
+    dimControls::Array{Int64,1}
+    dimStates::Array{Int64,1}
     initialState
     costFunctions#::Tuple{Vector{Float64}}
     dynamics#::Tuple{Array{Float64,2}}
@@ -63,8 +63,8 @@ println(" ");
 include("oneStepOneAleaProblem.jl")
 println("oneStepOneAleaProblem.jl file included");
 
-include("utility.jl")
-println("utility.jl file included");
+#include("utility.jl")
+#println("utility.jl file included");
 
 include("forwardBackwardIterations.jl")
 println("forwardBackwardIterations.jl file included");

@@ -68,6 +68,7 @@ alea = rand(2,3);
 test = LinearDynamicLinearCostSPmodel(Time,X*ones(Time),X*ones(Time),10*rand(X,1),costFunction,dynamic,zeros(Time,X),1000*ones(Time,X),alea);
 
 cut1 = PolyhedralFunction(10*rand(X),10*rand(X,X));
+println("coucou")
 cut = PolyhedralFunction[cut1];
 for i = 2 : Time
      cut2 = PolyhedralFunction(10*rand(X),10*rand(X,X));
