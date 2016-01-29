@@ -8,10 +8,10 @@
 
 include("../src/SDDPoptimize.jl")
 
-using CPLEX
+using Clp
 using JuMP
 
-N_STAGES = 40
+N_STAGES = 20
 N_SCENARIOS = 1
 
 
@@ -39,7 +39,7 @@ function init_problem()
     x0 = 0
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, x0, cost, dynamic)
 
-    solver = CplexSolver()
+    solver = ClpSolver()
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params

@@ -90,7 +90,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
             stocks[k, t+1] = nextstep.next_state[1]
             opt_control = nextstep.optimal_control
-            println(nextstep.next_state[1])
+            # println(nextstep.next_state[1], "   ", alea_t)
 
             if returnCosts
                 costs[k] += model.costFunctions(state_t, opt_control,alea_t) #TODO
@@ -174,7 +174,6 @@ function backward_pass(model, #::SDDP.SPModel,
                                                    alea_t)[2]
                 subgradientw = nextstep.sub_gradient
                 costw = nextstep.cost
-
                 #TODO: obtain probability cost += prob[w, t] * costw
                 #TODO: add non uniform distribution laws
                 cost += 1/nXi * costw

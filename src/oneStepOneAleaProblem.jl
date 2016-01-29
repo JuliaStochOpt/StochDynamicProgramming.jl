@@ -9,7 +9,6 @@
 #############################################################################
 
 using JuMP
-using CPLEX
 using SDDP
 
 """
@@ -70,11 +69,11 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                  xt, #::Vector{Float64},
                                  xi)
 
-    lambdas = V[t].lambdas
-    betas = V[t].betas
-    # Get JuMP model stored in SDDPparameters:
+    lambdas = V[t+1].lambdas
+    betas = V[t+1].betas
     # TODO: factorize the definition of the model in PolyhedralFunction
-    m = Model(solver=CplexSolver(CPX_PARAM_SIMDISPLAY=0))
+
+    m = Model(solver=param.solver)
     @defVar(m, x)
     @defVar(m, u >= 0)
     @defVar(m, alpha)
@@ -85,8 +84,8 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     @addConstraint(m, cost >= 5*x)
     @addConstraint(m, cost >= -2*x)
 
-    for i=1:V[t].numCuts
-        @addConstraint(m, betas[i] + lambdas[i]*(model.dynamics(x, u, xi)-xt) .<= alpha)
+    for i=1:V[t+1].numCuts
+        @addConstraint(m, betas[i] + lambdas[i]*model.dynamics(x, u, xi) .<= alpha)
     end
 
     @setObjective(m, Min, cost + alpha)
@@ -95,11 +94,12 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     solved = (string(status) == "Optimal")
 
     if solved
-        uopt = getValue(u)
-        # println(getDual(state_constraint))
+        optimalControl = getValue(u)
+        println(getValue(alpha))
+        # Return object storing results:
         result = SDDP.NextStep(
-                          model.dynamics(xt, uopt, xi),
-                          uopt,
+                          model.dynamics(xt, optimalControl, xi),
+                          optimalControl,
                           getDual(state_constraint),
                           getObjectiveValue(m))
     else
