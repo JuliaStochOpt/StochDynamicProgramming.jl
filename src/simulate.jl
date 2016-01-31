@@ -74,3 +74,15 @@ function simulate(law::Vector{NoiseLaw}, n::Int64)
 
     return scenarios
 end
+
+
+"""
+TODO: document simulate_scenarios
+"""
+function simulate_scenarios(support, proba, dims)
+    law = Categorical(proba)
+    scenarios = support[rand(law, dims)]
+
+    return scenarios
+
+end
