@@ -10,6 +10,7 @@
 
 include("forwardBackwardIterations.jl")
 include("utility.jl")
+include("simulate.jl")
 
 """
 TODO: add docstring
@@ -17,15 +18,48 @@ TODO: move initialize in proper module
 TODO: fix initialize
 
 """
-function initialize_value_functions_array(model::SDDP.SPModel)
+function get_null_value_functions_array(model::SDDP.SPModel)
 
     V = Vector{SDDP.PolyhedralFunction}(model.stageNumber)
     for t = 1:model.stageNumber
-        V[t] = initialize_value_functions()
+        V[t] = get_null_value_functions()
     end
 
     return V
 end
+
+
+function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
+                                     param::SDDP.SDDPparameters,
+                        )
+
+    V_null = get_null_value_functions_array(model)
+    println("ok")
+    V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
+
+    aleas = simulate_scenarios([0., 1., 2., 3.],
+                               [.2, .4, .3, .1],
+                               (param.forwardPassNumber,
+                                model.stageNumber, 1))
+
+    n = param.forwardPassNumber
+
+    V[end] = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
+
+    stockTrajectories = forward_simulations(model,
+                        param,
+                        V_null,
+                        n,
+                        aleas)[2]
+    backward_pass(model,
+                  param,
+                  V,
+                  stockTrajectories,
+                  aleas,
+                  true)
+    return V_null
+end
+
 
 
 """
@@ -51,8 +85,8 @@ function optimize(model::SDDP.SPModel,
                   param::SDDP.SDDPparameters)
 
     # Initialize value functions:
-    V = initialize_value_functions_array(model)
-    aleas = rand(param.forwardPassNumber, model.stageNumber, 1)
+    V = initialize_value_functions(model, param)
+    aleas = simulate_scenarios([0., 1., 2., 3.], [.2, .4, .3, .1],(param.forwardPassNumber, model.stageNumber, 1))
     stopping_test::Bool = false
     iteration_count::Int64 = 0
 
