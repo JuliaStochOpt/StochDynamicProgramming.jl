@@ -56,9 +56,6 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             V, #::Vector{SDDP.PolyhedralFunction},
                             forwardPassNumber::Int64,
                             xi::Array{Float64, 3})
-                            # returnCosts::Bool = true,
-                            # returnStocks::Bool= true,
-                            # returnControls::Bool = false)
 
     # TODO: verify that loops are in the same order
     # TODO: add a trick to return cost
@@ -89,12 +86,12 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                             state_t,
                                             alea_t)
 
-            stocks[k, t+1] = nextstep.next_state[1]
+            stocks[k, t+1, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
-            # println(nextstep.next_state[1], "   ", alea_t)
 
+            #TODO: implement returnCosts
             if returnCosts
-                costs[k] += model.costFunctions(state_t, opt_control,alea_t) #TODO
+                costs[k] += model.costFunctions(state_t, opt_control, alea_t)
             end
         end
     end
@@ -149,7 +146,8 @@ function backward_pass(model, #::SDDP.SPModel,
                       param, #::SDDP.SDDPparameters,
                       V, #::Array{SDDP.PolyhedralFunction, 1},
                       stockTrajectories,
-                      aleaTrajectories)
+                      aleaTrajectories,
+                      init=false)
 
     T = model.stageNumber
     nXi = size(aleaTrajectories)[1]
@@ -174,16 +172,22 @@ function backward_pass(model, #::SDDP.SPModel,
                                                    alea_t)[2]
                 subgradientw = nextstep.sub_gradient
                 costw = nextstep.cost
+
                 #TODO: obtain probability cost += prob[w, t] * costw
                 #TODO: add non uniform distribution laws
                 #TODO: compute probability of costs outside this loop
                 cost += 1/nXi * costw
-
                 subgradient += 1/nXi * subgradientw
             end
 
             beta = cost - dot(subgradient, state_t)
-            add_cut!(V[t], beta[1], subgradient)
+
+            if init
+                V[t] = SDDP.PolyhedralFunction(beta, reshape(subgradient, 1, 1), 1)
+            else
+                add_cut!(V[t], beta[1], subgradient)
+            end
+
         end
     end
 end

@@ -66,10 +66,9 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     lambdas = V[t+1].lambdas
     betas = V[t+1].betas
     # TODO: factorize the definition of the model in PolyhedralFunction
-
     m = Model(solver=param.solver)
     @defVar(m, x)
-    @defVar(m, u >= 0)
+    @defVar(m, 0 <= u <= 10)
     @defVar(m, alpha)
     @defVar(m, cost)
 
@@ -83,14 +82,13 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
         @addConstraint(m, betas[i] + lambdas[i]*model.dynamics(x, u, xi) .<= alpha)
     end
 
-    @setObjective(m, Min, cost + alpha)
+    @setObjective(m, Min, cost + alpha + u)
 
     status = solve(m)
     solved = (string(status) == "Optimal")
 
     if solved
         optimalControl = getValue(u)
-        println(getValue(alpha))
         # Return object storing results:
         result = SDDP.NextStep(
                           model.dynamics(xt, optimalControl, xi),

@@ -12,10 +12,10 @@ using SDDP
 
 
 """
-Instantiate a Polyhedral function with zeros.
+Instantiate a Polyhedral function corresponding to f -> 0
 
 """
-function initialize_value_functions()
+function get_null_value_functions()
     V = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
     return V
 end

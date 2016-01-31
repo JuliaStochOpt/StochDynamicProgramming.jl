@@ -8,7 +8,7 @@
 # see TODO
 #############################################################################
 
-#module SDDP
+module SDDP
 
 import JuMP #TODO : require JuMP ?
 
@@ -71,3 +71,4 @@ type NextStep
     cost
 end
 
+end
