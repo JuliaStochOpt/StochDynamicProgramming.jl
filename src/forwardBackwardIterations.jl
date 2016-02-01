@@ -56,7 +56,8 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             V, #::Vector{SDDP.PolyhedralFunction},
                             forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
-                            returnCosts=true)
+                            returnCosts=true,
+                            display=false)
 
     # TODO: verify that loops are in the same order
     # TODO: add a trick to return cost
@@ -78,6 +79,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
         for t=1:T-1
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
             alea_t = extract_vector_from_3Dmatrix(xi, t, k)
+
             status, nextstep = solve_one_step_one_alea(
                                             model,
                                             param,
@@ -88,7 +90,9 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
             stocks[k, t+1, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
-
+            if display
+                println(sizeof(opt_control))
+            end
             #TODO: implement returnCosts
             if returnCosts
                 costs[k] += model.costFunctions(state_t, opt_control, alea_t)
@@ -148,11 +152,17 @@ function backward_pass(model, #::SDDP.SPModel,
                       param, #::SDDP.SDDPparameters,
                       V, #::Array{SDDP.PolyhedralFunction, 1},
                       stockTrajectories,
-                      law::NoiseLaw,
+                      law, #::NoiseLaw,
                       init=false)
 
     T = model.stageNumber
-    nXi = law.supportSize
+
+    isNoiseLaw = (typeof(law) == NoiseLaw)
+    if isNoiseLaw
+        nXi = law.supportSize
+    else
+        nXi = size(law)[1]
+    end
     subgradient = 0
     state_t = zeros(Float64, model.dimStates)
 
@@ -163,28 +173,36 @@ function backward_pass(model, #::SDDP.SPModel,
 
             for w in 1:nXi #TODO: number of alea at t + can be parallelized
                 state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
-                alea_t  = law.support[w]
+
+                if isNoiseLaw
+                    alea_t  = [law.support[w]]
+                    proba_t = law.proba[w]
+                else
+                    alea_t = extract_vector_from_3Dmatrix(law, t, k)
+                    proba_t = 1/nXi
+                end
 
                 nextstep = solve_one_step_one_alea(model,
                                                    param,
                                                    V,
                                                    t,
                                                    state_t,
-                                                   [alea_t])[2]
+                                                   alea_t)[2]
                 subgradientw = nextstep.sub_gradient
                 costw = nextstep.cost
 
                 #TODO: obtain probability cost += prob[w, t] * costw
                 #TODO: add non uniform distribution laws
                 #TODO: compute probability of costs outside this loop
-                cost += law.proba[w] * costw
-                subgradient += law.proba[w] * subgradientw
+                cost += proba_t * costw
+                subgradient += proba_t * subgradientw
             end
 
             beta = cost - dot(subgradient, state_t)
 
             if init
-                V[t] = SDDP.PolyhedralFunction(beta, reshape(subgradient, 1, 1), 1)
+                println(subgradient)
+                V[t] = SDDP.PolyhedralFunction(beta, reshape(subgradient, model.dimStates, 1), 1)
             else
                 add_cut!(V[t], beta[1], subgradient)
             end

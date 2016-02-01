@@ -31,7 +31,7 @@ end
 
 function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                                      param::SDDP.SDDPparameters,
-                                     law::NoiseLaw
+                                     law
                         )
 
     V_null = get_null_value_functions_array(model)
@@ -40,7 +40,8 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
 
     aleas = simulate_scenarios(law,
                                (param.forwardPassNumber,
-                                model.stageNumber, 1))
+                                model.stageNumber,
+                                model.dimNoises))
 
     n = param.forwardPassNumber
 
@@ -51,11 +52,17 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                         V_null,
                         n,
                         aleas)[2]
+
+    if typeof(law) != Distributions.Normal
+      aleas = law
+    end
+
+
     backward_pass(model,
                   param,
                   V,
                   stockTrajectories,
-                  law,
+                  aleas,
                   true)
     return V_null
 end
@@ -85,11 +92,19 @@ function optimize(model::SDDP.SPModel,
                   param::SDDP.SDDPparameters)
 
     # Initialize value functions:
-    law = NoiseLaw([0., 1., 2., 3.], [.2, .4, .3, .1])
+    law = model.noises
     V = initialize_value_functions(model, param, law)
-    aleas = simulate_scenarios(law ,(param.forwardPassNumber, model.stageNumber, 1))
+    aleas = simulate_scenarios(law ,(param.forwardPassNumber, model.stageNumber, model.dimNoises))
+    println(sizeof(aleas))
     stopping_test::Bool = false
     iteration_count::Int64 = 0
+
+    # if typeof(law) == Distributions.Normal
+    #   println("ok")
+    #   proba = pdf(law, -5:.5:5)
+    #   law = NoiseLaw(Array(-5:.5:5), proba)
+    # end
+
 
     n = param.forwardPassNumber
 
@@ -99,11 +114,17 @@ function optimize(model::SDDP.SPModel,
                             V,
                             n,
                             aleas)[2]
+
+      if typeof(law) != Distributions.Normal
+        aleas = law
+      end
+
+
         backward_pass(model,
                       param,
                       V,
                       stockTrajectories,
-                      law)
+                      aleas)
         # TODO: stopping test
 
         iteration_count+=1;

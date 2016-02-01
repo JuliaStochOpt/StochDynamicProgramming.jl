@@ -80,9 +80,14 @@ end
 TODO: document simulate_scenarios
 """
 function simulate_scenarios(law, dims)
-    gen = Categorical(law.proba)
-    scenarios = law.support[rand(gen, dims)]
 
+    if typeof(law) == Distributions.Normal
+        scenarios = rand(law, dims)
+    else
+        gen = Categorical(law.proba)
+        scenarios = law.support[rand(gen, dims)]
+
+    end
     return scenarios
 
 end

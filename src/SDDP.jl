@@ -29,17 +29,18 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     stageNumber::Int64
     dimControls::Int64
     dimStates::Int64
+    dimNoises::Int64
 
     initialState
 
     costFunctions # TODO collection of cost function
     dynamics # TODO collection of dynamic function
     # noises::Vector{NoiseLaw} # TODO collection of noises law
+    noises#::Vector{NoiseLaw} # TODO collection of noises law
 
     # TODO: add this attributes to model
     # lowerbounds#::Tuple{Vector{Float64}}
     # upperbounds#::Tuple{Vector{Float64}}
-    # noises#::Vector{NoiseLaw} # TODO collection of noises law
 end
 
 
