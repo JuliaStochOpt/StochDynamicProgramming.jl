@@ -79,9 +79,9 @@ end
 """
 TODO: document simulate_scenarios
 """
-function simulate_scenarios(support, proba, dims)
-    law = Categorical(proba)
-    scenarios = support[rand(law, dims)]
+function simulate_scenarios(law, dims)
+    gen = Categorical(law.proba)
+    scenarios = law.support[rand(gen, dims)]
 
     return scenarios
 

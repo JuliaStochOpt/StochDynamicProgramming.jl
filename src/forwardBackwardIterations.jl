@@ -55,11 +55,11 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             param, #::SDDP.SDDPparameters,
                             V, #::Vector{SDDP.PolyhedralFunction},
                             forwardPassNumber::Int64,
-                            xi::Array{Float64, 3})
+                            xi::Array{Float64, 3},
+                            returnCosts=true)
 
     # TODO: verify that loops are in the same order
     # TODO: add a trick to return cost
-    returnCosts = false
     # TODO simplify if returnStocks=false
     # TODO stock Controls
     T = model.stageNumber
@@ -92,10 +92,12 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
             #TODO: implement returnCosts
             if returnCosts
                 costs[k] += model.costFunctions(state_t, opt_control, alea_t)
+
+                # costs[k] += nextstep.cost
             end
         end
     end
-    return costs, stocks # adjust according to what is asked
+    return costs, stocks
 end
 
 
@@ -146,11 +148,11 @@ function backward_pass(model, #::SDDP.SPModel,
                       param, #::SDDP.SDDPparameters,
                       V, #::Array{SDDP.PolyhedralFunction, 1},
                       stockTrajectories,
-                      aleaTrajectories,
+                      law::NoiseLaw,
                       init=false)
 
     T = model.stageNumber
-    nXi = size(aleaTrajectories)[1]
+    nXi = law.supportSize
     subgradient = 0
     state_t = zeros(Float64, model.dimStates)
 
@@ -161,23 +163,22 @@ function backward_pass(model, #::SDDP.SPModel,
 
             for w in 1:nXi #TODO: number of alea at t + can be parallelized
                 state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
-                alea_t  = extract_vector_from_3Dmatrix(aleaTrajectories, t, w)
-
+                alea_t  = law.support[w]
 
                 nextstep = solve_one_step_one_alea(model,
                                                    param,
                                                    V,
                                                    t,
                                                    state_t,
-                                                   alea_t)[2]
+                                                   [alea_t])[2]
                 subgradientw = nextstep.sub_gradient
                 costw = nextstep.cost
 
                 #TODO: obtain probability cost += prob[w, t] * costw
                 #TODO: add non uniform distribution laws
                 #TODO: compute probability of costs outside this loop
-                cost += 1/nXi * costw
-                subgradient += 1/nXi * subgradientw
+                cost += law.proba[w] * costw
+                subgradient += law.proba[w] * subgradientw
             end
 
             beta = cost - dot(subgradient, state_t)
