@@ -75,8 +75,8 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
     @addConstraint(m, state_constraint, x .== xt)
     # TODO: implement cost function in PolyhedralFunction
-    @addConstraint(m, cost >= 5*x)
-    @addConstraint(m, cost >= -2*x)
+    @addConstraint(m, cost >= .5*x)
+    @addConstraint(m, cost >= -3*x)
 
     for i=1:V[t+1].numCuts
         @addConstraint(m, betas[i] + lambdas[i]*model.dynamics(x, u, xi) .<= alpha)
@@ -92,7 +92,7 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
         # Return object storing results:
         result = SDDP.NextStep(
                           model.dynamics(xt, optimalControl, xi),
-                          optimalControl,
+                          [optimalControl],
                           getDual(state_constraint),
                           getObjectiveValue(m))
     else

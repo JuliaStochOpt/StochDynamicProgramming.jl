@@ -7,6 +7,7 @@
 #############################################################################
 
 include("../src/SDDPoptimize.jl")
+include("../src/simulate.jl")
 
 using Clp
 using JuMP
@@ -15,30 +16,29 @@ N_STAGES = 20
 N_SCENARIOS = 1
 
 
-function cost(x, u, w)
-    h = 5
-    p = .5
+function cost_t(x, u, w)
+    h = .5
+    p = 3
 
-    # if x[1] >= 0
-    #     return h*x
-    # else
-    #     return -p*x
-    # end
-    return h*x
+    cost = 0
+    if x[1] >= 0
+        cost += h*x[1]
+    else
+        cost += -p*x[1]
+    end
+    return cost + u[1]
 end
 
 
 function dynamic(x, u, w)
     return x + u -w
-
 end
 
 
 function init_problem()
     # Instantiate model:
     x0 = 0
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, x0, cost, dynamic)
-
+    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, x0, cost_t, dynamic)
     solver = ClpSolver()
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 
@@ -48,7 +48,15 @@ end
 
 function solve_newsvendor()
     model, params = init_problem()
-    optimize(model, params)
+    V = optimize(model, params)
+    law = NoiseLaw([0., 1., 2., 3.], [.2, .4, .3, .1])
+
+
+    aleas = simulate_scenarios(law ,(1, model.stageNumber, 1))
+    costs, stocks = forward_simulations(model, params, V, 1, aleas)
+    println(stocks)
+    println(costs)
+
 end
 
 @time solve_newsvendor()

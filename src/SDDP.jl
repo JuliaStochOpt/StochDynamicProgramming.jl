@@ -66,7 +66,7 @@ end
 
 type NextStep
     next_state::Array{Float64, 1}
-    optimal_control::Float64 #Array{Float64, 1}
+    optimal_control::Array{Float64, 1}
     sub_gradient
     cost
 end
