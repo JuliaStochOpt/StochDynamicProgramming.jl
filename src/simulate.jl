@@ -84,8 +84,12 @@ function simulate_scenarios(law, dims)
     if typeof(law) == Distributions.Normal
         scenarios = rand(law, dims)
     else
-        gen = Categorical(law.proba)
-        scenarios = law.support[rand(gen, dims)]
+        scenarios = zeros(dims)
+
+        for t=1:dims[1]
+            gen = Categorical(law[t].proba)
+            scenarios[t, :, :] = law[t].support[rand(gen, dims[2:end])]
+        end
 
     end
     return scenarios

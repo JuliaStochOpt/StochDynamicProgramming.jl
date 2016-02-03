@@ -8,6 +8,7 @@
 # see TODO
 #############################################################################
 
+include("simulate.jl")
 module SDDP
 
 import JuMP #TODO : require JuMP ?
@@ -36,7 +37,7 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     costFunctions # TODO collection of cost function
     dynamics # TODO collection of dynamic function
     # noises::Vector{NoiseLaw} # TODO collection of noises law
-    noises#::Vector{NoiseLaw} # TODO collection of noises law
+    noises # TODO collection of noises law
 
     # TODO: add this attributes to model
     # lowerbounds#::Tuple{Vector{Float64}}

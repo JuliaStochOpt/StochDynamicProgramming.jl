@@ -38,7 +38,8 @@ end
 function init_problem()
     # Instantiate model:
     x0 = 0
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, x0, cost_t, dynamic)
+    law = NoiseLaw([0., 1., 2., 3.], [.2, .4, .3, .1])
+    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, 1, x0, cost_t, dynamic, law)
     solver = ClpSolver()
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 

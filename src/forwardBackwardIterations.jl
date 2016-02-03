@@ -65,6 +65,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     # TODO stock Controls
     T = model.stageNumber
     stocks = zeros(param.forwardPassNumber, T, model.dimStates)
+    stocks[:, 1, :] = 90*rand(param.forwardPassNumber, model.dimStates)
     # TODO declare stock as an array of states
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
@@ -78,7 +79,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
         for t=1:T-1
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
-            alea_t = extract_vector_from_3Dmatrix(xi, t, k)
+            alea_t = extract_vector_from_3Dmatrix(xi, k, t)
 
             status, nextstep = solve_one_step_one_alea(
                                             model,
@@ -96,8 +97,6 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
             #TODO: implement returnCosts
             if returnCosts
                 costs[k] += model.costFunctions(state_t, opt_control, alea_t)
-
-                # costs[k] += nextstep.cost
             end
         end
     end
@@ -118,6 +117,9 @@ Parameters:
     subgradient of the cut to add
 """
 function add_cut!(Vt, beta::Float64, lambda::Array{Float64,1})
+    if beta > -10.
+        println("HEEEEEEEEEEEEEEEEEE", beta, lambda)
+    end
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -157,12 +159,6 @@ function backward_pass(model, #::SDDP.SPModel,
 
     T = model.stageNumber
 
-    isNoiseLaw = (typeof(law) == NoiseLaw)
-    if isNoiseLaw
-        nXi = law.supportSize
-    else
-        nXi = size(law)[1]
-    end
     subgradient = 0
     state_t = zeros(Float64, model.dimStates)
 
@@ -171,16 +167,11 @@ function backward_pass(model, #::SDDP.SPModel,
             cost = zeros(1);
             subgradient = zeros(model.dimStates);#TODO access
 
-            for w in 1:nXi #TODO: number of alea at t + can be parallelized
+            for w in 1:law[t].supportSize#TODO: number of alea at t + can be parallelized
                 state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
-                if isNoiseLaw
-                    alea_t  = [law.support[w]]
-                    proba_t = law.proba[w]
-                else
-                    alea_t = extract_vector_from_3Dmatrix(law, t, k)
-                    proba_t = 1/nXi
-                end
+                alea_t  = [law[t].support[w]]
+                proba_t = law[t].proba[w]
 
                 nextstep = solve_one_step_one_alea(model,
                                                    param,
@@ -201,7 +192,6 @@ function backward_pass(model, #::SDDP.SPModel,
             beta = cost - dot(subgradient, state_t)
 
             if init
-                println(subgradient)
                 V[t] = SDDP.PolyhedralFunction(beta, reshape(subgradient, model.dimStates, 1), 1)
             else
                 add_cut!(V[t], beta[1], subgradient)

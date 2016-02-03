@@ -31,16 +31,14 @@ end
 
 function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                                      param::SDDP.SDDPparameters,
-                                     law
                         )
 
     V_null = get_null_value_functions_array(model)
-    println("ok")
     V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
 
-    aleas = simulate_scenarios(law,
-                               (param.forwardPassNumber,
-                                model.stageNumber,
+    aleas = simulate_scenarios(model.noises,
+                               (model.stageNumber,
+                                param.forwardPassNumber,
                                 model.dimNoises))
 
     n = param.forwardPassNumber
@@ -53,18 +51,13 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                         n,
                         aleas)[2]
 
-    if typeof(law) != Distributions.Normal
-      aleas = law
-    end
-
-
     backward_pass(model,
                   param,
                   V,
                   stockTrajectories,
-                  aleas,
+                  model.noises,
                   true)
-    return V_null
+    return V
 end
 
 
@@ -89,45 +82,35 @@ Returns :
 
 """
 function optimize(model::SDDP.SPModel,
-                  param::SDDP.SDDPparameters)
+                  param::SDDP.SDDPparameters,
+                  n_iterations=20)
 
     # Initialize value functions:
-    law = model.noises
-    V = initialize_value_functions(model, param, law)
-    aleas = simulate_scenarios(law ,(param.forwardPassNumber, model.stageNumber, model.dimNoises))
-    println(sizeof(aleas))
+    V = initialize_value_functions(model, param)
+    println("Initialize cuts")
+    aleas = simulate_scenarios(model.noises ,(model.stageNumber, param.forwardPassNumber , model.dimNoises))
     stopping_test::Bool = false
     iteration_count::Int64 = 0
-
-    # if typeof(law) == Distributions.Normal
-    #   println("ok")
-    #   proba = pdf(law, -5:.5:5)
-    #   law = NoiseLaw(Array(-5:.5:5), proba)
-    # end
 
 
     n = param.forwardPassNumber
 
-    for i = 1:20
+    for i = 1:n_iterations
         stockTrajectories = forward_simulations(model,
                             param,
                             V,
                             n,
                             aleas)[2]
 
-      if typeof(law) != Distributions.Normal
-        aleas = law
-      end
-
-
         backward_pass(model,
                       param,
                       V,
                       stockTrajectories,
-                      aleas)
+                      model.noises)
         # TODO: stopping test
 
         iteration_count+=1;
+        println("Pass number ", i)
     end
 
     return V
