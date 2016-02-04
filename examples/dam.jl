@@ -12,11 +12,14 @@ include("../src/SDDP.jl")
 include("../src/SDDPoptimize.jl")
 include("../src/simulate.jl")
 
+using Cbc
 using CPLEX
 using JuMP
 
 N_STAGES = 52
-N_SCENARIOS = 2
+N_SCENARIOS = 1
+
+alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
 
 # FINAL TIME:
@@ -55,6 +58,28 @@ function cost_t(x, u, w)
     return -180 * u[1]
 end
 
+
+function solve_determinist_problem()
+    println(alea_year)
+     m = Model(solver=CbcSolver())
+
+    @defVar(m,  0           <= x[1:(TF+1)]  <= 100)
+    @defVar(m,  0.          <= u[1:TF]  <= 7)
+    @defVar(m,  0.          <= s[1:TF]  <= 7)
+
+    @setObjective(m, Min, sum{COST[i]*u[i], i = 1:TF})
+
+    for i in 1:TF
+        @addConstraint(m, x[i+1] - x[i] + u[i] + s[i] - alea_year[i] == 0)
+    end
+
+    @addConstraint(m, x[1] ==0)
+
+    status = solve(m)
+    println(status)
+    println(getObjectiveValue(m))
+    return getValue(u), getValue(x)
+end
 
 """
 Build aleas probabilities for each month.
@@ -96,7 +121,7 @@ end
 
 
 function generate_probability_laws()
-    aleas = build_scenarios(N_SCENARIOS, build_aleas())
+    aleas = alea_year # build_scenarios(N_SCENARIOS, build_aleas())
 
     laws = Vector{NoiseLaw}(N_STAGES)
 
@@ -129,10 +154,12 @@ function solve_dams()
     V = optimize(model, params, 20)
     aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
-    println(V[1])
     costs, stocks = forward_simulations(model, params, V, 1, aleas)
     println(stocks)
     println(costs)
+    return stocks
 end
 
-@time solve_dams()
+# @time solve_dams()
+u = solve_determinist_problem()
+v = solve_dams()
