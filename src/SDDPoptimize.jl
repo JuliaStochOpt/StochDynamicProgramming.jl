@@ -28,11 +28,36 @@ function get_null_value_functions_array(model::SDDP.SPModel)
     return V
 end
 
+function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
+
+    models = Vector{JuMP.Model}(model.stageNumber)
+
+
+    for t = 1:model.stageNumber
+      m = Model(solver=param.solver)
+
+      @defVar(m, 0<= x[1:1] <= 100)
+      @defVar(m, 0 <= u[1:2] <= 7)
+      @defVar(m, alpha)
+      @defVar(m, w[1:1])
+
+      # @addConstraints(m, 0 .<= model.dynamics(x, u, w))
+      # @addConstraint(m, -100 .<= -model.dynamics(x, u, w))
+
+      @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+
+      models[t] = m
+
+    end
+    return models
+end
+
 
 function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                                      param::SDDP.SDDPparameters,
                         )
 
+    solverProblems = build_models(model, param)
     V_null = get_null_value_functions_array(model)
     V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
 
@@ -48,12 +73,14 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
     stockTrajectories = forward_simulations(model,
                         param,
                         V_null,
+                        solverProblems,
                         n,
                         aleas)[2]
 
     backward_pass(model,
                   param,
                   V,
+                  solverProblems,
                   stockTrajectories,
                   model.noises,
                   true)

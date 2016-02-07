@@ -58,31 +58,17 @@ TODO: add types in function parameters
 """
 function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                  param, #::SDDP.SDDPparameters,
-                                 V, #::Vector{SDDP.PolyhedralFunction},
+                                 m::JuMP.Model, #::Vector{SDDP.PolyhedralFunction},
                                  t, #::Int64,
                                  xt, #::Vector{Float64},
                                  xi) #::Vector{Float64},
-
-    lambdas = V[t+1].lambdas
-    betas = V[t+1].betas
-    # println(lambdas, " ", betas)
-    # TODO: factorize the definition of the model in PolyhedralFunction
-    m = Model(solver=param.solver)
-    @defVar(m, 0<= x[1:1] <= 100)
-    @defVar(m, 0 <= u[1:2] <= 7)
-    @defVar(m, alpha)
-
-
-    @addConstraint(m, state_constraint, x .== xt)
-    @addConstraint(m, 0 <= model.dynamics(x, u, xi) )
-    @addConstraint(m, -100 <= -model.dynamics(x, u, xi) )
-    # TODO: implement cost function in PolyhedralFunction
-
-    for i=1:V[t+1].numCuts
-          @addConstraint(m, betas[i] + lambdas[i]*(x[1] - u[1] - u[2] + xi[1]) <= alpha)
-    end
-
-    @setObjective(m, Min, COST[t]*u[1] + alpha)
+    # w = getVar(m, :w)
+    # @addConstraint(m, m.ext[:w] .== xi)
+    # @defVar(m, w[1:1] )
+    # setValue(m, w, xi )
+    # setValue(m, :w, xi)
+    # chgConstrRHS(m, state_constraint, xt)
+    # @addConstraint(m, state_constraint, x .== xt)
 
     status = solve(m)
     solved = (string(status) == "Optimal")

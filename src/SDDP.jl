@@ -11,16 +11,7 @@
 include("simulate.jl")
 module SDDP
 
-import JuMP #TODO : require JuMP ?
-
-# export TODO
-# #Objects
-#     SPModel
-
-# include("utility.jl")
-# include("oneStepOneAleaProblem.jl")
-# include("forwardBackwardIterations.jl")
-# include("SDDPoptimize.jl")
+import JuMP
 
 abstract SPModel
 

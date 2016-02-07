@@ -54,6 +54,7 @@ Returns (according to the last parameters):
 function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             param, #::SDDP.SDDPparameters,
                             V, #::Vector{SDDP.PolyhedralFunction},
+                            solverProblems,
                             forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
                             returnCosts=true,
@@ -65,7 +66,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     # TODO stock Controls
     T = model.stageNumber
     stocks = zeros(param.forwardPassNumber, T, model.dimStates)
-    stocks[:, 1, :] = 90*rand(param.forwardPassNumber, model.dimStates)
+    # stocks[:, 1, :] = 90*rand(param.forwardPassNumber, model.dimStates)
     # TODO declare stock as an array of states
     # specify initial state stocks[k,0]=x0
     # TODO generate scenarios xi
@@ -84,7 +85,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
             status, nextstep = solve_one_step_one_alea(
                                             model,
                                             param,
-                                            V,
+                                            solverProblems[t],
                                             t,
                                             state_t,
                                             alea_t)
@@ -116,13 +117,12 @@ Parameters:
 - lambda (Array{float,1})
     subgradient of the cut to add
 """
-function add_cut!(Vt, beta::Float64, lambda::Array{Float64,1})
-    if beta > -10.
-        println("HEEEEEEEEEEEEEEEEEE", beta, lambda)
-    end
+function add_cut!(model, Vt, beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
+
+    @addConstraint(model, beta + lambda*model.dynamics(x, u, w) <= theta)
 end
 
 
@@ -153,6 +153,7 @@ Return nothing
 function backward_pass(model, #::SDDP.SPModel,
                       param, #::SDDP.SDDPparameters,
                       V, #::Array{SDDP.PolyhedralFunction, 1},
+                      solverProblems,
                       stockTrajectories,
                       law, #::NoiseLaw,
                       init=false)
@@ -175,7 +176,7 @@ function backward_pass(model, #::SDDP.SPModel,
 
                 nextstep = solve_one_step_one_alea(model,
                                                    param,
-                                                   V,
+                                                   solverProblems[t],
                                                    t,
                                                    state_t,
                                                    alea_t)[2]
@@ -194,7 +195,7 @@ function backward_pass(model, #::SDDP.SPModel,
             if init
                 V[t] = SDDP.PolyhedralFunction(beta, reshape(subgradient, model.dimStates, 1), 1)
             else
-                add_cut!(V[t], beta[1], subgradient)
+                add_cut!(solverProblems[t], V[t], beta[1], subgradient)
             end
 
         end
