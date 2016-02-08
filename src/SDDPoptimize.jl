@@ -53,6 +53,24 @@ function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
 end
 
 
+"""
+Initialize value functions along a given trajectory
+
+This function add the fist cut to each PolyhedralFunction stored in a Array
+
+
+Parameters:
+- model (SPModel)
+
+- param (SDDPparameters)
+
+Return:
+- V (Array{PolyhedralFunction})
+    Return T PolyhedralFunction, where T is the number of stages
+    specified in model.
+
+
+"""
 function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                                      param::SDDP.SDDPparameters,
                         )
@@ -110,15 +128,25 @@ Returns :
 """
 function optimize(model::SDDP.SPModel,
                   param::SDDP.SDDPparameters,
-                  n_iterations=20)
+                  n_iterations=20,
+                  display=true)
 
     # Initialize value functions:
     V = initialize_value_functions(model, param)
-    println("Initialize cuts")
-    aleas = simulate_scenarios(model.noises ,(model.stageNumber, param.forwardPassNumber , model.dimNoises))
+
+    if display
+      println("Initialize cuts")
+    end
+
+    # Build given number of scenarios according to distribution
+    # law specified in model.noises:
+    aleas = simulate_scenarios(model.noises ,
+                                (model.stageNumber,
+                                 param.forwardPassNumber,
+                                 model.dimNoises))
+
     stopping_test::Bool = false
     iteration_count::Int64 = 0
-
 
     n = param.forwardPassNumber
 
@@ -134,10 +162,12 @@ function optimize(model::SDDP.SPModel,
                       V,
                       stockTrajectories,
                       model.noises)
-        # TODO: stopping test
 
         iteration_count+=1;
-        println("Pass number ", i)
+
+        if display
+          println("Pass number ", i)
+        end
     end
 
     return V

@@ -25,10 +25,9 @@ type LinearDynamicLinearCostSPmodel <: SPModel
 
     initialState
 
-    costFunctions # TODO collection of cost function
-    dynamics # TODO collection of dynamic function
-    # noises::Vector{NoiseLaw} # TODO collection of noises law
-    noises # TODO collection of noises law
+    costFunctions
+    dynamics
+    noises
 
     # TODO: add this attributes to model
     # lowerbounds#::Tuple{Vector{Float64}}
@@ -38,7 +37,7 @@ end
 
 
 type SDDPparameters
-    solver # ::MathProgBaseMode
+    solver
     forwardPassNumber::Int64 # number of simulated scenario in the forward pass
 
     # TODO: add this attributes to SDDPparameters

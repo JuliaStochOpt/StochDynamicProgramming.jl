@@ -7,16 +7,37 @@
 #############################################################################
 
 
-#TODO _const should not exist
-
 using Distributions
 
 type NoiseLaw
+    # Number of points in distribution:
     supportSize::Int64
+    # Position of points:
     support::Array{Float64,2}
+    # Probabilities of points:
     proba::Vector{Float64}
 end
 
+
+"""
+Instantiate an element of NoiseLaw
+
+
+Parameters:
+- supportSize (Int64)
+    Number of points in discrete distribution
+
+- support
+    Position of each point
+
+- proba
+    Probabilities of each point
+
+
+Return:
+- NoiseLaw
+
+"""
 function NoiseLaw_const(supportSize, support, proba)
     supportSize = convert(Int64,supportSize)
     if ndims(support)==1
@@ -29,12 +50,27 @@ function NoiseLaw_const(supportSize, support, proba)
         proba = squeeze(proba,1)
     end
 
-    # if sum(proba) !=1 error("probability doesnot sum to 1") end
-
     return NoiseLaw(supportSize,support,proba)
 end
 
 
+
+"""
+Generic constructor to instantiate NoiseLaw
+
+
+Parameters:
+- support
+    Position of each point
+
+- proba
+    Probabilities of each point
+
+
+Return:
+- NoiseLaw
+
+"""
 function NoiseLaw(support, proba)
     return NoiseLaw_const(length(proba), support, proba)
 end
@@ -77,18 +113,31 @@ end
 
 
 """
-TODO: document simulate_scenarios
-"""
-function simulate_scenarios(law, dims)
+Simulate n scenario and return a 3D array
 
-    if typeof(law) == Distributions.Normal
-        scenarios = rand(law, dims)
+
+Parameters:
+- laws (Vector{NoiseLaw})
+    Distribution laws corresponding to each timestep
+
+- dims (3-tuple)
+    Dimension of array to return. Its shape is:
+        (time, numberScenario, dimAlea)
+
+Return:
+- Array{Float64, 3}
+
+"""
+function simulate_scenarios(laws, dims)
+
+    if typeof(laws) == Distributions.Normal
+        scenarios = rand(laws, dims)
     else
         scenarios = zeros(dims)
 
         for t=1:dims[1]
-            gen = Categorical(law[t].proba)
-            scenarios[t, :, :] = law[t].support[rand(gen, dims[2:end])]
+            gen = Categorical(laws[t].proba)
+            scenarios[t, :, :] = laws[t].support[rand(gen, dims[2:end])]
         end
 
     end

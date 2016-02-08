@@ -7,7 +7,6 @@
 #
 #############################################################################
 
-# TODO: ensure that dynamic and cost_functions are either linear or quadratic
 using SDDP
 
 
@@ -24,10 +23,27 @@ end
 """
 Extract a vector stored in a 3D Array
 
+
+Parameters:
+- input_array (Array{Float64, 3})
+    array storing the values of vectors
+
+- nx (Int64)
+    Position of vector in first dimension
+
+- ny (Int64)
+    Position of vector in second dimension
+
+Return:
+- Vector{Float64}
+
 """
-function extract_vector_from_3Dmatrix(states::Array{Float64, 3}, time::Int64, passNumber::Int64)
-    state_dimension = size(states)[3]
-    return reshape(states[passNumber, time, :], state_dimension)
+function extract_vector_from_3Dmatrix(input_array::Array{Float64, 3},
+                                      nx::Int64,
+                                      ny::Int64)
+
+    state_dimension = size(input_array)[3]
+    return reshape(input_array[ny, nx, :], state_dimension)
 end
 
 
@@ -54,6 +70,7 @@ Parameters:
 
 Returns :
 - estimated-upper bound
+
 - Monte-Carlo error on the upper bound (if returnMCerror)
 
 """
@@ -63,19 +80,12 @@ function upper_bound(model::SDDP.SPModel,
                      forwardPassNumber::Int64,
                      returnMCerror::Bool)
 
-    C = forward_simulations(model, param, V, forwardPassNumber, nothing, true, false, false);
+    C = forward_simulations(model, param, V, forwardPassNumber,
+                            nothing, true, false, false)
     m = mean(C)
     if returnMCerror
         return m, 1.96*std(C)/sqrt(forwardPassNumber)
     else
         return m
     end
-end
-
-function costFunction(t,x,u,xi)
-    #TODO
-end
-
-function dynamic(t,x,u,xi)
-    #TODO
 end

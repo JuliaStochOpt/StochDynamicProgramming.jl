@@ -22,7 +22,8 @@ Parameters:
 
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
-- V (bellmanFunctions)
+
+- V (PolyhedralFunction)
     the current estimation of Bellman's functions
 
 - forwardPassNumber (int)
@@ -35,20 +36,18 @@ Parameters:
 - returnCosts (Bool)
     return the cost of each simulated scenario if true
 
-- returnStocks (Bool)
-    return the trajectory of the stocks if true
-
-- returnControls (Bool)
-    return the trajectory of controls if true
-
 
 Returns (according to the last parameters):
 - costs (Array{float,1})
     an array of the simulated costs
+
 - stocks (Array{float})
-    the simulated stock trajectories. stocks(k,t,:) is the stock for scenario k at time t.
+    the simulated stock trajectories. stocks(k,t,:) is the stock for
+    scenario k at time t.
+
 - controls (Array{float})
-    the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
+    the simulated controls trajectories. controls(k,t,:) is the control
+    for scenario k at time t.
 
 """
 function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
@@ -61,21 +60,15 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             display=false)
 
     # TODO: verify that loops are in the same order
-    # TODO: add a trick to return cost
-    # TODO simplify if returnStocks=false
-    # TODO stock Controls
     T = model.stageNumber
     stocks = zeros(param.forwardPassNumber, T, model.dimStates)
     # stocks[:, 1, :] = 90*rand(param.forwardPassNumber, model.dimStates)
-    # TODO declare stock as an array of states
-    # specify initial state stocks[k,0]=x0
-    # TODO generate scenarios xi
+
     costs = nothing
     if returnCosts
         costs = zeros(param.forwardPassNumber)
     end
 
-    #TODO: can be parallelized + some can be dropped if too long
     for k = 1:param.forwardPassNumber
 
         for t=1:T-1
@@ -95,7 +88,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
             if display
                 println(sizeof(opt_control))
             end
-            #TODO: implement returnCosts
+
             if returnCosts
                 costs[k] += model.costFunctions(state_t, opt_control, alea_t)
             end
@@ -112,11 +105,14 @@ Add to Vt a cut of the form Vt >= beta + <lambda,.>
 Parameters:
 - Vt (bellmanFunction)
     Current lower approximation of the Bellman function at time t
+
 - beta (Float)
     affine part of the cut to add
+
 - lambda (Array{float,1})
     subgradient of the cut to add
-"""
+
+    """
 function add_cut!(model, Vt, beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
@@ -166,9 +162,9 @@ function backward_pass(model, #::SDDP.SPModel,
     for t = T-1:-1:1
         for k = 1:param.forwardPassNumber
             cost = zeros(1);
-            subgradient = zeros(model.dimStates);#TODO access
+            subgradient = zeros(model.dimStates)
 
-            for w in 1:law[t].supportSize#TODO: number of alea at t + can be parallelized
+            for w in 1:law[t].supportSize
                 state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
                 alea_t  = [law[t].support[w]]
@@ -193,7 +189,10 @@ function backward_pass(model, #::SDDP.SPModel,
             beta = cost - dot(subgradient, state_t)
 
             if init
-                V[t] = SDDP.PolyhedralFunction(beta, reshape(subgradient, model.dimStates, 1), 1)
+                V[t] = SDDP.PolyhedralFunction(beta,
+                                               reshape(subgradient,
+                                                       model.dimStates,
+                                                       1), 1)
             else
                 add_cut!(solverProblems[t], V[t], beta[1], subgradient)
             end
