@@ -23,6 +23,10 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     dimStates::Int64
     dimNoises::Int64
 
+    # Bounds of states and controls:
+    xlim
+    ulim
+
     initialState
 
     costFunctions

@@ -13,10 +13,12 @@ include("../src/SDDPoptimize.jl")
 include("../src/simulate.jl")
 
 using JuMP
-using CPLEX
+using Clp
+
+SOLVER = ClpSolver()
 
 N_STAGES = 52
-N_SCENARIOS = 1
+N_SCENARIOS = 2
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
@@ -62,7 +64,7 @@ end
 in advance."""
 function solve_determinist_problem()
     println(alea_year)
-    m = Model(solver=CplexSolver(CPX_PARAM_SIMDISPLAY=0))
+    m = Model(solver=SOLVER)
 
     @defVar(m,  0           <= x[1:(TF+1)]  <= 100)
     @defVar(m,  0.          <= u[1:TF]  <= 7)
@@ -120,7 +122,7 @@ end
 
 Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
-    aleas = alea_year # build_scenarios(N_SCENARIOS, build_aleas())
+    aleas = build_scenarios(N_SCENARIOS, build_aleas())
 
     laws = Vector{NoiseLaw}(N_STAGES)
 
@@ -140,9 +142,9 @@ function init_problem()
     # Instantiate model:
     x0 = 0
     aleas = generate_probability_laws()
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, x0, cost_t, dynamic, aleas)
+    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, (0, 100), (0, 7), x0, cost_t, dynamic, aleas)
 
-    solver = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+    solver = SOLVER
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
