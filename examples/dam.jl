@@ -149,10 +149,10 @@ function init_problem()
 end
 
 """Solve the problem."""
-function solve_dams()
+function solve_dams(display=false)
     model, params = init_problem()
 
-    V, pbs = optimize(model, params, 20)
+    V, pbs = optimize(model, params, 20, display)
     aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
 
@@ -161,6 +161,3 @@ function solve_dams()
     println("SDDP cost: ", costs)
     return stocks
 end
-
-u = solve_determinist_problem()
-@time solve_dams()
