@@ -12,8 +12,6 @@ include("../src/SDDP.jl")
 include("../src/SDDPoptimize.jl")
 include("../src/simulate.jl")
 
-using Cbc
-using GLPKMathProgInterface
 using JuMP
 using CPLEX
 
@@ -49,20 +47,22 @@ N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
 ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
 
-
+# Define dynamic of the dam:
 function dynamic(x, u, w)
     return x[1] - u[1] - u[2] + w[1]
 end
 
-
+# Define cost corresponding to each timestep:
 function cost_t(t, x, u, w)
     return COST[t] * u[1]
 end
 
 
+"""Solve the problem with a solver, supposing the aleas are known
+in advance."""
 function solve_determinist_problem()
     println(alea_year)
-     m = Model(solver=CbcSolver())
+    m = Model(solver=CplexSolver(CPX_PARAM_SIMDISPLAY=0))
 
     @defVar(m,  0           <= x[1:(TF+1)]  <= 100)
     @defVar(m,  0.          <= u[1:TF]  <= 7)
@@ -82,10 +82,8 @@ function solve_determinist_problem()
     return getValue(u), getValue(x)
 end
 
-"""
-Build aleas probabilities for each month.
 
-"""
+"""Build aleas probabilities for each month."""
 function build_aleas()
     aleas = zeros(N_ALEAS, TF)
 
@@ -101,10 +99,7 @@ function build_aleas()
 end
 
 
-"""
-Build an admissible scenario for water inflow.
-
-"""
+"""Build an admissible scenario for water inflow."""
 function build_scenarios(n_scenarios::Int64, probabilities)
     scenarios = zeros(n_scenarios, TF)
 
@@ -121,6 +116,9 @@ function build_scenarios(n_scenarios::Int64, probabilities)
 end
 
 
+"""Build probability distribution at each timestep.
+
+Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
     aleas = alea_year # build_scenarios(N_SCENARIOS, build_aleas())
 
@@ -137,19 +135,20 @@ function generate_probability_laws()
 end
 
 
+"""Instantiate the problem."""
 function init_problem()
     # Instantiate model:
     x0 = 0
     aleas = generate_probability_laws()
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, x0, cost_t, dynamic, aleas)
-    # solver = GLPKSolverLP()
+
     solver = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
 end
 
-
+"""Solve the problem."""
 function solve_dams()
     model, params = init_problem()
 
@@ -158,11 +157,10 @@ function solve_dams()
     params.forwardPassNumber = 1
 
     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
-    # println(V[1])
-    println(costs)
+
+    println("SDDP cost: ", costs)
     return stocks
 end
 
 u = solve_determinist_problem()
-# v = solve_dams()
 @time solve_dams()

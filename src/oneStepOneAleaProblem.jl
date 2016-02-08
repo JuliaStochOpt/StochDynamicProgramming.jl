@@ -28,8 +28,9 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 
-- V (bellmanFunctions)
-    the current estimation of Bellman's functions
+- m (JuMP.Model)
+    The linear problem to solve, in order to approximate the
+    current value functions
 
 - t (int)
     time step at which the problem is solved
@@ -52,8 +53,13 @@ Parameters:
 - returnCost (Bool)
     return the value of the problem
 
-TODO: update returns
-TODO: add types in function parameters
+
+Returns:
+- Bool
+    True if the solution is feasible, false otherwise
+
+- NextStep
+    Store solution of the problem solved
 
 """
 function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
@@ -64,7 +70,6 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                  xi,
                                  init=false) #::Vector{Float64},
 
-    # println(m)
     # Get var defined in JuMP.model:
     u = getVar(m, :u)
     w = getVar(m, :w)
@@ -83,7 +88,7 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
 
     status = solve(m)
-    # println(m)
+
     solved = (string(status) == "Optimal")
 
     if solved

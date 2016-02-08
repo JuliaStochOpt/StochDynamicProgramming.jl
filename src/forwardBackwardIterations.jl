@@ -26,6 +26,9 @@ Parameters:
 - V (PolyhedralFunction)
     the current estimation of Bellman's functions
 
+- solverProblems (Array{JuMP.Model})
+    Linear model used to approximate each value function
+
 - forwardPassNumber (int)
     number of forward simulation
 
@@ -36,6 +39,13 @@ Parameters:
 - returnCosts (Bool)
     return the cost of each simulated scenario if true
 
+- init (Bool)
+    Specify if the problem must be initialized
+    (ie cuts are empty)
+
+- display (Bool)
+    If specified, display results in shell
+
 
 Returns (according to the last parameters):
 - costs (Array{float,1})
@@ -45,9 +55,6 @@ Returns (according to the last parameters):
     the simulated stock trajectories. stocks(k,t,:) is the stock for
     scenario k at time t.
 
-- controls (Array{float})
-    the simulated controls trajectories. controls(k,t,:) is the control
-    for scenario k at time t.
 
 """
 function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
@@ -127,6 +134,20 @@ function add_cut!(model, problem, Vt, beta::Float64, lambda::Array{Float64,1})
     @addConstraint(problem, beta + lambda*model.dynamics(x, u, w) .<= alpha)
 end
 
+"""
+Update linear problem with cuts stored in given PolyhedralFunction.
+
+Parameters:
+- model (SPModel)
+    Store the problem definition
+
+- problem (JuMP.Model)
+    Linear problem used to approximate the value functions
+
+- Vt (PolyhedralFunction)
+    Store values of each cut
+
+"""
 function add_constraints_with_cut!(model, problem, Vt)
     for i in 1:Vt.numCuts
         alpha = getVar(problem, :alpha)
@@ -152,12 +173,18 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 
-- V (bellmanFunctions)
+- V (Array{PolyhedralFunction})
     the current estimation of Bellman's functions
+
+- solverProblems (Array{JuMP.Model})
+    Linear model used to approximate each value function
 
 - stockTrajectories (Array{Float64,3})
     stockTrajectories[k,t,:] is the vector of stock where the cut is computed
     for scenario k and time t.
+
+- law (Array{NoiseLaw})
+    Conditionnal distributions of perturbation, for each timestep
 
 Return nothing
 
@@ -176,7 +203,6 @@ function backward_pass(model, #::SDDP.SPModel,
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:2
-        println(t)
         for k = 1:param.forwardPassNumber
             cost = zeros(1);
             subgradient = zeros(model.dimStates)

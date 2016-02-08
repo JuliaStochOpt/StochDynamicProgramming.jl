@@ -12,12 +12,7 @@ include("forwardBackwardIterations.jl")
 include("utility.jl")
 include("simulate.jl")
 
-"""
-TODO: add docstring
-TODO: move initialize in proper module
-TODO: fix initialize
-
-"""
+"""Build a collection of cuts initialize at 0"""
 function get_null_value_functions_array(model::SDDP.SPModel)
 
     V = Vector{SDDP.PolyhedralFunction}(model.stageNumber)
@@ -28,11 +23,43 @@ function get_null_value_functions_array(model::SDDP.SPModel)
     return V
 end
 
+
+
+"""
+Build a cut approximating terminal cost with null function
+
+
+Parameter:
+- problem (JuMP.Model)
+    Cut approximating the terminal cost
+
+"""
 function build_terminal_cost(problem)
     alpha = getVar(problem, :alpha)
     @addConstraint(problem, alpha >= 0)
 end
 
+
+
+"""
+Initialize each linear problem used to approximate value functions
+
+This function define the variables and the constraints of each
+linear problem.
+
+
+Parameter:
+- model (SPModel)
+    Parametrization of the problem
+
+- param (SDDPparameters)
+    Parameters of SDDP
+
+
+Return:
+- Array{JuMP.Model}
+
+"""
 function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
 
     models = Vector{JuMP.Model}(model.stageNumber)
@@ -60,6 +87,7 @@ function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
 end
 
 
+
 """
 Initialize value functions along a given trajectory
 
@@ -76,23 +104,29 @@ Return:
     Return T PolyhedralFunction, where T is the number of stages
     specified in model.
 
+- problems (Array{JuMP.Model})
+    the initialization of linear problems used to approximate
+    each value function
 
 """
 function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                                      param::SDDP.SDDPparameters,
                         )
 
+    n = param.forwardPassNumber
+
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
+
     V_null = get_null_value_functions_array(model)
     V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
 
+    # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises,
                                (model.stageNumber,
-                                param.forwardPassNumber,
+                                n,
                                 model.dimNoises))
 
-    n = param.forwardPassNumber
 
     V[end] = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
 
@@ -106,7 +140,7 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                         false, true, false)[2]
 
     build_terminal_cost(solverProblems[end-1])
-    # println(solverProblems[end-1])
+
     backward_pass(model,
                   param,
                   V,
@@ -133,10 +167,20 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 
+- n_iterations (Int) - Default is 20
+    Maximum number of iterations to run
+
+- display (Bool) - Default is false
+    If specified, display progression in terminal
+
 
 Returns :
-- V::Array{PolyhedralFunction}
+- V (Array{PolyhedralFunction})
     the collection of approximation of the bellman functions
+
+- problems (Array{JuMP.Model})
+    the collection of linear problems used to approximate
+    each value function
 
 """
 function optimize(model::SDDP.SPModel,
