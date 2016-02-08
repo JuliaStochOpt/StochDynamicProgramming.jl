@@ -61,25 +61,39 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                  m::JuMP.Model, #::Vector{SDDP.PolyhedralFunction},
                                  t, #::Int64,
                                  xt, #::Vector{Float64},
-                                 xi) #::Vector{Float64},
-    # w = getVar(m, :w)
-    # @addConstraint(m, m.ext[:w] .== xi)
-    # @defVar(m, w[1:1] )
-    # setValue(m, w, xi )
-    # setValue(m, :w, xi)
-    # chgConstrRHS(m, state_constraint, xt)
-    # @addConstraint(m, state_constraint, x .== xt)
+                                 xi,
+                                 init=false) #::Vector{Float64},
+
+    # println(m)
+    # Get var defined in JuMP.model:
+    u = getVar(m, :u)
+    w = getVar(m, :w)
+    alpha = getVar(m, :alpha)
+
+    # Update value of w:
+    setValue(w, xi)
+
+    # If this is the first call to the solver, value-to-go are approximated
+    # with null function:
+    if init
+        @addConstraint(m, alpha >= 0)
+    end
+    # Update constraint x == xt
+    chgConstrRHS(m.ext[:cons][1], xt[1])
+
 
     status = solve(m)
+    # println(m)
     solved = (string(status) == "Optimal")
 
     if solved
         optimalControl = getValue(u)
+
         # Return object storing results:
         result = SDDP.NextStep(
                           [model.dynamics(xt, optimalControl, xi)],
                           optimalControl,
-                          getDual(state_constraint),
+                          getDual(m.ext[:cons][1]),
                           getObjectiveValue(m))
     else
         # If no solution is found, then return nothing

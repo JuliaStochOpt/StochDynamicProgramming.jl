@@ -28,6 +28,11 @@ function get_null_value_functions_array(model::SDDP.SPModel)
     return V
 end
 
+function build_terminal_cost(problem)
+    alpha = getVar(problem, :alpha)
+    @addConstraint(problem, alpha >= 0)
+end
+
 function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
 
     models = Vector{JuMP.Model}(model.stageNumber)
@@ -39,10 +44,12 @@ function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
       @defVar(m, 0<= x[1:1] <= 100)
       @defVar(m, 0 <= u[1:2] <= 7)
       @defVar(m, alpha)
-      @defVar(m, w[1:1])
+      @defVar(m, 0 <= xf[1:1] <= 100)
 
-      # @addConstraints(m, 0 .<= model.dynamics(x, u, w))
-      # @addConstraint(m, -100 .<= -model.dynamics(x, u, w))
+      @defVar(m, w[1:1] == 0)
+      m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
+
+      @addConstraint(m, xf .== model.dynamics(x, u, w))
 
       @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
 
@@ -76,6 +83,7 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                         )
 
     solverProblems = build_models(model, param)
+    solverProblems_null = build_models(model, param)
     V_null = get_null_value_functions_array(model)
     V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
 
@@ -88,13 +96,17 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
 
     V[end] = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
 
+
     stockTrajectories = forward_simulations(model,
                         param,
                         V_null,
-                        solverProblems,
+                        solverProblems_null,
                         n,
-                        aleas)[2]
+                        aleas,
+                        false, true, false)[2]
 
+    build_terminal_cost(solverProblems[end-1])
+    # println(solverProblems[end-1])
     backward_pass(model,
                   param,
                   V,
@@ -102,7 +114,8 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
                   stockTrajectories,
                   model.noises,
                   true)
-    return V
+
+    return V, solverProblems
 end
 
 
@@ -132,7 +145,7 @@ function optimize(model::SDDP.SPModel,
                   display=true)
 
     # Initialize value functions:
-    V = initialize_value_functions(model, param)
+    V, problems = initialize_value_functions(model, param)
 
     if display
       println("Initialize cuts")
@@ -154,12 +167,14 @@ function optimize(model::SDDP.SPModel,
         stockTrajectories = forward_simulations(model,
                             param,
                             V,
+                            problems,
                             n,
                             aleas)[2]
 
         backward_pass(model,
                       param,
                       V,
+                      problems,
                       stockTrajectories,
                       model.noises)
 
@@ -170,5 +185,5 @@ function optimize(model::SDDP.SPModel,
         end
     end
 
-    return V
+    return V, problems
 end

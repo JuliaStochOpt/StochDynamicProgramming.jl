@@ -57,6 +57,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                             forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
                             returnCosts=true,
+                            init=false,
                             display=false)
 
     # TODO: verify that loops are in the same order
@@ -81,7 +82,8 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
                                             solverProblems[t],
                                             t,
                                             state_t,
-                                            alea_t)
+                                            alea_t,
+                                            init)
 
             stocks[k, t+1, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
@@ -90,7 +92,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
             end
 
             if returnCosts
-                costs[k] += model.costFunctions(state_t, opt_control, alea_t)
+                costs[k] += model.costFunctions(t, state_t, opt_control, alea_t)
             end
         end
     end
@@ -113,12 +115,26 @@ Parameters:
     subgradient of the cut to add
 
     """
-function add_cut!(model, Vt, beta::Float64, lambda::Array{Float64,1})
+function add_cut!(model, problem, Vt, beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
 
-    @addConstraint(model, beta + lambda*model.dynamics(x, u, w) <= theta)
+    alpha = getVar(problem, :alpha)
+    x = getVar(problem, :x)
+    u = getVar(problem, :u)
+    w = getVar(problem, :w)
+    @addConstraint(problem, beta + lambda*model.dynamics(x, u, w) .<= alpha)
+end
+
+function add_constraints_with_cut!(model, problem, Vt)
+    for i in 1:Vt.numCuts
+        alpha = getVar(problem, :alpha)
+        x = getVar(problem, :x)
+        u = getVar(problem, :u)
+        w = getVar(problem, :w)
+        @addConstraint(problem, Vt.betas[i] + Vt.lambdas[i]*model.dynamics(x, u, w) <= alpha)
+    end
 end
 
 
@@ -159,7 +175,8 @@ function backward_pass(model, #::SDDP.SPModel,
     subgradient = 0
     state_t = zeros(Float64, model.dimStates)
 
-    for t = T-1:-1:1
+    for t = T-1:-1:2
+        println(t)
         for k = 1:param.forwardPassNumber
             cost = zeros(1);
             subgradient = zeros(model.dimStates)
@@ -193,8 +210,9 @@ function backward_pass(model, #::SDDP.SPModel,
                                                reshape(subgradient,
                                                        model.dimStates,
                                                        1), 1)
+                add_constraints_with_cut!(model, solverProblems[t-1], V[t])
             else
-                add_cut!(solverProblems[t], V[t], beta[1], subgradient)
+                add_cut!(model, solverProblems[t-1], V[t], beta[1], subgradient)
             end
 
         end

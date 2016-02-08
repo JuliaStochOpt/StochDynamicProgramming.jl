@@ -15,6 +15,7 @@ include("../src/simulate.jl")
 using Cbc
 using GLPKMathProgInterface
 using JuMP
+using CPLEX
 
 N_STAGES = 52
 N_SCENARIOS = 1
@@ -141,8 +142,8 @@ function init_problem()
     x0 = 0
     aleas = generate_probability_laws()
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, x0, cost_t, dynamic, aleas)
-    solver = GLPKSolverLP()
-    # solver = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+    # solver = GLPKSolverLP()
+    solver = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
@@ -152,15 +153,16 @@ end
 function solve_dams()
     model, params = init_problem()
 
-    V = optimize(model, params, 20)
+    V, pbs = optimize(model, params, 20)
     aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
-    costs, stocks = forward_simulations(model, params, V, 1, aleas)
-    println(V[1])
+
+    costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
+    # println(V[1])
     println(costs)
     return stocks
 end
 
-# @time solve_dams()
 u = solve_determinist_problem()
-v = solve_dams()
+# v = solve_dams()
+@time solve_dams()
