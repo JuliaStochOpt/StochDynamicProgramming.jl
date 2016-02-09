@@ -70,7 +70,9 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
     # TODO: verify that loops are in the same order
     T = model.stageNumber
     stocks = zeros(param.forwardPassNumber, T, model.dimStates)
-    stocks[:, 1, :] = 90*rand(param.forwardPassNumber, model.dimStates)
+    for i in 1:forwardPassNumber
+        stocks[i, 1, :] = model.initialState
+    end
 
     costs = nothing
     if returnCosts

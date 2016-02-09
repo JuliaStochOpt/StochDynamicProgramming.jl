@@ -16,7 +16,7 @@ using Clp
 SOLVER = ClpSolver()
 
 N_STAGES = 52
-N_SCENARIOS = 2
+N_SCENARIOS = 1
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
@@ -41,6 +41,7 @@ DW = 1
 T0 = 1
 HORIZON = 52
 
+X0 = [90]
 
 # Define aleas' space:
 N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
@@ -74,7 +75,7 @@ function solve_determinist_problem()
         @addConstraint(m, x[i+1] - x[i] + u[i] + s[i] - alea_year[i] == 0)
     end
 
-    @addConstraint(m, x[1] ==0)
+    @addConstraint(m, x[1] .==X0)
 
     status = solve(m)
     println(status)
@@ -138,7 +139,7 @@ end
 """Instantiate the problem."""
 function init_problem()
     # Instantiate model:
-    x0 = 0
+    x0 = X0
     aleas = generate_probability_laws()
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, (0, 100), (0, 7), x0, cost_t, dynamic, aleas)
 
@@ -161,3 +162,7 @@ function solve_dams(display=false)
     println("SDDP cost: ", costs)
     return stocks
 end
+
+v = solve_dams(true)
+println(v[1, :, 1])
+

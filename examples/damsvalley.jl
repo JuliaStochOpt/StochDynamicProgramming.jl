@@ -7,16 +7,20 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
+srand(2713)
 push!(LOAD_PATH, "../src")
 
 using SDDP
 using JuMP
-using Clp
+using CPLEX
 
-SOLVER = ClpSolver()
+# SOLVER = ClpSolver()
+SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+
+alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
 N_STAGES = 52
-N_SCENARIOS = 2
+N_SCENARIOS = 10
 
 # FINAL TIME:
 TF = 52
@@ -38,11 +42,11 @@ DW = 1
 T0 = 1
 HORIZON = 52
 
-
 # Define aleas' space:
 N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
 ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
+X0 = [90, 90]
 
 # Define dynamic of the dam:
 function dynamic(x, u, w)
@@ -58,8 +62,8 @@ end
 """Solve the problem with a solver, supposing the aleas are known
 in advance."""
 function solve_determinist_problem()
-    println(alea_year)
     m = Model(solver=SOLVER)
+
 
     @defVar(m,  0           <= x1[1:(TF+1)]  <= 100)
     @defVar(m,  0           <= x2[1:(TF+1)]  <= 100)
@@ -73,8 +77,8 @@ function solve_determinist_problem()
         @addConstraint(m, x2[i+1] - x2[i] + u2[i] - u1[i] == 0)
     end
 
-    @addConstraint(m, x1[1] ==0)
-    @addConstraint(m, x2[1] ==0)
+    @addConstraint(m, x1[1] == X0[1])
+    @addConstraint(m, x2[1] == X0[2])
 
     status = solve(m)
     println(status)
@@ -138,7 +142,7 @@ end
 """Instantiate the problem."""
 function init_problem()
     # Instantiate model:
-    x0 = 0
+    x0 = X0
     aleas = generate_probability_laws()
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 2, 2, 1,
@@ -159,7 +163,7 @@ end
 function solve_dams(display=false)
     model, params = init_problem()
 
-    V, pbs = optimize(model, params, 50, display)
+    V, pbs = optimize(model, params, 20, display)
     aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
 
@@ -169,4 +173,5 @@ function solve_dams(display=false)
     return stocks
 end
 
-solve_dams(true)
+# v = @time solve_dams(true)
+# println(v[1, :, 1])
