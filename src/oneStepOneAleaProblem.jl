@@ -1,4 +1,4 @@
-#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2014, Vincent Leclere, Francois Pacaud and Henri Gerard
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,8 +8,8 @@
 # - used to compute the cuts in the Backward phase
 #############################################################################
 
-
-
+using JuMP
+using SDDP
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi
@@ -17,7 +17,7 @@ with the current evaluation of Vt+1
 
 The function solve
 min_u current_cost(t,x,u,xi) + current_Bellman_Value_{t+1}(dynamic(t,x,u,xi))
-and can return the optimal control and a subgradient of the value of the 
+and can return the optimal control and a subgradient of the value of the
 problem with respect to the initial state x
 
 
@@ -27,17 +27,18 @@ Parameters:
 
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
-    
-- V (bellmanFunctions)
-    the current estimation of Bellman's functions
-    
+
+- m (JuMP.Model)
+    The linear problem to solve, in order to approximate the
+    current value functions
+
 - t (int)
     time step at which the problem is solved
 
-- x (Array{Float})
-    current starting state 
-    
-- xi (Array{float}) 
+- xt (Array{Float})
+    current starting state
+
+- xi (Array{float})
     current noise value
 
 - returnOptNextStage (Bool)
@@ -53,27 +54,56 @@ Parameters:
     return the value of the problem
 
 
-Returns (according to the last parameters):
-- costs (Array{float,1})
-    an array of the simulated costs
-- stocks (Array{float})
-    the simulated stock trajectories. stocks(k,t,:) is the stock for scenario k at time t.
-- controls (Array{float})
-    the simulated controls trajectories. controls(k,t,:) is the control for scenario k at time t.
+Returns:
+- Bool
+    True if the solution is feasible, false otherwise
+
+- NextStep
+    Store solution of the problem solved
+
 """
-function solveOneStepOneAlea(model::LinearDynamicLinearCostSPmodel,
-                            param::SDDPparameters,
-                            V::Vector{PolyhedralFunction},
-                            t,
-                            x::Vector{Float64},
-                            xi::Vector{Float64},
-                            returnOptNextStage::Bool=false, 
-                            returnOptControl::Bool=false,
-                            returnSubgradient::Bool=false,
-                            returnCost::Bool=false)
-    
-    #TODO call the right following function
-    # return (optNextStep, optControl, subgradient, cost) #depending on which is asked
+function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
+                                 param, #::SDDP.SDDPparameters,
+                                 m::JuMP.Model, #::Vector{SDDP.PolyhedralFunction},
+                                 t, #::Int64,
+                                 xt, #::Vector{Float64},
+                                 xi,
+                                 init=false) #::Vector{Float64},
+
+    # Get var defined in JuMP.model:
+    u = getVar(m, :u)
+    w = getVar(m, :w)
+    alpha = getVar(m, :alpha)
+
+    # Update value of w:
+    setValue(w, xi)
+
+    # If this is the first call to the solver, value-to-go are approximated
+    # with null function:
+    if init
+        @addConstraint(m, alpha >= 0)
+    end
+    # Update constraint x == xt
+    chgConstrRHS(m.ext[:cons][1], xt[1])
+
+
+    status = solve(m)
+
+    solved = (string(status) == "Optimal")
+
+    if solved
+        optimalControl = getValue(u)
+
+        # Return object storing results:
+        result = SDDP.NextStep(
+                          [model.dynamics(xt, optimalControl, xi)],
+                          optimalControl,
+                          getDual(m.ext[:cons][1]),
+                          getObjectiveValue(m))
+    else
+        # If no solution is found, then return nothing
+        result = nothing
+    end
+
+    return solved, result
 end
-
-
