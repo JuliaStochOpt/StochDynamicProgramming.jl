@@ -9,7 +9,6 @@
 #############################################################################
 
 using JuMP
-using SDDP
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi
@@ -84,7 +83,9 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
         @addConstraint(m, alpha >= 0)
     end
     # Update constraint x == xt
-    chgConstrRHS(m.ext[:cons][1], xt[1])
+    for i in 1:model.dimStates
+        chgConstrRHS(m.ext[:cons][i], xt[i])
+    end
 
 
     status = solve(m)
@@ -93,12 +94,11 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
 
     if solved
         optimalControl = getValue(u)
-
         # Return object storing results:
         result = SDDP.NextStep(
                           [model.dynamics(xt, optimalControl, xi)],
                           optimalControl,
-                          getDual(m.ext[:cons][1]),
+                          [getDual(m.ext[:cons][i]) for i in 1:model.dimStates],
                           getObjectiveValue(m))
     else
         # If no solution is found, then return nothing

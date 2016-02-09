@@ -7,15 +7,14 @@
 #
 #############################################################################
 
-using SDDP
-
+include("objects.jl")
 
 """
 Instantiate a Polyhedral function corresponding to f -> 0
 
 """
 function get_null_value_functions()
-    V = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
+    V = PolyhedralFunction(zeros(1), zeros(1, 1), 1)
     return V
 end
 
@@ -74,9 +73,9 @@ Returns :
 - Monte-Carlo error on the upper bound (if returnMCerror)
 
 """
-function upper_bound(model::SDDP.SPModel,
-                     param::SDDP.SDDPparameters,
-                     V::Vector{SDDP.PolyhedralFunction},
+function upper_bound(model::SPModel,
+                     param::SDDPparameters,
+                     V::Vector{PolyhedralFunction},
                      forwardPassNumber::Int64,
                      returnMCerror::Bool)
 
