@@ -9,7 +9,6 @@
 #############################################################################
 
 using JuMP
-using SDDP
 
 """
 Solve the Bellman equation at time t starting at state x under alea xi

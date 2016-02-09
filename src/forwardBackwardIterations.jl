@@ -6,9 +6,9 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-using SDDP
 include("oneStepOneAleaProblem.jl")
 include("utility.jl")
+include("objects.jl")
 
 """
 Make a forward pass of the algorithm

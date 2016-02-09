@@ -7,11 +7,9 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
+push!(LOAD_PATH, "../src")
 
-include("../src/SDDP.jl")
-include("../src/SDDPoptimize.jl")
-include("../src/simulate.jl")
-
+using SDDP
 using JuMP
 using Clp
 
@@ -170,3 +168,5 @@ function solve_dams(display=false)
     println("SDDP cost: ", costs)
     return stocks
 end
+
+solve_dams(true)

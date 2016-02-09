@@ -11,9 +11,10 @@
 include("forwardBackwardIterations.jl")
 include("utility.jl")
 include("simulate.jl")
+include("objects.jl")
 
 """Build a collection of cuts initialize at 0"""
-function get_null_value_functions_array(model::SDDP.SPModel)
+function get_null_value_functions_array(model::SPModel)
 
     V = Vector{SDDP.PolyhedralFunction}(model.stageNumber)
     for t = 1:model.stageNumber
@@ -60,7 +61,7 @@ Return:
 - Array{JuMP.Model}
 
 """
-function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
+function build_models(model::SPModel, param::SDDPparameters)
 
     models = Vector{JuMP.Model}(model.stageNumber)
 
@@ -113,8 +114,8 @@ Return:
     each value function
 
 """
-function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
-                                     param::SDDP.SDDPparameters,
+function initialize_value_functions( model::LinearDynamicLinearCostSPmodel,
+                                     param::SDDPparameters,
                         )
 
     n = param.forwardPassNumber
@@ -123,7 +124,7 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
     solverProblems_null = build_models(model, param)
 
     V_null = get_null_value_functions_array(model)
-    V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
+    V = Array{PolyhedralFunction}(model.stageNumber)
 
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises,
@@ -187,8 +188,8 @@ Returns :
     each value function
 
 """
-function optimize(model::SDDP.SPModel,
-                  param::SDDP.SDDPparameters,
+function optimize(model::SPModel,
+                  param::SDDPparameters,
                   n_iterations=20,
                   display=true)
 
