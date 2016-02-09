@@ -72,9 +72,9 @@ function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
       nu = model.dimControls
       nw = model.dimNoises
 
-      @defVar(m,  model.xlim[1]<= x[1:nx] <= model.xlim[2])
+      @defVar(m,  model.xlim[1] <= x[1:nx] <= model.xlim[2])
       @defVar(m,  model.ulim[1] <= u[1:nu] <=  model.ulim[2])
-      @defVar(m,  model.xlim[1] <= xf[1:nx] <= model.xlim[2])
+      @defVar(m,  model.xlim[1] <= xf[1:nx]<= model.xlim[2])
       @defVar(m, alpha)
 
       @defVar(m, w[1:nw] == 0)
