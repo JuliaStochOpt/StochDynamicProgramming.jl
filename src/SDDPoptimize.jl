@@ -11,9 +11,10 @@
 include("forwardBackwardIterations.jl")
 include("utility.jl")
 include("simulate.jl")
+include("objects.jl")
 
 """Build a collection of cuts initialize at 0"""
-function get_null_value_functions_array(model::SDDP.SPModel)
+function get_null_value_functions_array(model::SPModel)
 
     V = Vector{SDDP.PolyhedralFunction}(model.stageNumber)
     for t = 1:model.stageNumber
@@ -60,7 +61,7 @@ Return:
 - Array{JuMP.Model}
 
 """
-function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
+function build_models(model::SPModel, param::SDDPparameters)
 
     models = Vector{JuMP.Model}(model.stageNumber)
 
@@ -68,12 +69,16 @@ function build_models(model::SDDP.SPModel, param::SDDP.SDDPparameters)
     for t = 1:model.stageNumber
       m = Model(solver=param.solver)
 
-      @defVar(m, 0<= x[1:1] <= 100)
-      @defVar(m, 0 <= u[1:2] <= 7)
-      @defVar(m, alpha)
-      @defVar(m, 0 <= xf[1:1] <= 100)
+      nx = model.dimStates
+      nu = model.dimControls
+      nw = model.dimNoises
 
-      @defVar(m, w[1:1] == 0)
+      @defVar(m,  model.xlim[1] <= x[1:nx] <= model.xlim[2])
+      @defVar(m,  model.ulim[1] <= u[1:nu] <=  model.ulim[2])
+      @defVar(m,  model.xlim[1] <= xf[1:nx]<= model.xlim[2])
+      @defVar(m, alpha)
+
+      @defVar(m, w[1:nw] == 0)
       m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
 
       @addConstraint(m, xf .== model.dynamics(x, u, w))
@@ -109,8 +114,8 @@ Return:
     each value function
 
 """
-function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
-                                     param::SDDP.SDDPparameters,
+function initialize_value_functions( model::LinearDynamicLinearCostSPmodel,
+                                     param::SDDPparameters,
                         )
 
     n = param.forwardPassNumber
@@ -119,7 +124,7 @@ function initialize_value_functions( model::SDDP.LinearDynamicLinearCostSPmodel,
     solverProblems_null = build_models(model, param)
 
     V_null = get_null_value_functions_array(model)
-    V = Array{SDDP.PolyhedralFunction}(model.stageNumber)
+    V = Array{PolyhedralFunction}(model.stageNumber)
 
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises,
@@ -183,8 +188,8 @@ Returns :
     each value function
 
 """
-function optimize(model::SDDP.SPModel,
-                  param::SDDP.SDDPparameters,
+function optimize(model::SPModel,
+                  param::SDDPparameters,
                   n_iterations=20,
                   display=true)
 

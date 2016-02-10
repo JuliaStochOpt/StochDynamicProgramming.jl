@@ -6,7 +6,7 @@
 # run unit-tests
 #############################################################################
 
-include("../src/SDDP.jl")
+push!(LOAD_PATH, "src")
 
 using SDDP
 using Distributions
@@ -15,7 +15,7 @@ using FactCheck
 
 # Test simulate.jl
 facts("Probability functions") do
-    include("../src/simulate.jl")
+    # include("../src/simulate.jl")
 
     support = [1, 2, 3]
     proba = [.2 .5 .3]
@@ -38,7 +38,7 @@ facts("Utility functions") do
     include("../src/utility.jl")
 
     V = get_null_value_functions()
-    @fact typeof(V) --> SDDP.PolyhedralFunction
+    @fact typeof(V) --> PolyhedralFunction
     @fact V.betas[1] --> 0
 
     arr = rand(4, 4, 2)

@@ -6,11 +6,12 @@
 # Test SDDP with the newsvendor case study
 #############################################################################
 
-include("../src/SDDPoptimize.jl")
-include("../src/simulate.jl")
 
+using SDDP
 using Clp
 using JuMP
+
+SOLVER = ClpSolver()
 
 N_STAGES = 20
 N_SCENARIOS = 1
@@ -40,7 +41,7 @@ function init_problem()
     x0 = 0
     law = NoiseLaw([0., 1., 2., 3.], [.2, .4, .3, .1])
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, 1, x0, cost_t, dynamic, law)
-    solver = ClpSolver()
+    solver = SOLVER
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
