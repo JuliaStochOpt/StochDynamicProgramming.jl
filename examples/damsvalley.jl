@@ -65,10 +65,10 @@ function solve_determinist_problem()
     m = Model(solver=SOLVER)
 
 
-    @defVar(m,  0           <= x1[1:(TF+1)]  <= 100)
-    @defVar(m,  0           <= x2[1:(TF+1)]  <= 100)
-    @defVar(m,  0.          <= u1[1:TF]  <= 7)
-    @defVar(m,  0.          <= u2[1:TF]  <= 7)
+    @defVar(m,  VOLUME_MIN  <= x1[1:(TF+1)]  <= VOLUME_MAX)
+    @defVar(m,  VOLUME_MIN  <= x2[1:(TF+1)]  <= VOLUME_MAX)
+    @defVar(m,  CONTROL_MIN <= u1[1:TF]  <= CONTROL_MAX)
+    @defVar(m,  CONTROL_MIN <= u2[1:TF]  <= CONTROL_MAX)
 
     @setObjective(m, Min, sum{COST[i]*(u1[i] + u2[i]), i = 1:TF})
 
@@ -144,10 +144,14 @@ function init_problem()
     # Instantiate model:
     x0 = X0
     aleas = generate_probability_laws()
+    # x_bounds = (VOLUME_MIN, VOLUME_MAX)
+    x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX)]
+
     model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 2, 2, 1,
-                                                (VOLUME_MIN, VOLUME_MAX),
-                                                (CONTROL_MIN, CONTROL_MAX),
+                                                x_bounds,
+                                                u_bounds,
                                                 x0,
                                                 cost_t,
                                                 dynamic,
