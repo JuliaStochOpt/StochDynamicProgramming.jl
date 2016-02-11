@@ -61,13 +61,13 @@ Returns:
     Store solution of the problem solved
 
 """
-function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
-                                 param, #::SDDP.SDDPparameters,
-                                 m::JuMP.Model, #::Vector{SDDP.PolyhedralFunction},
-                                 t, #::Int64,
-                                 xt, #::Vector{Float64},
-                                 xi,
-                                 init=false) #::Vector{Float64},
+function solve_one_step_one_alea(model,
+                                 param,
+                                 m::JuMP.Model,
+                                 t::Int64,
+                                 xt::Vector{Float64},
+                                 xi::Vector{Float64},
+                                 init=false::Bool)
 
     # Get var defined in JuMP.model:
     u = getVar(m, :u)

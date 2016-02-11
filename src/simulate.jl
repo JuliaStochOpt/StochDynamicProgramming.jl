@@ -128,7 +128,7 @@ Return:
 - Array{Float64, 3}
 
 """
-function simulate_scenarios(laws, dims)
+function simulate_scenarios(laws, dims::Tuple)
 
     if typeof(laws) == Distributions.Normal
         scenarios = rand(laws, dims)

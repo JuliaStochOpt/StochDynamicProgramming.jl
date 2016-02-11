@@ -6,6 +6,7 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
+using JuMP
 include("oneStepOneAleaProblem.jl")
 include("utility.jl")
 include("objects.jl")
@@ -57,15 +58,15 @@ Returns (according to the last parameters):
 
 
 """
-function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
-                            param, #::SDDP.SDDPparameters,
-                            V, #::Vector{SDDP.PolyhedralFunction},
-                            solverProblems,
+function forward_simulations(model::SPModel,
+                            param::SDDPparameters,
+                            V::Vector{PolyhedralFunction},
+                            solverProblems::Vector{JuMP.Model},
                             forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
-                            returnCosts=true,
-                            init=false,
-                            display=false)
+                            returnCosts=true::Bool,
+                            init=false::Bool,
+                            display=false::Bool)
 
     # TODO: verify that loops are in the same order
     T = model.stageNumber
@@ -124,7 +125,9 @@ Parameters:
     subgradient of the cut to add
 
 """
-function add_cut!(model, problem, t, Vt, beta::Float64, lambda::Array{Float64,1})
+function add_cut!(model::SPModel, problem::JuMP.Model,
+                  t::Int64, Vt::PolyhedralFunction,
+                  beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -151,9 +154,10 @@ Parameters:
     Store values of each cut
 
 """
-function add_constraints_with_cut!(model, problem, t, Vt)
+function add_constraints_with_cut!(model::SPModel, problem::JuMP.Model,
+                                   t::Int64, Vt::PolyhedralFunction)
     for i in 1:Vt.numCuts
-        # println(typeof(Vt.lambdas[i]))
+
         alpha = getVar(problem, :alpha)
         x = getVar(problem, :x)
         u = getVar(problem, :u)
@@ -193,11 +197,11 @@ Parameters:
 Return nothing
 
 """
-function backward_pass(model, #::SDDP.SPModel,
-                      param, #::SDDP.SDDPparameters,
-                      V, #::Array{SDDP.PolyhedralFunction, 1},
-                      solverProblems,
-                      stockTrajectories,
+function backward_pass(model::SPModel,
+                      param::SDDPparameters,
+                      V::Array{PolyhedralFunction, 1},
+                      solverProblems::Vector{JuMP.Model},
+                      stockTrajectories::Array{Float64, 3},
                       law, #::NoiseLaw,
                       init=false)
 

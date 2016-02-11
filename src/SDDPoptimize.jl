@@ -35,7 +35,7 @@ Parameter:
     Cut approximating the terminal cost
 
 """
-function build_terminal_cost(problem)
+function build_terminal_cost(problem::JuMP.Model)
     alpha = getVar(problem, :alpha)
     @addConstraint(problem, alpha >= 0)
 end
@@ -203,8 +203,8 @@ Returns :
 """
 function optimize(model::SPModel,
                   param::SDDPparameters,
-                  n_iterations=20,
-                  display=true)
+                  n_iterations=20::Int64,
+                  display=true::Bool)
 
     # Initialize value functions:
     V, problems = initialize_value_functions(model, param)

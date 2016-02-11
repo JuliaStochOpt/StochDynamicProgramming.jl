@@ -148,7 +148,7 @@ function init_problem()
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX)]
 
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES,
+    model = LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 2, 2, 1,
                                                 x_bounds,
                                                 u_bounds,
