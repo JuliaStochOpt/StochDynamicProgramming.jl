@@ -71,6 +71,7 @@ function forward_simulations(model::SPModel,
     # TODO: verify that loops are in the same order
     T = model.stageNumber
     stocks = zeros(param.forwardPassNumber, T, model.dimStates)
+    controls = zeros(param.forwardPassNumber, T, model.dimControls)
     for i in 1:forwardPassNumber
         stocks[i, 1, :] = model.initialState
     end
@@ -97,8 +98,9 @@ function forward_simulations(model::SPModel,
 
             stocks[k, t+1, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
+            controls[k, t, :] = opt_control
             if display
-                println(sizeof(opt_control))
+                println(opt_control)
             end
 
             if returnCosts
@@ -106,7 +108,7 @@ function forward_simulations(model::SPModel,
             end
         end
     end
-    return costs, stocks
+    return costs, stocks, controls
 end
 
 
