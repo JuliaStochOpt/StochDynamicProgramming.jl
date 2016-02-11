@@ -6,9 +6,6 @@
 # Probability utilities
 #############################################################################
 
-
-using Distributions
-
 type NoiseLaw
     # Number of points in distribution:
     supportSize::Int64

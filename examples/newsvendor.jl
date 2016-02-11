@@ -7,9 +7,7 @@
 #############################################################################
 
 
-using SDDP
-using Clp
-using JuMP
+using StochDynamicProgramming, JuMP, Clp
 
 SOLVER = ClpSolver()
 
@@ -40,9 +38,9 @@ function init_problem()
     # Instantiate model:
     x0 = 0
     law = NoiseLaw([0., 1., 2., 3.], [.2, .4, .3, .1])
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, 1, x0, cost_t, dynamic, law)
+    model = LinearDynamicLinearCostSPmodel(N_STAGES, 1, 1, 1, x0, cost_t, dynamic, law)
     solver = SOLVER
-    params = SDDP.SDDPparameters(solver, N_SCENARIOS)
+    params = SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
 end

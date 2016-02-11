@@ -8,15 +8,11 @@
 #############################################################################
 
 
-include("forwardBackwardIterations.jl")
-include("utility.jl")
-include("simulate.jl")
-include("objects.jl")
 
 """Build a collection of cuts initialize at 0"""
 function get_null_value_functions_array(model::SPModel)
 
-    V = Vector{SDDP.PolyhedralFunction}(model.stageNumber)
+    V = Vector{PolyhedralFunction}(model.stageNumber)
     for t = 1:model.stageNumber
         V[t] = get_null_value_functions()
     end
@@ -133,7 +129,7 @@ function initialize_value_functions( model::LinearDynamicLinearCostSPmodel,
                                 model.dimNoises))
 
 
-    V[end] = SDDP.PolyhedralFunction(zeros(1), zeros(1, 1), 1)
+    V[end] = PolyhedralFunction(zeros(1), zeros(1, 1), 1)
 
 
     stockTrajectories = forward_simulations(model,
