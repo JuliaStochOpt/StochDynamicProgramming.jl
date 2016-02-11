@@ -49,7 +49,7 @@ ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
 
 # Define dynamic of the dam:
-function dynamic(x, u, w)
+function dynamic(t, x, u, w)
     return [x[1] - u[1] - u[2] + w[1]]
 end
 
@@ -141,7 +141,11 @@ function init_problem()
     # Instantiate model:
     x0 = X0
     aleas = generate_probability_laws()
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, [(0, 100)], [(0, 7), (0, 7)], x0, cost_t, dynamic, aleas)
+    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1,
+                                                [(0, 100)], [(0, 7), (0, 7)],
+                                                x0,
+                                                cost_t,
+                                                dynamic, aleas)
 
     solver = SOLVER
     params = SDDP.SDDPparameters(solver, N_SCENARIOS)
@@ -154,7 +158,8 @@ function solve_dams(display=false)
     model, params = init_problem()
 
     V, pbs = optimize(model, params, 20, display)
-    aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
+    aleas = simulate_scenarios(model.noises ,(model.stageNumber,
+                               params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
 
     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
@@ -165,4 +170,3 @@ end
 
 v = solve_dams(true)
 println(v[1, :, 1])
-

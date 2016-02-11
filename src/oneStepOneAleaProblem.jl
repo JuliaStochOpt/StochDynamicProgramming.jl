@@ -96,10 +96,11 @@ function solve_one_step_one_alea(model, #::SDDP.LinearDynamicLinearCostSPmodel,
         optimalControl = getValue(u)
         # Return object storing results:
         result = SDDP.NextStep(
-                          [model.dynamics(xt, optimalControl, xi)],
+                          model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
                           [getDual(m.ext[:cons][i]) for i in 1:model.dimStates],
-                          getObjectiveValue(m))
+                          getObjectiveValue(m),
+                          getValue(alpha))
     else
         # If no solution is found, then return nothing
         result = nothing

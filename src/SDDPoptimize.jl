@@ -67,25 +67,38 @@ function build_models(model::SPModel, param::SDDPparameters)
 
 
     for t = 1:model.stageNumber
-      m = Model(solver=param.solver)
+        m = Model(solver=param.solver)
 
-      nx = model.dimStates
-      nu = model.dimControls
-      nw = model.dimNoises
+        nx = model.dimStates
+        nu = model.dimControls
+        nw = model.dimNoises
 
-      @defVar(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-      @defVar(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
-      @defVar(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
-      @defVar(m, alpha)
+        @defVar(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+        @defVar(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+        @defVar(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
+        @defVar(m, alpha)
 
-      @defVar(m, w[1:nw] == 0)
-      m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
+        @defVar(m, w[1:nw] == 0)
+        m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
 
-      @addConstraint(m, xf .== model.dynamics(x, u, w))
+        @addConstraint(m, xf .== model.dynamics(t, x, u, w))
 
-      @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        if typeof(model) == LinearDynamicLinearCostSPmodel
+            @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
 
-      models[t] = m
+        elseif typeof(model) == PiecewiseLinearCostSPmodel
+            @defVar(m, cost)
+
+            for i in 1:length(model.costFunctions)
+                @addConstraint(m, cost >= model.costFunctions[i](t, x, u, w))
+            end
+            @setObjective(m, Min, cost + alpha)
+
+        else
+            error("model must be: LinearDynamicLinearCostSPModel")
+        end
+
+        models[t] = m
 
     end
     return models
@@ -114,7 +127,7 @@ Return:
     each value function
 
 """
-function initialize_value_functions( model::LinearDynamicLinearCostSPmodel,
+function initialize_value_functions( model::SPModel,
                                      param::SDDPparameters,
                         )
 

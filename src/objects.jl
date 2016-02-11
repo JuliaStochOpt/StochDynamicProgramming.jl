@@ -16,14 +16,36 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     dimNoises::Int64
 
     # Bounds of states and controls:
-    xlim
-    ulim
+    xlim::Array{Tuple{Float64,Float64},1}
+    ulim::Array{Tuple{Float64,Float64},1}
 
-    initialState
+    initialState::Array{Float64, 1}
 
-    costFunctions
-    dynamics
-    noises
+    costFunctions::Function
+    dynamics::Function
+    noises::Vector{NoiseLaw}
+
+    # TODO: add this attributes to model
+    # lowerbounds#::Tuple{Vector{Float64}}
+    # upperbounds#::Tuple{Vector{Float64}}
+end
+
+type PiecewiseLinearCostSPmodel <: SPModel
+    # problem dimension
+    stageNumber::Int64
+    dimControls::Int64
+    dimStates::Int64
+    dimNoises::Int64
+
+    # Bounds of states and controls:
+    xlim::Array{Tuple{Float64,Float64},1}
+    ulim::Array{Tuple{Float64,Float64},1}
+
+    initialState::Array{Float64, 1}
+
+    costFunctions::Vector{Function}
+    dynamics::Function
+    noises::Vector{NoiseLaw}
 
     # TODO: add this attributes to model
     # lowerbounds#::Tuple{Vector{Float64}}
@@ -56,5 +78,6 @@ type NextStep
     next_state::Array{Float64, 1}
     optimal_control::Array{Float64, 1}
     sub_gradient
-    cost
+    cost::Float64
+    cost_to_go::Float64
 end

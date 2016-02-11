@@ -14,6 +14,7 @@ using JuMP
 
 export optimize, NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearDynamicLinearCostSPmodel,
+        PiecewiseLinearCostSPmodel,
         PolyhedralFunction, NextStep, forward_simulations
 
 include("simulate.jl")

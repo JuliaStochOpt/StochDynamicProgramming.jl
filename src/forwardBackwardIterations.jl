@@ -101,7 +101,7 @@ function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
             end
 
             if returnCosts
-                costs[k] += model.costFunctions(t, state_t, opt_control, alea_t)
+                costs[k] += nextstep.cost - nextstep.cost_to_go
             end
         end
     end
@@ -123,8 +123,8 @@ Parameters:
 - lambda (Array{float,1})
     subgradient of the cut to add
 
-    """
-function add_cut!(model, problem, Vt, beta::Float64, lambda::Array{Float64,1})
+"""
+function add_cut!(model, problem, t, Vt, beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -134,7 +134,7 @@ function add_cut!(model, problem, Vt, beta::Float64, lambda::Array{Float64,1})
     u = getVar(problem, :u)
     w = getVar(problem, :w)
 
-    @addConstraint(problem, beta + dot(lambda, model.dynamics(x, u, w)) <= alpha)
+    @addConstraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
 end
 
 """
@@ -151,14 +151,14 @@ Parameters:
     Store values of each cut
 
 """
-function add_constraints_with_cut!(model, problem, Vt)
+function add_constraints_with_cut!(model, problem, t, Vt)
     for i in 1:Vt.numCuts
         # println(typeof(Vt.lambdas[i]))
         alpha = getVar(problem, :alpha)
         x = getVar(problem, :x)
         u = getVar(problem, :u)
         w = getVar(problem, :w)
-        @addConstraint(problem, Vt.betas[i] + Vt.lambdas[i]*model.dynamics(x, u, w) .<= alpha)
+        @addConstraint(problem, Vt.betas[i] + Vt.lambdas[i]*model.dynamics(t, x, u, w) .<= alpha)
     end
 end
 
@@ -240,10 +240,10 @@ function backward_pass(model, #::SDDP.SPModel,
                                                reshape(subgradient,
                                                        model.dimStates,
                                                        1), 1)
-                add_constraints_with_cut!(model, solverProblems[t-1], V[t])
+                add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
             else
                 subgradient = Array{Float64}(subgradient)
-                add_cut!(model, solverProblems[t-1], V[t], beta[1], subgradient)
+                add_cut!(model, solverProblems[t-1], t, V[t], beta[1], subgradient)
             end
 
         end
