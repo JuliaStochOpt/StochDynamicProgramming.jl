@@ -218,7 +218,7 @@ function backward_pass(model::SPModel,
             for w in 1:law[t].supportSize
                 state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
-                alea_t  = [law[t].support[w]]
+                alea_t  = collect(law[t].support[:, w])
                 proba_t = law[t].proba[w]
 
                 nextstep = solve_one_step_one_alea(model,
