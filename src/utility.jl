@@ -73,18 +73,33 @@ Returns :
 - Monte-Carlo error on the upper bound (if returnMCerror)
 
 """
-function upper_bound(model::SPModel,
-                     param::SDDPparameters,
-                     V::Vector{PolyhedralFunction},
-                     forwardPassNumber::Int64,
-                     returnMCerror::Bool)
+function upper_bound(cost::Vector{Float64})
+    m = mean(cost)
+    return m + 1.96*std(cost)/sqrt(length(cost))
+end
 
-    C = forward_simulations(model, param, V, forwardPassNumber,
-                            nothing, true, false, false)
-    m = mean(C)
-    if returnMCerror
-        return m, 1.96*std(C)/sqrt(forwardPassNumber)
-    else
-        return m
-    end
+
+"""
+Test if the stopping criteria is fulfilled.
+
+Return true if |V0 - upb|/V0 < epsilon
+
+
+Parameters:
+- V0 (Float)
+    Approximation of initial cost
+
+- upb (Float)
+    Approximation of the upper bound given by Monte-Carlo estimation
+
+- epsilon (Float)
+    Sensibility
+
+
+Return:
+Bool
+
+"""
+function test_stopping_criterion(V0, upb, epsilon)
+    return abs((V0-upb)/V0) < epsilon
 end

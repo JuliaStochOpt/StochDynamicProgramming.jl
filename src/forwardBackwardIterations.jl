@@ -51,6 +51,7 @@ Parameters:
 Returns (according to the last parameters):
 - costs (Array{float,1})
     an array of the simulated costs
+    If returnCosts=false, return nothing
 
 - stocks (Array{float})
     the simulated stock trajectories. stocks(k,t,:) is the stock for
@@ -72,6 +73,8 @@ function forward_simulations(model::SPModel,
     T = model.stageNumber
     stocks = zeros(param.forwardPassNumber, T, model.dimStates)
     controls = zeros(param.forwardPassNumber, T, model.dimControls)
+
+    # Set first value of stocks equal to x0:
     for i in 1:forwardPassNumber
         stocks[i, 1, :] = model.initialState
     end
@@ -127,13 +130,37 @@ Parameters:
     subgradient of the cut to add
 
 """
-function add_cut!(model::SPModel, problem::JuMP.Model,
+function add_cut!(model::SPModel,
                   t::Int64, Vt::PolyhedralFunction,
                   beta::Float64, lambda::Array{Float64,1})
     Vt.lambdas = vcat(Vt.lambdas, lambda)
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
+end
 
+
+"""
+Add a cut to the linear problem.
+
+Parameters:
+- model (SPModel)
+    Store the problem definition
+
+- problem (JuMP.Model)
+    Linear problem used to approximate the value functions
+
+- t (Int)
+    Time index
+
+- beta (Float)
+    affine part of the cut to add
+
+- lambda (Array{float,1})
+    subgradient of the cut to add
+
+"""
+function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
+                              t::Int64, beta::Float64, lambda::Array{Float64,1})
     alpha = getVar(problem, :alpha)
     x = getVar(problem, :x)
     u = getVar(problem, :u)
@@ -141,6 +168,7 @@ function add_cut!(model::SPModel, problem::JuMP.Model,
 
     @addConstraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
 end
+
 
 """
 Update linear problem with cuts stored in given PolyhedralFunction.
@@ -209,10 +237,14 @@ function backward_pass(model::SPModel,
 
     T = model.stageNumber
 
+    # Estimation of initial cost:
+    V0 = 0
+
+    cost::Vector{Float64} = zeros(1)
     subgradient = 0
     state_t = zeros(Float64, model.dimStates)
 
-    for t = T-1:-1:2
+    for t = T-1:-1:1
         for k = 1:param.forwardPassNumber
             cost = zeros(1);
             subgradient = zeros(model.dimStates)
@@ -246,12 +278,23 @@ function backward_pass(model::SPModel,
                                                reshape(subgradient,
                                                        model.dimStates,
                                                        1), 1)
-                add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
+                if t > 1
+                    add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
+                end
             else
                 subgradient = Array{Float64}(subgradient)
-                add_cut!(model, solverProblems[t-1], t, V[t], beta[1], subgradient)
+                if t > 1
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta[1], subgradient)
+                end
+                add_cut!(model, t, V[t], beta[1], subgradient)
             end
 
         end
+
+        if t==1
+            V0 = cost[1]
+        end
+
     end
+    return V0
 end

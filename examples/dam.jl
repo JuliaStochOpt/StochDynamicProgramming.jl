@@ -15,8 +15,11 @@ using Clp
 
 SOLVER = ClpSolver()
 
+EPSILON = .05
+MAX_ITER = 20
+
 N_STAGES = 52
-N_SCENARIOS = 1
+N_SCENARIOS = 10
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
@@ -148,7 +151,7 @@ function init_problem()
                                                 dynamic, aleas)
 
     solver = SOLVER
-    params = SDDP.SDDPparameters(solver, N_SCENARIOS)
+    params = SDDP.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
@@ -157,7 +160,7 @@ end
 function solve_dams(display=false)
     model, params = init_problem()
 
-    V, pbs = optimize(model, params, 20, display)
+    V, pbs = optimize(model, params, display)
     aleas = simulate_scenarios(model.noises ,(model.stageNumber,
                                params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
@@ -167,6 +170,3 @@ function solve_dams(display=false)
     println("SDDP cost: ", costs)
     return stocks
 end
-
-v = solve_dams(true)
-println(v[1, :, 1])

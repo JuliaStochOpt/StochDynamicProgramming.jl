@@ -60,8 +60,8 @@ type SDDPparameters
 
     # TODO: add this attributes to SDDPparameters
     # initialization #TODO
-    # stoppingTest #TODO
-    # maxItNumber #TODO
+    sensibility::Float64
+    maxItNumber::Int64
 end
 
 type PolyhedralFunction
