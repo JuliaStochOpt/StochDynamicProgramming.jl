@@ -6,10 +6,6 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-include("oneStepOneAleaProblem.jl")
-include("utility.jl")
-include("objects.jl")
-
 """
 Make a forward pass of the algorithm
 
@@ -57,9 +53,9 @@ Returns (according to the last parameters):
 
 
 """
-function forward_simulations(model, #::SDDP.LinearDynamicLinearCostSPmodel,
-                            param, #::SDDP.SDDPparameters,
-                            V, #::Vector{SDDP.PolyhedralFunction},
+function forward_simulations(model, #::LinearDynamicLinearCostSPmodel,
+                            param, #::SDDPparameters,
+                            V, #::Vector{PolyhedralFunction},
                             solverProblems,
                             forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
@@ -191,9 +187,9 @@ Parameters:
 Return nothing
 
 """
-function backward_pass(model, #::SDDP.SPModel,
-                      param, #::SDDP.SDDPparameters,
-                      V, #::Array{SDDP.PolyhedralFunction, 1},
+function backward_pass(model, #::SPModel,
+                      param, #::SDDPparameters,
+                      V, #::Array{PolyhedralFunction, 1},
                       solverProblems,
                       stockTrajectories,
                       law, #::NoiseLaw,
@@ -234,7 +230,7 @@ function backward_pass(model, #::SDDP.SPModel,
             beta = cost - dot(subgradient, state_t)
 
             if init
-                V[t] = SDDP.PolyhedralFunction(beta,
+                V[t] = PolyhedralFunction(beta,
                                                reshape(subgradient,
                                                        model.dimStates,
                                                        1), 1)

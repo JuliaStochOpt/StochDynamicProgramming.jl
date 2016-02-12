@@ -3,13 +3,13 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-#  the actual optimization function 
+#  the actual optimization function
 #
 #############################################################################
 
 
-include("../src/SDDP.jl")
-println("SDDP.jl file included");
+include("../src/StochDynamicProgramming.jl")
+println("StochDynamicProgramming.jl file included");
 
 println(" ");
 println("All files well included");
@@ -29,8 +29,8 @@ function costFunction(t,x,u,xi)
 
      Cx 	= 10*rand(X,Time);
 	Cu 	= 10*rand(X,Time);
-	Cxi 	= 10*rand(X,Time);    
-     
+	Cxi 	= 10*rand(X,Time);
+
 	lengthx  = length(Cx[:,t]);
 	lengthu  = length(Cu[:,t]);
 	lengthxi = length(Cxi[:,t]);
@@ -56,10 +56,10 @@ function dynamic(t,x,u,xi)
 #	A3 	  = [];
 #	dynamique = Any[A1',A2'];
 
-     dynamique = push!(dynamique,[]);     
-     
+     dynamique = push!(dynamique,[]);
+
 	new_state = dynamique[t];
-    	
+
 	return new_state
 end
 
@@ -85,7 +85,7 @@ stocks = zeros(k,test.stageNumber,X);
 
 for t=1:test.stageNumber
      for i=1:X
-          stocks[k,t,i] = test.lowerbounds[t,i]; 
+          stocks[k,t,i] = test.lowerbounds[t,i];
      end;
 end;
 
@@ -97,7 +97,7 @@ bruit     = NoiseLaw(test.stageNumber,3*rand(X,Time),prob);
 omeg = [bruit]
 for i = 2 : Time
      bruitbis =  NoiseLaw(test.stageNumber,3*rand(X,Time),prob);
-     omeg = push!(omeg,bruitbis);   
+     omeg = push!(omeg,bruitbis);
 end
 #bruitbis  = NoiseLaw(test.stageNumber,[4 5 6;4 5 6],[1/3;1/3;1/3])
 #bruitter  = NoiseLaw(test.stageNumber,[7 8 9;7 8 9],[1/3;1/3;1/3])
@@ -111,7 +111,7 @@ function initialization( model::LinearDynamicLinearCostSPmodel,
                          stocks,#::Array{float,3}
                          xi
                         )
-     
+
      for t=(model.stageNumber-1):-1:1
          for k =1:param.forwardPassNumber
              costw = zeros(model.stageNumber);
@@ -123,12 +123,12 @@ function initialization( model::LinearDynamicLinearCostSPmodel,
                                                   t,
                                                   squeeze(stocks[k,t,:],1)'[:,1],
                                                   omeg[t].support[:,w],
-                                                  false, 
+                                                  false,
                                                   false,
                                                   true,
                                                   true);
                costw[w] = solution[end];#TODO
-               subgradientw[w,:] = solution[1:(end-1)];#TODO                        
+               subgradientw[w,:] = solution[1:(end-1)];#TODO
              end
              cost = (omeg[t].proba)'*costw;#TODO obtain probabilityz
              subgradient = (omeg[t].proba)'*subgradientw;#TODO
@@ -146,9 +146,9 @@ partest.initialization(test,
                cut,
                stocks,
                alea);
-              
-              
-              
+
+
+
 println("end of instanciation")
 
 println(" ");

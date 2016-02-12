@@ -6,12 +6,7 @@
 # Test SDDP with LQR example (quadratic cost)
 #############################################################################
 
-include("../src/simulate.jl")
-include("../src/SDDP.jl")
-include("../src/SDDPoptimize.jl")
-
-using CPLEX
-using JuMP
+using StochDynamicProgramming, JuMP, Clp
 
 N_STAGES = 20
 N_SCENARIOS = 1
@@ -36,9 +31,9 @@ function init_problem()
     # Instantiate model:
     x0 = 0
     law = Normal(0, SIGMA)
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 2, 2, x0, cost_t, dynamic, law)
-    solver = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
-    params = SDDP.SDDPparameters(solver, N_SCENARIOS)
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES, 1, 2, 2, x0, cost_t, dynamic, law)
+    solver = ClpSolver()
+    params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
 end

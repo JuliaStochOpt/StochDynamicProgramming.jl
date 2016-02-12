@@ -7,11 +7,7 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
-push!(LOAD_PATH, "../src")
-
-using SDDP
-using JuMP
-using Clp
+using StochDynamicProgramming, JuMP, Clp
 
 SOLVER = ClpSolver()
 
@@ -140,10 +136,10 @@ function init_problem()
     # Instantiate model:
     x0 = 0
     aleas = generate_probability_laws()
-    model = SDDP.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, (0, 100), (0, 7), x0, cost_t, dynamic, aleas)
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, (0, 100), (0, 7), x0, cost_t, dynamic, aleas)
 
     solver = SOLVER
-    params = SDDP.SDDPparameters(solver, N_SCENARIOS)
+    params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
 end
