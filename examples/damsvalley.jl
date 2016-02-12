@@ -49,11 +49,11 @@ const HORIZON = 52
 const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
 const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
-const X0 = [90, 90]
+const X0 = [50, 50]
 
 # Define dynamic of the dam:
 function dynamic(t, x, u, w)
-    return [x[1] - u[1] + w[1], x[2] - u[2] + u[1]]
+    return [x[1] - u[1] - u[3] + w[1], x[2] - u[2] - u[4] + u[1] + u[3]]
 end
 
 # Define cost corresponding to each timestep:
@@ -149,10 +149,10 @@ function init_problem()
     aleas = generate_probability_laws()
 
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX)]
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
 
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                2, 2, 1,
+                                                4, 2, 1,
                                                 x_bounds,
                                                 u_bounds,
                                                 x0,
@@ -183,5 +183,5 @@ function solve_dams(display=false)
     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
 
     println("SDDP cost: ", costs)
-    return stocks
+    return stocks, V
 end

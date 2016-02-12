@@ -103,6 +103,9 @@ function solve_one_step_one_alea(model,
                           getValue(alpha))
     else
         # If no solution is found, then return nothing
+        println(t)
+        println(m)
+
         result = nothing
     end
 

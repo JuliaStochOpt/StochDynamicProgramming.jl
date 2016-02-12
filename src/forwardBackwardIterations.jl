@@ -5,7 +5,7 @@
 #############################################################################
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
-
+using Debug
 using JuMP
 include("oneStepOneAleaProblem.jl")
 include("utility.jl")
@@ -133,7 +133,7 @@ Parameters:
 function add_cut!(model::SPModel,
                   t::Int64, Vt::PolyhedralFunction,
                   beta::Float64, lambda::Array{Float64,1})
-    Vt.lambdas = vcat(Vt.lambdas, lambda)
+    Vt.lambdas = vcat(Vt.lambdas, reshape(lambda, 1, model.dimStates))
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
 end
@@ -165,7 +165,6 @@ function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
     x = getVar(problem, :x)
     u = getVar(problem, :u)
     w = getVar(problem, :w)
-
     @addConstraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
 end
 
@@ -192,7 +191,8 @@ function add_constraints_with_cut!(model::SPModel, problem::JuMP.Model,
         x = getVar(problem, :x)
         u = getVar(problem, :u)
         w = getVar(problem, :w)
-        @addConstraint(problem, Vt.betas[i] + Vt.lambdas[i]*model.dynamics(t, x, u, w) .<= alpha)
+        lambda = vec(Vt.lambdas[i, :])
+        @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
     end
 end
 
@@ -246,7 +246,7 @@ function backward_pass(model::SPModel,
     for t = T-1:-1:1
         for k = 1:param.forwardPassNumber
             cost = zeros(1);
-            subgradient = zeros(model.dimStates)
+            subgradient = zeros(Float64, model.dimStates)
 
             for w in 1:law[t].supportSize
                 state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
@@ -275,10 +275,13 @@ function backward_pass(model::SPModel,
             if init
                 V[t] = SDDP.PolyhedralFunction(beta,
                                                reshape(subgradient,
-                                                       model.dimStates,
-                                                       1), 1)
+                                                       1,
+                                                       model.dimStates), 1)
                 if t > 1
-                    add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
+                    subgradient = Array{Float64}(subgradient)
+
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta[1], subgradient)
+                    # add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
                 end
             else
                 subgradient = Array{Float64}(subgradient)
