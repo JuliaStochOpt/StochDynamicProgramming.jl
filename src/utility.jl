@@ -14,8 +14,7 @@ Instantiate a Polyhedral function corresponding to f -> 0
 
 """
 function get_null_value_functions()
-    V = PolyhedralFunction(zeros(1), zeros(1, 1), 1)
-    return V
+    return PolyhedralFunction(zeros(1), zeros(1, 1), 1)
 end
 
 
@@ -74,8 +73,7 @@ Returns :
 
 """
 function upper_bound(cost::Vector{Float64})
-    m = mean(cost)
-    return m + 1.96*std(cost)/sqrt(length(cost))
+    return mean(cost) + 1.96*std(cost)/sqrt(length(cost))
 end
 
 
@@ -100,6 +98,6 @@ Return:
 Bool
 
 """
-function test_stopping_criterion(V0, upb, epsilon)
+function test_stopping_criterion(V0::Float64, upb::Float64, epsilon::Float64)
     return abs((V0-upb)/V0) < epsilon
 end

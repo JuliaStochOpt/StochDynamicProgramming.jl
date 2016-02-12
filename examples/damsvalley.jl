@@ -15,41 +15,41 @@ using JuMP
 using CPLEX
 
 # SOLVER = ClpSolver()
-SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
-EPSILON = .05
-MAX_ITER = 20
+const EPSILON = .05
+const MAX_ITER = 20
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
-N_STAGES = 52
-N_SCENARIOS = 10
+const N_STAGES = 52
+const N_SCENARIOS = 10
 
 # FINAL TIME:
-TF = 52
+const TF = 52
 
 # COST:
-COST = -66*2.7*(1 + .5*(rand(TF) - .5))
+const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
 
 # Constants:
-VOLUME_MAX = 100
-VOLUME_MIN = 0
+const VOLUME_MAX = 100
+const VOLUME_MIN = 0
 
-CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
-CONTROL_MIN = 0
+const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
+const CONTROL_MIN = 0
 
-W_MAX = round(Int, .5/7. * VOLUME_MAX)
-W_MIN = 0
-DW = 1
+const W_MAX = round(Int, .5/7. * VOLUME_MAX)
+const W_MIN = 0
+const DW = 1
 
-T0 = 1
-HORIZON = 52
+const T0 = 1
+const HORIZON = 52
 
 # Define aleas' space:
-N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
-ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
+const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
+const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
-X0 = [90, 90]
+const X0 = [90, 90]
 
 # Define dynamic of the dam:
 function dynamic(t, x, u, w)

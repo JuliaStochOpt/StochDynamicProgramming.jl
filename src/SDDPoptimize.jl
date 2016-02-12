@@ -239,8 +239,8 @@ function optimize(model::SPModel,
 
         iteration_count+=1;
 
+        upb = upper_bound(costs)
         if display
-            upb = upper_bound(costs)
             println("Pass number ", iteration_count,
                     "  Upper bound: ", upb,
                     "  V0: ", V0)

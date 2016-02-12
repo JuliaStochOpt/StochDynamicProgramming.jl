@@ -84,9 +84,9 @@ function forward_simulations(model::SPModel,
         costs = zeros(param.forwardPassNumber)
     end
 
-    for k = 1:param.forwardPassNumber
+    for t=1:T-1
+        for k = 1:param.forwardPassNumber
 
-        for t=1:T-1
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
             alea_t = extract_vector_from_3Dmatrix(xi, k, t)
 
@@ -238,10 +238,9 @@ function backward_pass(model::SPModel,
     T = model.stageNumber
 
     # Estimation of initial cost:
-    V0 = 0
+    V0 = 0.
 
     cost::Vector{Float64} = zeros(1)
-    subgradient = 0
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
