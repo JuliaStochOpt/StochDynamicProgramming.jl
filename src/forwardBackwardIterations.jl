@@ -5,7 +5,7 @@
 #############################################################################
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
-using Debug
+
 using JuMP
 include("oneStepOneAleaProblem.jl")
 include("utility.jl")
@@ -56,6 +56,8 @@ Returns (according to the last parameters):
 - stocks (Array{float})
     the simulated stock trajectories. stocks(k,t,:) is the stock for
     scenario k at time t.
+
+- controls (Array{Float64, 3})
 
 
 """
@@ -120,7 +122,13 @@ end
 Add to Vt a cut of the form Vt >= beta + <lambda,.>
 
 Parameters:
-- Vt (bellmanFunction)
+- model (SPModel)
+    Store the problem definition
+
+- t (Int64)
+    Current time
+
+- Vt (PolyhedralFunction)
     Current lower approximation of the Bellman function at time t
 
 - beta (Float)
@@ -224,7 +232,12 @@ Parameters:
 - law (Array{NoiseLaw})
     Conditionnal distributions of perturbation, for each timestep
 
-Return nothing
+- init (Bool)
+    If specified, then init PolyhedralFunction
+
+Return:
+- V0 (Float64)
+    Approximation of initial cost
 
 """
 function backward_pass(model::SPModel,

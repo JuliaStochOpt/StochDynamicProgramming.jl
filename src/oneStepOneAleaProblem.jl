@@ -40,17 +40,8 @@ Parameters:
 - xi (Array{float})
     current noise value
 
-- returnOptNextStage (Bool)
-    return the optimal state at t+1
-
-- returnOptcontrol (Bool)
-    return the optimal control
-
-- returnSubgradient (Bool)
-    return the subgradient
-
-- returnCost (Bool)
-    return the value of the problem
+- init (Bool)
+    If specified, approximate future cost as 0
 
 
 Returns:
@@ -103,9 +94,6 @@ function solve_one_step_one_alea(model,
                           getValue(alpha))
     else
         # If no solution is found, then return nothing
-        println(t)
-        println(m)
-
         result = nothing
     end
 

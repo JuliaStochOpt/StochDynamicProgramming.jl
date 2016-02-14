@@ -12,10 +12,10 @@ push!(LOAD_PATH, "../src")
 
 using SDDP
 using JuMP
-using CPLEX
+using Clp
 
-# SOLVER = ClpSolver()
-const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+const SOLVER = ClpSolver()
+# const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
 const EPSILON = .05
 const MAX_ITER = 20
