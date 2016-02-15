@@ -6,10 +6,11 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-using JuMP
-include("oneStepOneAleaProblem.jl")
-include("utility.jl")
-include("objects.jl")
+# <<<<<<< HEAD
+# using JuMP
+# include("oneStepOneAleaProblem.jl")
+# include("utility.jl")
+# include("objects.jl")
 
 """
 Make a forward pass of the algorithm
@@ -61,6 +62,7 @@ Returns (according to the last parameters):
 
 
 """
+<<<<<<< HEAD
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
@@ -286,7 +288,7 @@ function backward_pass(model::SPModel,
             beta = cost - dot(subgradient, state_t)
 
             if init
-                V[t] = SDDP.PolyhedralFunction(beta,
+                V[t] = PolyhedralFunction(beta,
                                                reshape(subgradient,
                                                        1,
                                                        model.dimStates), 1)

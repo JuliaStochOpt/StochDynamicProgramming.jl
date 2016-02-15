@@ -8,8 +8,6 @@
 # - used to compute the cuts in the Backward phase
 #############################################################################
 
-using JuMP
-
 """
 Solve the Bellman equation at time t starting at state x under alea xi
 with the current evaluation of Vt+1
@@ -59,7 +57,6 @@ function solve_one_step_one_alea(model,
                                  xt::Vector{Float64},
                                  xi::Vector{Float64},
                                  init=false::Bool)
-
     # Get var defined in JuMP.model:
     u = getVar(m, :u)
     w = getVar(m, :w)
@@ -86,8 +83,8 @@ function solve_one_step_one_alea(model,
     if solved
         optimalControl = getValue(u)
         # Return object storing results:
-        result = SDDP.NextStep(
-                          model.dynamics(t, xt, optimalControl, xi),
+        result = NextStep(
+                          model.dynamics(xt, optimalControl, xi),
                           optimalControl,
                           [getDual(m.ext[:cons][i]) for i in 1:model.dimStates],
                           getObjectiveValue(m),

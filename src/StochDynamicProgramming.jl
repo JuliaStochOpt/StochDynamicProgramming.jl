@@ -8,19 +8,23 @@
 # see TODO
 #############################################################################
 
-module SDDP
+module StochDynamicProgramming
 
-using JuMP
+using JuMP, Distributions
 
 export optimize, NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearDynamicLinearCostSPmodel,
         PiecewiseLinearCostSPmodel,
         PolyhedralFunction, NextStep, forward_simulations
 
+include("objects.jl")
+include("utility.jl")
+include("oneStepOneAleaProblem.jl")
+
+
+
+include("forwardBackwardIterations.jl")
 include("simulate.jl")
 include("SDDPoptimize.jl")
-include("forwardBackwardIterations.jl")
-include("objects.jl")
-
 
 end

@@ -6,17 +6,13 @@
 # run unit-tests
 #############################################################################
 
-push!(LOAD_PATH, "src")
-
-using SDDP
+using StochDynamicProgramming
 using Distributions
 using FactCheck
 
 
 # Test simulate.jl
 facts("Probability functions") do
-    # include("../src/simulate.jl")
-
     support = [1, 2, 3]
     proba = [.2 .5 .3]
 
@@ -35,14 +31,12 @@ end
 
 
 facts("Utility functions") do
-    include("../src/utility.jl")
-
-    V = get_null_value_functions()
+    V = StochDynamicProgramming.get_null_value_functions()
     @fact typeof(V) --> PolyhedralFunction
     @fact V.betas[1] --> 0
 
     arr = rand(4, 4, 2)
-    vec = extract_vector_from_3Dmatrix(arr, 2, 1)
+    vec = StochDynamicProgramming.extract_vector_from_3Dmatrix(arr, 2, 1)
     @fact typeof(vec) --> Vector{Float64}
     @fact size(vec) --> (2,)
 end

@@ -10,9 +10,7 @@
 srand(2713)
 push!(LOAD_PATH, "../src")
 
-using SDDP
-using JuMP
-using Clp
+using StochDynamicProgramming, JuMP, Clp
 
 const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
@@ -161,7 +159,9 @@ function init_problem()
                                                 aleas)
 
     solver = SOLVER
+
     params = SDDP.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    # params = SDDPparameters(solver, N_SCENARIOS)
 
     return model, params
 end

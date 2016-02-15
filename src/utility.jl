@@ -7,8 +7,6 @@
 #
 #############################################################################
 
-include("objects.jl")
-
 """
 Instantiate a Polyhedral function corresponding to f -> 0
 
