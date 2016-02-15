@@ -6,6 +6,8 @@
 # Define all types used in this module.
 #############################################################################
 
+include("simulate.jl")
+
 abstract SPModel
 
 type LinearDynamicLinearCostSPmodel <: SPModel

@@ -62,7 +62,6 @@ Returns (according to the last parameters):
 
 
 """
-<<<<<<< HEAD
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},

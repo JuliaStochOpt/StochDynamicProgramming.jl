@@ -160,8 +160,7 @@ function init_problem()
 
     solver = SOLVER
 
-    params = SDDP.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
-    # params = SDDPparameters(solver, N_SCENARIOS)
+    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
