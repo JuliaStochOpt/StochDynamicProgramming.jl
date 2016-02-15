@@ -6,7 +6,7 @@
 StochDynamicProgramming Index
 =============================
 
-This package implements the Stochastic Dual Dynamic Programming (SDDP) algorithm with Julia. It relies upon MathProgBase_.
+This package implements the Stochastic Dual Dynamic Programming (SDDP) algorithm with Julia. It relies upon MathProgBase_ and JuMP_.
 
 A complete overview of this algorithm could be found here_.
 
@@ -38,7 +38,7 @@ We have a lot of ideas to implement further :
 - convex solvers
 - refined stopping rules
 - cut pruning
-- parralellization
+- paralellization
 
 
 
@@ -49,6 +49,7 @@ Contents:
 
 .. _MathProgBase: http://mathprogbasejl.readthedocs.org/en/latest/
 .. _here: http://www2.isye.gatech.edu/people/faculty/Alex_Shapiro/ONS-FR.pdf
+.. _JuMP: http://jump.readthedocs.org/en/latest/
 
 Indices and tables
 ==================
