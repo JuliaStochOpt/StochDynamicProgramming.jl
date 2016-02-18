@@ -6,8 +6,8 @@
 Every feedback would be welcomed.
 
 
-[![Build Status](https://travis-ci.org/frapac/StochDynamicProgramming.svg?branch=master)](https://travis-ci.org/frapac/StochDynamicProgramming)
-[![codecov.io](https://codecov.io/github/frapac/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/frapac/StochDynamicProgramming.jl?branch=master)
+[![Build Status](https://travis-ci.org/leclere/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/leclere/StochDynamicProgramming.jl)
+[![codecov.io](https://codecov.io/github/leclere/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/leclere/StochDynamicProgramming.jl?branch=master)
 
 
 This package implements the *Stochastic Dual Dynamic Programming* (SDDP) algorithm. It is built upon [JuMP](https://github.com/JuliaOpt/JuMP.jl)
