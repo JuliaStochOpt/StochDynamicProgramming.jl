@@ -125,18 +125,20 @@ Return:
 - Array{Float64, 3}
 
 """
-function simulate_scenarios(laws, dims)
+function simulate_scenarios(laws, dims::Tuple)
 
     if typeof(laws) == Distributions.Normal
         scenarios = rand(laws, dims)
     else
         scenarios = zeros(dims)
 
+    for k=1:dims[2]
         for t=1:dims[1]
             gen = Categorical(laws[t].proba)
-            scenarios[t, :, :] = laws[t].support[rand(gen, dims[2:end])]
+            scenarios[t, k, :] = laws[t].support[:, rand(gen)]
         end
 
+    end
     end
     return scenarios
 

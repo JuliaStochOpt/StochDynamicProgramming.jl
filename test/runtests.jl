@@ -6,6 +6,8 @@
 # run unit-tests
 #############################################################################
 
+push!(LOAD_PATH, "src")
+
 using StochDynamicProgramming
 using Distributions
 using FactCheck

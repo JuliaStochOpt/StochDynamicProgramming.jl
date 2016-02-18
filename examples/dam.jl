@@ -7,44 +7,51 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
+push!(LOAD_PATH, "../src")
+
+
 using StochDynamicProgramming, JuMP, Clp
 
-SOLVER = ClpSolver()
+const SOLVER = ClpSolver()
 
-N_STAGES = 52
-N_SCENARIOS = 2
+const EPSILON = .05
+const MAX_ITER = 20
+
+const N_STAGES = 52
+const N_SCENARIOS = 10
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
 
 # FINAL TIME:
-TF = 52
+const TF = 52
 
 # COST:
-COST = -66*2.7*(1 + .5*(rand(TF) - .5))
+const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
 
 # Constants:
-VOLUME_MAX = 100
-VOLUME_MIN = 0
+const VOLUME_MAX = 100
+const VOLUME_MIN = 0
 
-CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
-CONTROL_MIN = 0
+const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
+const CONTROL_MIN = 0
 
-W_MAX = round(Int, .5/7. * VOLUME_MAX)
-W_MIN = 0
-DW = 1
+const W_MAX = round(Int, .5/7. * VOLUME_MAX)
+const W_MIN = 0
+const DW = 1
 
-T0 = 1
-HORIZON = 52
+const T0 = 1
+const HORIZON = 52
 
+const X0 = [90]
 
 # Define aleas' space:
-N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
-ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
+const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
+const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
 
 # Define dynamic of the dam:
-function dynamic(x, u, w)
+function dynamic(t, x, u, w)
     return [x[1] - u[1] - u[2] + w[1]]
 end
 
@@ -70,7 +77,7 @@ function solve_determinist_problem()
         @addConstraint(m, x[i+1] - x[i] + u[i] + s[i] - alea_year[i] == 0)
     end
 
-    @addConstraint(m, x[1] ==0)
+    @addConstraint(m, x[1] .==X0)
 
     status = solve(m)
     println(status)
@@ -134,12 +141,17 @@ end
 """Instantiate the problem."""
 function init_problem()
     # Instantiate model:
-    x0 = 0
+    x0 = X0
     aleas = generate_probability_laws()
-    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1, (0, 100), (0, 7), x0, cost_t, dynamic, aleas)
+
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1,
+                                                [(0, 100)], [(0, 7), (0, 7)],
+                                                x0,
+                                                cost_t,
+                                                dynamic, aleas)
 
     solver = SOLVER
-    params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS)
+    params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
@@ -148,8 +160,9 @@ end
 function solve_dams(display=false)
     model, params = init_problem()
 
-    V, pbs = optimize(model, params, 20, display)
-    aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
+    V, pbs = optimize(model, params, display)
+    aleas = simulate_scenarios(model.noises ,(model.stageNumber,
+                               params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
 
     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)

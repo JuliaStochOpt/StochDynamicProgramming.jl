@@ -7,42 +7,51 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
+srand(2713)
+push!(LOAD_PATH, "../src")
+
 using StochDynamicProgramming, JuMP, Clp
 
-SOLVER = ClpSolver()
+const SOLVER = ClpSolver()
+# const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
-N_STAGES = 52
-N_SCENARIOS = 2
+const EPSILON = .05
+const MAX_ITER = 20
+
+alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
+
+const N_STAGES = 52
+const N_SCENARIOS = 10
 
 # FINAL TIME:
-TF = 52
+const TF = 52
 
 # COST:
-COST = -66*2.7*(1 + .5*(rand(TF) - .5))
+const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
 
 # Constants:
-VOLUME_MAX = 100
-VOLUME_MIN = 0
+const VOLUME_MAX = 100
+const VOLUME_MIN = 0
 
-CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
-CONTROL_MIN = 0
+const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
+const CONTROL_MIN = 0
 
-W_MAX = round(Int, .5/7. * VOLUME_MAX)
-W_MIN = 0
-DW = 1
+const W_MAX = round(Int, .5/7. * VOLUME_MAX)
+const W_MIN = 0
+const DW = 1
 
-T0 = 1
-HORIZON = 52
-
+const T0 = 1
+const HORIZON = 52
 
 # Define aleas' space:
-N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
-ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
+const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
+const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 
+const X0 = [50, 50]
 
 # Define dynamic of the dam:
-function dynamic(x, u, w)
-    return [x[1] - u[1] + w[1], x[2] - u[2] + u[1]]
+function dynamic(t, x, u, w)
+    return [x[1] - u[1] - u[3] + w[1], x[2] - u[2] - u[4] + u[1] + u[3]]
 end
 
 # Define cost corresponding to each timestep:
@@ -54,13 +63,13 @@ end
 """Solve the problem with a solver, supposing the aleas are known
 in advance."""
 function solve_determinist_problem()
-    println(alea_year)
     m = Model(solver=SOLVER)
 
-    @defVar(m,  0           <= x1[1:(TF+1)]  <= 100)
-    @defVar(m,  0           <= x2[1:(TF+1)]  <= 100)
-    @defVar(m,  0.          <= u1[1:TF]  <= 7)
-    @defVar(m,  0.          <= u2[1:TF]  <= 7)
+
+    @defVar(m,  VOLUME_MIN  <= x1[1:(TF+1)]  <= VOLUME_MAX)
+    @defVar(m,  VOLUME_MIN  <= x2[1:(TF+1)]  <= VOLUME_MAX)
+    @defVar(m,  CONTROL_MIN <= u1[1:TF]  <= CONTROL_MAX)
+    @defVar(m,  CONTROL_MIN <= u2[1:TF]  <= CONTROL_MAX)
 
     @setObjective(m, Min, sum{COST[i]*(u1[i] + u2[i]), i = 1:TF})
 
@@ -69,8 +78,8 @@ function solve_determinist_problem()
         @addConstraint(m, x2[i+1] - x2[i] + u2[i] - u1[i] == 0)
     end
 
-    @addConstraint(m, x1[1] ==0)
-    @addConstraint(m, x2[1] ==0)
+    @addConstraint(m, x1[1] == X0[1])
+    @addConstraint(m, x2[1] == X0[2])
 
     status = solve(m)
     println(status)
@@ -133,36 +142,45 @@ end
 
 """Instantiate the problem."""
 function init_problem()
-    # Instantiate model:
-    x0 = 0
+
+    x0 = X0
     aleas = generate_probability_laws()
+
+    x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
+
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                2, 2, 1,
-                                                (VOLUME_MIN, VOLUME_MAX),
-                                                (CONTROL_MIN, CONTROL_MAX),
+                                                4, 2, 1,
+                                                x_bounds,
+                                                u_bounds,
                                                 x0,
                                                 cost_t,
                                                 dynamic,
                                                 aleas)
 
     solver = SOLVER
-    params = SDDPparameters(solver, N_SCENARIOS)
+
+    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
+
 
 """Solve the problem."""
 function solve_dams(display=false)
     model, params = init_problem()
 
-    V, pbs = optimize(model, params, 50, display)
-    aleas = simulate_scenarios(model.noises ,(model.stageNumber, params.forwardPassNumber , model.dimNoises))
+    V, pbs = optimize(model, params, display)
+
+    aleas = simulate_scenarios(model.noises,
+                              (model.stageNumber,
+                               params.forwardPassNumber,
+                               model.dimNoises))
+
     params.forwardPassNumber = 1
 
     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
 
     println("SDDP cost: ", costs)
-    return stocks
+    return stocks, V
 end
-
-solve_dams(true)

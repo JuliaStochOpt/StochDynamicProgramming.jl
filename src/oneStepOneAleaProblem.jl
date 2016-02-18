@@ -38,17 +38,8 @@ Parameters:
 - xi (Array{float})
     current noise value
 
-- returnOptNextStage (Bool)
-    return the optimal state at t+1
-
-- returnOptcontrol (Bool)
-    return the optimal control
-
-- returnSubgradient (Bool)
-    return the subgradient
-
-- returnCost (Bool)
-    return the value of the problem
+- init (Bool)
+    If specified, approximate future cost as 0
 
 
 Returns:
@@ -59,14 +50,13 @@ Returns:
     Store solution of the problem solved
 
 """
-function solve_one_step_one_alea(model, #::LinearDynamicLinearCostSPmodel,
-                                 param, #::SDDPparameters,
-                                 m::JuMP.Model, #::Vector{PolyhedralFunction},
-                                 t, #::Int64,
-                                 xt, #::Vector{Float64},
-                                 xi,
-                                 init=false) #::Vector{Float64},
-
+function solve_one_step_one_alea(model,
+                                 param,
+                                 m::JuMP.Model,
+                                 t::Int64,
+                                 xt::Vector{Float64},
+                                 xi::Vector{Float64},
+                                 init=false::Bool)
     # Get var defined in JuMP.model:
     u = getVar(m, :u)
     w = getVar(m, :w)
@@ -78,7 +68,7 @@ function solve_one_step_one_alea(model, #::LinearDynamicLinearCostSPmodel,
     # If this is the first call to the solver, value-to-go are approximated
     # with null function:
     if init
-        @addConstraint(m, alpha >= 0)
+        @addConstraint(m, alpha >= 0.)
     end
     # Update constraint x == xt
     for i in 1:model.dimStates
@@ -88,16 +78,17 @@ function solve_one_step_one_alea(model, #::LinearDynamicLinearCostSPmodel,
 
     status = solve(m)
 
-    solved = (string(status) == "Optimal")
+    solved = (status == :Optimal)
 
     if solved
         optimalControl = getValue(u)
         # Return object storing results:
         result = NextStep(
-                          model.dynamics(xt, optimalControl, xi),
+                          model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
                           [getDual(m.ext[:cons][i]) for i in 1:model.dimStates],
-                          getObjectiveValue(m))
+                          getObjectiveValue(m),
+                          getValue(alpha))
     else
         # If no solution is found, then return nothing
         result = nothing

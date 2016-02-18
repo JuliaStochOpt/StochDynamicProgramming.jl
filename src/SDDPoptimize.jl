@@ -31,7 +31,7 @@ Parameter:
     Cut approximating the terminal cost
 
 """
-function build_terminal_cost(problem)
+function build_terminal_cost(problem::JuMP.Model)
     alpha = getVar(problem, :alpha)
     @addConstraint(problem, alpha >= 0)
 end
@@ -63,25 +63,38 @@ function build_models(model::SPModel, param::SDDPparameters)
 
 
     for t = 1:model.stageNumber
-      m = Model(solver=param.solver)
+        m = Model(solver=param.solver)
 
-      nx = model.dimStates
-      nu = model.dimControls
-      nw = model.dimNoises
+        nx = model.dimStates
+        nu = model.dimControls
+        nw = model.dimNoises
 
-      @defVar(m,  model.xlim[1] <= x[1:nx] <= model.xlim[2])
-      @defVar(m,  model.ulim[1] <= u[1:nu] <=  model.ulim[2])
-      @defVar(m,  model.xlim[1] <= xf[1:nx]<= model.xlim[2])
-      @defVar(m, alpha)
+        @defVar(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+        @defVar(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+        @defVar(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
+        @defVar(m, alpha)
 
-      @defVar(m, w[1:nw] == 0)
-      m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
+        @defVar(m, w[1:nw] == 0)
+        m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
 
-      @addConstraint(m, xf .== model.dynamics(x, u, w))
+        @addConstraint(m, xf .== model.dynamics(t, x, u, w))
 
-      @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        if typeof(model) == LinearDynamicLinearCostSPmodel
+            @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
 
-      models[t] = m
+        elseif typeof(model) == PiecewiseLinearCostSPmodel
+            @defVar(m, cost)
+
+            for i in 1:length(model.costFunctions)
+                @addConstraint(m, cost >= model.costFunctions[i](t, x, u, w))
+            end
+            @setObjective(m, Min, cost + alpha)
+
+        else
+            error("model must be: LinearDynamicLinearCostSPModel")
+        end
+
+        models[t] = m
 
     end
     return models
@@ -110,7 +123,7 @@ Return:
     each value function
 
 """
-function initialize_value_functions( model::LinearDynamicLinearCostSPmodel,
+function initialize_value_functions( model::SPModel,
                                      param::SDDPparameters,
                         )
 
@@ -168,9 +181,6 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 
-- n_iterations (Int) - Default is 20
-    Maximum number of iterations to run
-
 - display (Bool) - Default is false
     If specified, display progression in terminal
 
@@ -186,8 +196,7 @@ Returns :
 """
 function optimize(model::SPModel,
                   param::SDDPparameters,
-                  n_iterations=20,
-                  display=true)
+                  display=true::Bool)
 
     # Initialize value functions:
     V, problems = initialize_value_functions(model, param)
@@ -196,27 +205,28 @@ function optimize(model::SPModel,
       println("Initialize cuts")
     end
 
-    # Build given number of scenarios according to distribution
-    # law specified in model.noises:
-    aleas = simulate_scenarios(model.noises ,
-                                (model.stageNumber,
-                                 param.forwardPassNumber,
-                                 model.dimNoises))
 
     stopping_test::Bool = false
     iteration_count::Int64 = 0
+    n::Int64 = param.forwardPassNumber
 
-    n = param.forwardPassNumber
 
-    for i = 1:n_iterations
-        stockTrajectories = forward_simulations(model,
+
+    while (iteration_count < param.maxItNumber) & (~stopping_test)
+        # Build given number of scenarios according to distribution
+        # law specified in model.noises:
+        aleas = simulate_scenarios(model.noises ,
+                                    (model.stageNumber,
+                                     param.forwardPassNumber,
+                                     model.dimNoises))
+        costs, stockTrajectories, _ = forward_simulations(model,
                             param,
                             V,
                             problems,
                             n,
-                            aleas)[2]
+                            aleas)
 
-        backward_pass(model,
+        V0 = backward_pass(model,
                       param,
                       V,
                       problems,
@@ -225,9 +235,14 @@ function optimize(model::SPModel,
 
         iteration_count+=1;
 
+        upb = upper_bound(costs)
         if display
-          println("Pass number ", i)
+            println("Pass number ", iteration_count,
+                    "  Upper bound: ", upb,
+                    "  V0: ", V0)
         end
+
+        stopping_test = test_stopping_criterion(V0, upb, param.sensibility)
     end
 
     return V, problems
