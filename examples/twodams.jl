@@ -9,37 +9,36 @@ const SOLVER = ClpSolver()
 const EPSILON = .05
 const MAX_ITER = 20
 
+# Define number of stages and scenarios:
 const N_STAGES = 52
 const N_SCENARIOS = 10
 
-# FINAL TIME:
+# Define time horizon:
 const TF = 52
 
-# COST:
+# Randomnly generate a cost scenario fixed for the whole problem:
 const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
 
-# Constants:
+# Define bounds for states and controls:
 const VOLUME_MAX = 100
 const VOLUME_MIN = 0
 
 const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
 const CONTROL_MIN = 0
 
+# Define realistic bounds for aleas:
 const W_MAX = round(Int, .5/7. * VOLUME_MAX)
 const W_MIN = 0
-const DW = 1
 
 # Randomly generate two deterministic scenarios for rain
 alea_year1 =(W_MAX-W_MIN)*rand(TF)-W_MIN
 alea_year2 =(W_MAX-W_MIN)*rand(TF)-W_MIN
 
-const T0 = 1
-const HORIZON = 52
-
+# Define initial states of both dams:
 const X0 = [50, 50]
 
 
-# Define dynamic of the dam:
+# Define dynamic of the dams:
 function dynamic(t, x, u, w)
     return [x[1] - u[1] - u[3] + w[1], x[2] - u[2] - u[4] + u[1] + u[3] + w[2]]
 end
@@ -65,7 +64,7 @@ function solve_determinist_problem()
 
     for i in 1:TF
         @addConstraint(m, x1[i+1] - x1[i] + u1[i] - alea_year1[i] == 0)
-        @addConstraint(m, x2[i+1] - x2[i] + u2[i] - u1[i] - alea_year1[i] == 0)
+        @addConstraint(m, x2[i+1] - x2[i] + u2[i] - u1[i] - alea_year2[i] == 0)
     end
 
     @addConstraint(m, x1[1] == X0[1])
@@ -78,7 +77,7 @@ function solve_determinist_problem()
 end
 
 
-"""Build an admissible scenario for water inflow."""
+"""Build admissible scenarios for water inflow over the time horizon."""
 function build_scenarios(n_scenarios::Int64)
     scenarios = zeros(n_scenarios, TF)
 
@@ -89,7 +88,7 @@ function build_scenarios(n_scenarios::Int64)
 end
 
 
-"""Build probability distribution at each timestep.
+"""Build probability distribution at each timestep based on N scenarios.
 
 Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
@@ -120,9 +119,9 @@ function init_problem()
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
 
-    N_CONTROLS=4
-    N_STATES=2
-    N_ALEAS=2
+    N_CONTROLS = 4
+    N_STATES = 2
+    N_ALEAS = 2
 
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 N_CONTROLS,
