@@ -6,11 +6,6 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-# <<<<<<< HEAD
-# using JuMP
-# include("oneStepOneAleaProblem.jl")
-# include("utility.jl")
-# include("objects.jl")
 
 """
 Make a forward pass of the algorithm
@@ -120,7 +115,7 @@ end
 
 
 """
-Add to Vt a cut of the form Vt >= beta + <lambda,.>
+Add to Vt a cut with shape Vt >= beta + <lambda,.>
 
 Parameters:
 - model (SPModel)
@@ -241,32 +236,34 @@ Return:
     Approximation of initial cost
 
 """
-function backward_pass(model::SPModel,
+function backward_pass!(model::SPModel,
                       param::SDDPparameters,
                       V::Array{PolyhedralFunction, 1},
                       solverProblems::Vector{JuMP.Model},
                       stockTrajectories::Array{Float64, 3},
                       law, #::NoiseLaw,
-                      init=false)
+                      init=false,
+                      updateV=false)
 
     T = model.stageNumber
 
     # Estimation of initial cost:
     V0 = 0.
 
-    cost::Vector{Float64} = zeros(1)
+    costs::Vector{Float64} = zeros(1)
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
+        costs = zeros(law[t].supportSize)
+
         for k = 1:param.forwardPassNumber
-            cost = zeros(1);
-            subgradient = zeros(Float64, model.dimStates)
+
+            subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
+            state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
             for w in 1:law[t].supportSize
-                state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
                 alea_t  = collect(law[t].support[:, w])
-                proba_t = law[t].proba[w]
 
                 nextstep = solve_one_step_one_alea(model,
                                                    param,
@@ -274,41 +271,41 @@ function backward_pass(model::SPModel,
                                                    t,
                                                    state_t,
                                                    alea_t)[2]
-                subgradientw = nextstep.sub_gradient
-                costw = nextstep.cost
-
-                #TODO: obtain probability cost += prob[w, t] * costw
-                #TODO: add non uniform distribution laws
-                #TODO: compute probability of costs outside this loop
-                cost += proba_t * costw
-                subgradient += proba_t * subgradientw
+                subgradient_array[:, w] = nextstep.sub_gradient
+                costs[w] = nextstep.cost
             end
 
-            beta = cost - dot(subgradient, state_t)
+            # Compute esperancy of subgradient:
+            subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
+            # ... and esperancy of cost:
+            beta = dot(law[t].proba, costs) - dot(subgradient, state_t)
 
+
+            # Add cut to polyhedral function and JuMP model:
             if init
-                V[t] = PolyhedralFunction(beta,
+                if updateV
+                    V[t] = PolyhedralFunction([beta],
                                                reshape(subgradient,
                                                        1,
                                                        model.dimStates), 1)
+                end
                 if t > 1
-                    subgradient = Array{Float64}(subgradient)
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                end
 
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta[1], subgradient)
-                    # add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
-                end
             else
-                subgradient = Array{Float64}(subgradient)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta[1], subgradient)
+                if updateV
+                    add_cut!(model, t, V[t], beta, subgradient)
                 end
-                add_cut!(model, t, V[t], beta[1], subgradient)
+                if t > 1
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                end
             end
 
         end
 
         if t==1
-            V0 = cost[1]
+            V0 = mean(costs)
         end
 
     end

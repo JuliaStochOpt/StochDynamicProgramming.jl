@@ -155,7 +155,7 @@ function initialize_value_functions( model::SPModel,
 
     build_terminal_cost(solverProblems[end-1])
 
-    backward_pass(model,
+    backward_pass!(model,
                   param,
                   V,
                   solverProblems,
@@ -213,12 +213,17 @@ function optimize(model::SPModel,
 
 
     while (iteration_count < param.maxItNumber) & (~stopping_test)
+        # Time execution of current pass:
+        tic()
+
         # Build given number of scenarios according to distribution
         # law specified in model.noises:
         aleas = simulate_scenarios(model.noises ,
                                     (model.stageNumber,
                                      param.forwardPassNumber,
                                      model.dimNoises))
+
+        # Forward pass
         costs, stockTrajectories, _ = forward_simulations(model,
                             param,
                             V,
@@ -226,7 +231,8 @@ function optimize(model::SPModel,
                             n,
                             aleas)
 
-        V0 = backward_pass(model,
+        # Backward pass
+        V0 = backward_pass!(model,
                       param,
                       V,
                       problems,
@@ -234,12 +240,13 @@ function optimize(model::SPModel,
                       model.noises)
 
         iteration_count+=1;
-
         upb = upper_bound(costs)
+        time = toq()
         if display
             println("Pass number ", iteration_count,
                     "  Upper bound: ", upb,
-                    "  V0: ", V0)
+                    "  V0: ", V0,
+                    "  Time: ", time)
         end
 
         stopping_test = test_stopping_criterion(V0, upb, param.sensibility)
