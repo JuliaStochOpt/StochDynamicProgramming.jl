@@ -3,30 +3,50 @@
 
 
 **WARNING:** *This package is currently in development, and is not operationnal yet.*
-Every feedback would be welcomed.
 
 
 [![Build Status](https://travis-ci.org/leclere/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/leclere/StochDynamicProgramming.jl)
 [![codecov.io](https://codecov.io/github/leclere/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/leclere/StochDynamicProgramming.jl?branch=master)
 
 
-This package implements the *Stochastic Dual Dynamic Programming* (SDDP) algorithm. It is built upon [JuMP](https://github.com/JuliaOpt/JuMP.jl)
+This is a Julia implementation of the *Stochastic Dual Dynamic Programming* (SDDP) algorithm. It is built upon [JuMP](https://github.com/JuliaOpt/JuMP.jl)
 
-It is currently under development.
 
-We will shortly give some applications of this algorithms with the following examples:
+## Why SDDP?
+
+SDDP is an algorithm to find the optimal control of stochastic problems.
+
+
+These problems are modelled with:
+
+- Linear dynamic
+
+- Linear or piecewise linear cost
+
+
+This algorithm could be applied to the following examples:
 
 - Dams valley management
-
-- Unit-commitment
 
 - Newsvendor testcase
 
 
-IPython Notebooks will be provided to explain how this package work.
+The documentation will be soon updated to explain how this algorithm work.
 
 
-## Build documentation
+## Installation
+
+```bash
+Pkg.clone("https://github.com/leclere/StochDynamicProgramming.jl.git")
+
+```
+
+## Usage
+
+IJulia Notebooks will be provided to explain how this package work.
+
+
+## Documentation
 
 The documentation is built with Sphinx, so ensure that this package is installed:
 
