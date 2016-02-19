@@ -244,6 +244,7 @@ function backward_pass!(model::SPModel,
     V0 = 0.
 
     costs::Vector{Float64} = zeros(1)
+    costs_npass = zeros(Float64, param.forwardPassNumber)
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
@@ -271,7 +272,8 @@ function backward_pass!(model::SPModel,
             # Compute esperancy of subgradient:
             subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
             # ... and esperancy of cost:
-            beta = dot(law[t].proba, costs) - dot(subgradient, state_t)
+            costs_npass[k] = dot(law[t].proba, costs)
+            beta = costs_npass[k] - dot(subgradient, state_t)
 
 
             # Add cut to polyhedral function and JuMP model:
@@ -298,7 +300,7 @@ function backward_pass!(model::SPModel,
         end
 
         if t==1
-            V0 = mean(costs)
+            V0 = mean(costs_npass)
         end
 
     end
