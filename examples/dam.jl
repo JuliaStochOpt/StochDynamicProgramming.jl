@@ -165,7 +165,7 @@ function solve_dams(display=false)
                                params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1
 
-    costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
+    costs, stocks = forward_simulations(model, params, V, pbs, aleas)
 
     println("SDDP cost: ", costs)
     return stocks
