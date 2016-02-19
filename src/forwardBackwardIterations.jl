@@ -26,9 +26,6 @@ Parameters:
 - solverProblems (Array{JuMP.Model})
     Linear model used to approximate each value function
 
-- forwardPassNumber (int)
-    number of forward simulation
-
 - xi (Array{float})
     the noise scenarios on which we simulate, each line being one scenario.
     Generated if not given.
@@ -61,7 +58,6 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
                             solverProblems::Vector{JuMP.Model},
-                            forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
                             returnCosts=true::Bool,
                             init=false::Bool,
@@ -73,7 +69,7 @@ function forward_simulations(model::SPModel,
     controls = zeros(param.forwardPassNumber, T, model.dimControls)
 
     # Set first value of stocks equal to x0:
-    for i in 1:forwardPassNumber
+    for i in 1:param.forwardPassNumber
         stocks[i, 1, :] = model.initialState
     end
 

@@ -44,7 +44,7 @@ end
 
 
 """
-Estimate the upper bound with the Monte-Carlo error
+Estimate the upper bound with a distribution of costs
 
 
 Parameters:

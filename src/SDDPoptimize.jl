@@ -149,7 +149,6 @@ function initialize_value_functions( model::SPModel,
                         param,
                         V_null,
                         solverProblems_null,
-                        n,
                         aleas,
                         false, true, false)[2]
 
@@ -200,6 +199,8 @@ function optimize(model::SPModel,
 
     # Initialize value functions:
     V, problems = initialize_value_functions(model, param)
+    # Evaluation of initial cost:
+    V0::Float64 = 0
 
     if display
       println("Initialize cuts")
@@ -208,9 +209,6 @@ function optimize(model::SPModel,
 
     stopping_test::Bool = false
     iteration_count::Int64 = 0
-    n::Int64 = param.forwardPassNumber
-
-
 
     while (iteration_count < param.maxItNumber) & (~stopping_test)
         # Time execution of current pass:
@@ -228,7 +226,6 @@ function optimize(model::SPModel,
                             param,
                             V,
                             problems,
-                            n,
                             aleas)
 
         # Backward pass
@@ -239,18 +236,73 @@ function optimize(model::SPModel,
                       stockTrajectories,
                       model.noises)
 
-        iteration_count+=1;
+        iteration_count += 1
         upb = upper_bound(costs)
         time = toq()
+
         if display
             println("Pass number ", iteration_count,
-                    "  Upper bound: ", upb,
-                    "  V0: ", V0,
-                    "  Time: ", time)
+                    "\tEstimation of upper-bound: ", upb,
+                    "\tV0: ", V0,
+                    "\tTime: ", time)
         end
 
-        stopping_test = test_stopping_criterion(V0, upb, param.sensibility)
+    end
+
+    if display
+        println("Estimate upper-bound with Monte-Carlo ...")
+        upb = estimate_upper_bound(model, param, V, problems)
+        println("Estimation of upper-bound: ", upb,
+                "\tV0: ", V0,
+                "\t Gap (\%): ", (V0-upb)/V0)
     end
 
     return V, problems
+end
+
+
+"""
+Estimate upper bound with Monte Carlo.
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+
+- V (Array{PolyhedralFunction})
+    the current estimation of Bellman's functions
+
+- problems (Array{JuMP.Model})
+    Linear model used to approximate each value function
+
+- n_simulation (Float64)
+    Number of scenarios to use to compute Monte-Carlo estimation
+
+
+Return:
+Float64 (estimation of the upper bound)
+
+"""
+function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
+
+    n_fpn = param.forwardPassNumber
+    param.forwardPassNumber = n_simulation
+
+    aleas = simulate_scenarios(model.noises ,
+                                    (model.stageNumber,
+                                     param.forwardPassNumber,
+                                     model.dimNoises))
+
+    costs, stockTrajectories, _ = forward_simulations(model,
+                                                        param,
+                                                        V,
+                                                        problems,
+                                                        aleas)
+
+
+    param.forwardPassNumber = n_fpn
+
+    return upper_bound(costs)
 end
