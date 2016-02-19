@@ -20,11 +20,14 @@ const MAX_ITER = 20
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
-const N_STAGES = 52
-const N_SCENARIOS = 10
+const N_STAGES = 4
+#const N_STAGES = 52
+#const N_SCENARIOS = 10
+const N_SCENARIOS = 2
 
 # FINAL TIME:
-const TF = 52
+const TF = N_STAGES
+#const TF = 52
 
 # COST:
 const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
@@ -41,7 +44,8 @@ const W_MIN = 0
 const DW = 1
 
 const T0 = 1
-const HORIZON = 52
+const HORIZON = 2
+#const HORIZON = 52
 
 # Define aleas' space:
 const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
@@ -51,7 +55,8 @@ const X0 = [50, 50]
 
 # Define dynamic of the dam:
 function dynamic(t, x, u, w)
-    return [x[1] - u[1] - u[3] + w[1], x[2] - u[2] - u[4] + u[1] + u[3]]
+    return [x[1] - u[1] + w[1], x[2] - u[2] + u[1]]
+    #return [x[1] - u[1] - u[3] + w[1], x[2] - u[2] - u[4] + u[1] + u[3]]
 end
 
 # Define cost corresponding to each timestep:
@@ -184,3 +189,8 @@ function solve_dams(display=false)
     println("SDDP cost: ", costs)
     return stocks, V
 end
+
+solve_dams(true)
+
+model, params = init_problem()
+extensive_formulation(model,params,COST)
