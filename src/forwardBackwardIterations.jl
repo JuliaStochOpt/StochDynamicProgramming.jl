@@ -65,12 +65,12 @@ function forward_simulations(model::SPModel,
 
     # TODO: verify that loops are in the same order
     T = model.stageNumber
-    stocks = zeros(param.forwardPassNumber, T, model.dimStates)
-    controls = zeros(param.forwardPassNumber, T, model.dimControls)
+    stocks = zeros(T, param.forwardPassNumber, model.dimStates)
+    controls = zeros(T, param.forwardPassNumber, model.dimControls)
 
     # Set first value of stocks equal to x0:
     for i in 1:param.forwardPassNumber
-        stocks[i, 1, :] = model.initialState
+        stocks[1, i, :] = model.initialState
     end
 
     costs = nothing
@@ -81,7 +81,7 @@ function forward_simulations(model::SPModel,
     for t=1:T-1
         for k = 1:param.forwardPassNumber
 
-            state_t = extract_vector_from_3Dmatrix(stocks, t, k)
+            state_t = extract_vector_from_3Dmatrix(stocks, k, t)
             alea_t = extract_vector_from_3Dmatrix(xi, k, t)
 
             status, nextstep = solve_one_step_one_alea(
@@ -93,12 +93,9 @@ function forward_simulations(model::SPModel,
                                             alea_t,
                                             init)
 
-            stocks[k, t+1, :] = nextstep.next_state
+            stocks[t+1, k, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
-            controls[k, t, :] = opt_control
-            if display
-                println(opt_control)
-            end
+            controls[t, k, :] = opt_control
 
             if returnCosts
                 costs[k] += nextstep.cost - nextstep.cost_to_go
@@ -255,7 +252,7 @@ function backward_pass!(model::SPModel,
         for k = 1:param.forwardPassNumber
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
-            state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
+            state_t = extract_vector_from_3Dmatrix(stockTrajectories, k, t)
 
             for w in 1:law[t].supportSize
 
