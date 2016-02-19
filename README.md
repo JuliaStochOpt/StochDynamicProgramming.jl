@@ -14,10 +14,13 @@ This is a Julia implementation of the *Stochastic Dual Dynamic Programming* (SDD
 
 ## Why SDDP?
 
-SDDP is an algorithm to find the optimal control of stochastic problems.
-
+SDDP is an algorithm to solve multistage stochastic optimization problems.
+It return bounds on the value of the optimization problem and approximation
+of Bellman function that are used to derive an optimal solution.
 
 These problems are modelled with:
+
+- stage-wise independent discrete noise
 
 - Linear dynamic
 
