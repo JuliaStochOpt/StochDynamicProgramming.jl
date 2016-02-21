@@ -15,7 +15,9 @@ using JuMP, Distributions
 export optimize, NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearDynamicLinearCostSPmodel,
         PiecewiseLinearCostSPmodel,
-        PolyhedralFunction, NextStep, forward_simulations
+        PolyhedralFunction, NextStep, forward_simulations,
+        DPSPmodel, SDPparameters, sdp_forward_simulation,
+        sdp_optimize
 
 include("objects.jl")
 include("utility.jl")
@@ -26,5 +28,6 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("simulate.jl")
 include("SDDPoptimize.jl")
+include("SDPoptimize.jl")
 
 end

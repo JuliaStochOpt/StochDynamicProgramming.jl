@@ -99,7 +99,7 @@ function simulate(law::Vector{NoiseLaw}, n::Int64)
     for i = 1:n#TODO can be parallelized
         scenario = []
         for t=1:Tf
-            new_val = law[t].support[:,rand(Categorical(law[t].proba))]
+            new_val = law[t].support[:, rand(Categorical(law[t].proba))]
             push!(scenario, new_val)
         end
         scenarios[i,:]=scenario

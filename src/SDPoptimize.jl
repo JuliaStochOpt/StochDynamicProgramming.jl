@@ -7,14 +7,16 @@
 #
 #############################################################################
 
+using ProgressMeter
+
 function index_from_state( state::Array,
                     model::SPModel,
                     param::SDPparameters)
     index = 0;
     j = 1;
 
-    for i = 1:model.dim_states
-        index = index + j * int( ( state[i] - model.xlim[i][1] ) / param.stateSteps[i] )
+    for i = 1:model.dimStates
+        index = index + j * round( Int, ( state[i] - model.xlim[i][1] ) / param.stateSteps[i] )
         j = j * param.stateVariablesSizes[i]
     end
 
@@ -27,8 +29,8 @@ function index_from_control( control::Array,
     index = 0
     j = 1
 
-    for i = 1:model.dim_controls
-        index = index + j * int( ( control[i] - model.ulim[i][1] ) / param.controlSteps[i] )
+    for i = 1:model.dimControls
+        index = index + j * round( Int, ( control[i] - model.ulim[i][1] ) / param.controlSteps[i] )
         j = j * param.controlVariablesSizes[i]
     end
 
@@ -38,11 +40,11 @@ end
 function state_from_index( state_ind::Int,
                     model::SPModel,
                     param::SDPparameters)
+    index = state_ind
+    state = zeros(model.dimStates)
 
-    state = zeros(model.dim_states)
-
-    if (state_ind>-1):
-        for i=1:model.dim_states
+    if (state_ind>-1)
+        for i=1:model.dimStates
             state[i] = model.xlim[i][1] + param.stateSteps[i] * (index % param.stateVariablesSizes[i])
             index = index -index % param.stateVariablesSizes[i]
             index = index / param.stateVariablesSizes[i]
@@ -55,11 +57,11 @@ end
 function control_from_index( control_ind::Int,
                     model::SPModel,
                     param::SDPparameters)
+    index = control_ind
+    control = zeros(model.dimControls)
 
-    control = zeros(model.dim_controls)
-
-    if (control_ind > -1):
-        for i=1:model.dim_controls
+    if (control_ind > -1)
+        for i=1:model.dimControls
             control[i] = model.ulim[i][1] + param.controlSteps[i] * (index % param.controlVariablesSizes[i]);
             index = index -index % param.controlVariablesSizes[i];
             index = index / param.controlVariablesSizes[i];
@@ -70,60 +72,66 @@ function control_from_index( control_ind::Int,
 end
 
 
-function sdp_dh_value_iteration(model::SPModel,
+function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
-    V = zeros(Float64, model.stageNumber * param.stateSpaceSize)
-    Pi = zeros(Float64, model.stageNumber * param.stateSpaceSize)
-    x=zeros(Float64, model.dim_states)
-    x1=zeros(Float64, model.dim_states)
+    V = zeros(Float64, (model.stageNumber+1) * param.totalStateSpaceSize)
+    Pi = zeros(Int64, (model.stageNumber+1) * param.totalStateSpaceSize)
+    x=zeros(Float64, model.dimStates)
+    x1=zeros(Float64, model.dimStates)
     TF = model.stageNumber
+    law = model.noises
 
-    for indx = 1:param.stateSpaceSize
+    count_iteration = 1
+    println("Iteration number : ", count_iteration)
+    for indx = 0:(param.totalStateSpaceSize-1)
         x = state_from_index(indx,
                         model,
                         param)
-        V[TF + (TF+1) * indx] = model.finalCostFunction(x)
+        V[TF+1 + (TF+1) * indx] = model.finalCostFunction(x)
     end
 
+    #p = Progress(TF*100*100, 1)
     for t = 1:TF
+        count_iteration = count_iteration + 1
+        println("Iteration number : ", count_iteration)
 
-        for indx = 1:param.stateSpaceSize
+        for indx = 0:(param.totalStateSpaceSize-1)
 
             v = Inf
             v1 = Inf
             indu1 = -1
             Lv = 0
-            x = state_from_index(indx)
+            x = state_from_index(indx, model, param)
 
-            for indu = 1:param.controlSpaceSize
+            for indu = 0:(param.totalControlSpaceSize-1)
+                #next!(p)
 
                 v1 = 0
                 count = 0
 
                 for w = 1:param.monteCarloSize
 
-                    law = [ model.noises[w] ]
-                    u = control_from_index(indu)
-                    wsample = simulate(law, 1)
-                    x1 = model.dynamic(t, x, u, wsample)
+                    u = control_from_index(indu, model, param)
+                    wsample = law[t].support[:, rand(Categorical(law[t].proba))]
+                    x1 = model.dynamics(t, x, u, wsample)
 
-                    if model.constraints(t, x1, x, u, wsample)
+                    if model.constraints(t, x, x1, u, wsample)
 
                         count = count + 1
-                        indx1 = index_from_state(x1)
+                        indx1 = index_from_state(x1, model, param)
                         Lv = model.costFunctions(t, x, u, wsample)
                         v1 = v1 + Lv + V[t + 1 + (TF+1) * indx1]
 
                     end
                 end
 
-                if (count>0) :
+                if (count>0)
 
                     v1 = v1 / count
 
-                    if (v1 < v) :
+                    if (v1 < v)
 
                         v = v1
                         indu1 = indu
@@ -146,16 +154,16 @@ end
 
 function sdp_forward_simulation(model::SPModel,
                   param::SDPparameters,
-                  display=true::Bool,
                   scenario::Array,
                   X0::Array,
                   value::Array,
-                  policy::Array)
+                  policy::Array,
+                  display=true::Bool)
 
     TF = model.stageNumber
 
-    U = zeros(TF)
-    X = zeros(TF+1)
+    U = zeros(Int64, TF)
+    X = zeros(Int64, TF+1)
     X[1] = index_from_state(X0, model, param)
     J = value[1 + (TF+1) * X[1]]
 
@@ -166,11 +174,10 @@ function sdp_forward_simulation(model::SPModel,
         indu = policy[t + (TF+1) * indx]
         u = control_from_index(indu, model, param)
 
-        x1 = model.dynamic(t, x, u, scenario[t])
+        x1 = model.dynamics(t, x, u, scenario[t])
         X[t+1] = index_from_state(x1, model, param)
 
     end
 
     return J, X
-
 end

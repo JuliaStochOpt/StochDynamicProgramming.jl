@@ -92,9 +92,10 @@ end
 type SDPparameters
     stateSteps
     controlSteps
-    numScenarios
     totalStateSpaceSize
+    totalControlSpaceSize
     stateVariablesSizes
+    controlVariablesSizes
     monteCarloSize
 end
 
