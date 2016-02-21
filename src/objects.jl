@@ -54,6 +54,29 @@ type PiecewiseLinearCostSPmodel <: SPModel
     # upperbounds#::Tuple{Vector{Float64}}
 end
 
+type DPSPmodel <: SPModel
+    # problem dimension
+    stageNumber::Int64
+    dimControls::Int64
+    dimStates::Int64
+    dimNoises::Int64
+
+    # Bounds of states and controls:
+    xlim::Array{Tuple{Float64,Float64},1}
+    ulim::Array{Tuple{Float64,Float64},1}
+
+    initialState::Array{Float64, 1}
+
+    costFunctions::Function
+    finalCostFunction::Function
+    dynamics::Function
+    constraints::Function
+    noises::Vector{NoiseLaw}
+
+    # TODO: add this attributes to model
+    # lowerbounds#::Tuple{Vector{Float64}}
+    # upperbounds#::Tuple{Vector{Float64}}
+end
 
 
 type SDDPparameters
@@ -64,6 +87,15 @@ type SDDPparameters
     # initialization #TODO
     sensibility::Float64
     maxItNumber::Int64
+end
+
+type SDPparameters
+    stateSteps
+    controlSteps
+    numScenarios
+    totalStateSpaceSize
+    stateVariablesSizes
+    monteCarloSize
 end
 
 type PolyhedralFunction

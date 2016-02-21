@@ -160,3 +160,22 @@ function solve_dams(display=false)
     println("SDDP cost: ", costs)
     return stocks, V
 end
+
+
+#"""Solve the problem using stochastic dynamic programming."""
+#function solve_dams(display=false)
+#    model, params = init_problem()
+
+#   V, pbs = sdp_optimize(model, params, display)
+
+#    aleas = simulate_scenarios(model.noises,
+#                              (model.stageNumber,
+#                               params.forwardPassNumber,
+#                               model.dimNoises))
+
+#   params.forwardPassNumber = 1
+
+#    costs, stocks = compute_optimal_control(model, params, V, pbs, 1, aleas)
+
+#   return stocks, V
+#end
