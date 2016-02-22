@@ -72,7 +72,7 @@ function control_from_index( control_ind::Int,
 end
 
 
-function sdp_optimize(model::SPModel,
+function sdp_optimize_DH(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
@@ -100,7 +100,7 @@ function sdp_optimize(model::SPModel,
         for indx = 0:(param.totalStateSpaceSize-1)
 
             v = Inf
-            v1 = Inf
+            v1 = 0
             indu1 = -1
             Lv = 0
             x = state_from_index(indx, model, param)
@@ -150,9 +150,87 @@ function sdp_optimize(model::SPModel,
 end
 
 
+function sdp_optimize_HD(model::SPModel,
+                  param::SDPparameters,
+                  display=true::Bool)
+
+    V = zeros(Float64, (model.stageNumber+1) * param.totalStateSpaceSize)
+    Pi = zeros(Int64, (model.stageNumber+1) * param.totalStateSpaceSize)
+    x=zeros(Float64, model.dimStates)
+    x1=zeros(Float64, model.dimStates)
+    TF = model.stageNumber
+    law = model.noises
+
+    count_iteration = 1
+    println("Iteration number : ", count_iteration)
+    for indx = 0:(param.totalStateSpaceSize-1)
+        x = state_from_index(indx,
+                        model,
+                        param)
+        V[TF+1 + (TF+1) * indx] = model.finalCostFunction(x)
+    end
+
+    #p = Progress(TF*100*100, 1)
+    for t = 1:TF
+        count_iteration = count_iteration + 1
+        println("Iteration number : ", count_iteration)
+
+        for indx = 0:(param.totalStateSpaceSize-1)
+
+            v = 0
+            indu1 = -1
+            Lv = 0
+            x = state_from_index(indx, model, param)
+
+            count = 0
+
+            for w = 1:param.monteCarloSize
+
+                admissible_u_w_count = 0
+                v_x_w = 0
+                v_x_w1 = Inf
+
+                for indu = 0:(param.totalControlSpaceSize-1)
+
+                    u = control_from_index(indu, model, param)
+                    wsample = law[t].support[:, rand(Categorical(law[t].proba))]
+                    x1 = model.dynamics(t, x, u, wsample)
+
+                    if model.constraints(t, x, x1, u, wsample)
+
+                        if (admissible_u_w_count == 0)
+                            admissible_u_w_count = 1
+                        end
+
+                        count = count + admissible_u_w_count
+                        indx1 = index_from_state(x1, model, param)
+                        Lv = model.costFunctions(t, x, u, wsample)
+                        v_x_w1 = Lv + V[t + 1 + (TF+1) * indx1]
+
+                        if (v_x_w1 < v_x_w)
+                            v_x_w = v_x_w1
+                        end
+                    end
+                end
+
+                v = v + v_x_w
+            end
+
+            if (count>0)
+                v = v / count
+            end
+
+            V[t + (TF+1) * indx] = v
+
+        end
+    end
+
+    return V
+end
 
 
-function sdp_forward_simulation(model::SPModel,
+
+function sdp_forward_simulation_DH(model::SPModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,
@@ -176,8 +254,56 @@ function sdp_forward_simulation(model::SPModel,
 
         x1 = model.dynamics(t, x, u, scenario[t])
         X[t+1] = index_from_state(x1, model, param)
+        U[t] = indu
 
     end
 
-    return J, X
+    return J, X, U
+end
+
+
+
+function sdp_forward_simulation_HD(model::SPModel,
+                  param::SDPparameters,
+                  scenario::Array,
+                  X0::Array,
+                  value::Array,
+                  policy::Array,
+                  display=true::Bool)
+
+    TF = model.stageNumber
+
+    U = zeros(Int64, TF)
+    X = zeros(Int64, TF+1)
+    X[1] = index_from_state(X0, model, param)
+    J = value[1 + (TF+1) * X[1]]
+
+    for t = 1:TF
+
+        indx = X[t]
+        x = state_from_index(indx, model, param)
+        induRef = 0
+        indxRef = 0
+        LvRef = Inf
+
+        for indu = 0:(param.totalControlSpaceSize-1)
+
+            u = control_from_index(indu, model, param)
+            x1 = model.dynamics(t, x, u, scenario[t])
+            indx1 = index_from_state(x1, model, param)
+            Lv = model.costFunctions(t, x, u, wsample) + V[t + 1 + (TF+1) * indx1]
+            if (Lv < LvRef)
+                induRef = indu
+                indxRef = indx1
+                LvRef = Lv
+            end
+
+        end
+
+        U[t] = induRef
+        X[t+1] = indxRef
+
+    end
+
+    return J, X, U
 end

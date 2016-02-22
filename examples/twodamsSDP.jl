@@ -220,7 +220,7 @@ function solve_dams_sdp(display=false)
 
     law = model.noises
 
-    V, Pi = sdp_optimize(model, params, display)
+    V, Pi = sdp_optimize_DH(model, params, display)
 
     scenar = Array(Array, TF)
 
@@ -228,7 +228,7 @@ function solve_dams_sdp(display=false)
         scenar[t]=law[t].support[:, rand(Categorical(law[t].proba))]
     end
 
-    costs, stocks = sdp_forward_simulation(model, params, scenar, X0, V, Pi, true)
+    costs, stocks = sdp_forward_simulation_DH(model, params, scenar, X0, V, Pi, true)
 
     println("SDP cost: ", costs)
     return stocks, V
