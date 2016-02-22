@@ -72,7 +72,25 @@ function NoiseLaw(support, proba)
     return NoiseLaw_const(length(proba), support, proba)
 end
 
+"""
+Generate one sample of the aleas of the problem at time t
 
+Parameters:
+- law::Vector{NoiseLaw}
+    Vector of discrete independent random variables
+
+- t::Int
+    time step at which a sample is needed
+
+
+Returns :
+- sample Array(Float64, dimAlea)
+    an Array of size dimAlea containing a sample w
+
+"""
+function sampling(law::Vector{NoiseLaw}, t::Int64)
+    return law[t].support[:, rand(Categorical(law[t].proba))]
+end
 
 
 """

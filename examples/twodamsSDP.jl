@@ -130,7 +130,7 @@ function init_problem()
     aleas = generate_probability_laws()
 
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, VOLUME_MAX), (0, VOLUME_MAX)]
 
     N_CONTROLS = 4
     N_STATES = 2
@@ -200,12 +200,12 @@ function solve_dams(display=false)
 
     V, pbs = optimize(model, params, display)
 
+    params.forwardPassNumber = 1
+
     aleas = simulate_scenarios(model.noises,
                               (model.stageNumber,
                                params.forwardPassNumber,
                                model.dimNoises))
-
-    params.forwardPassNumber = 1
 
     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
 
@@ -225,7 +225,7 @@ function solve_dams_sdp(display=false)
     scenar = Array(Array, TF)
 
     for t in 1:TF
-        scenar[t]=law[t].support[:, rand(Categorical(law[t].proba))]
+        scenar[t] = sampling(law, t)
     end
 
     costs, stocks = sdp_forward_simulation_DH(model, params, scenar, X0, V, Pi, true)
@@ -234,4 +234,22 @@ function solve_dams_sdp(display=false)
     return stocks, V
 end
 
+function solve_dams_sdp_HD(display=false)
+    model, params = init_problem_sdp()
+
+    law = model.noises
+
+    V = sdp_optimize_HD(model, params, display)
+
+    scenar = Array(Array, TF)
+
+    for t in 1:TF
+        scenar[t] = sampling(law, t)
+    end
+
+    costs, stocks = sdp_forward_simulation_HD(model, params, scenar, X0, V, true)
+
+    println("SDP cost: ", costs)
+    return stocks, V
+end
 
