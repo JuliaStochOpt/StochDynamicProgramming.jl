@@ -181,16 +181,34 @@ Parameter:
 - problem (JuMP.Model)
     Cut approximating the terminal cost
 
+- shape
+    If PolyhedralFunction is given, build terminal cost with it
+    Else, terminal cost is null
+
 """
-function build_terminal_cost(problem::JuMP.Model)
+function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt)
     alpha = getVar(problem, :alpha)
-    @addConstraint(problem, alpha >= 0)
+
+    # if shape is PolyhedralFunction, build terminal cost with it:
+    if isa(Vt, PolyhedralFunction)
+        alpha = getVar(problem, :alpha)
+        x = getVar(problem, :x)
+        u = getVar(problem, :u)
+        w = getVar(problem, :w)
+        t = model.stageNumber -1
+        for i in 1:Vt.numCuts
+            lambda = vec(Vt.lambdas[i, :])
+            @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+        end
+    else
+        @addConstraint(problem, alpha >= 0)
+    end
 end
 
 
 
 """
-Initialize each linear problem used to approximate value functions
+Initialize each linear problem used to approximate value  functions
 
 This function define the variables and the constraints of each
 linear problem.
@@ -300,7 +318,7 @@ function initialize_value_functions( model::SPModel,
                         aleas,
                         false, true, false)[2]
 
-    build_terminal_cost(solverProblems[end-1])
+    build_terminal_cost!(model, solverProblems[end-1], V[end])
 
     backward_pass!(model,
                   param,
@@ -320,7 +338,6 @@ end
 Compute value of Bellman function at point xt. Return V_t(xt)
 
 Parameters:
-Parameter:
 - model (SPModel)
     Parametrization of the problem
 
