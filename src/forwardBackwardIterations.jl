@@ -108,7 +108,7 @@ end
 
 
 """
-Add to Vt a cut with shape Vt >= beta + <lambda,.>
+Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 
 Parameters:
 - model (SPModel)
@@ -137,7 +137,7 @@ end
 
 
 """
-Add a cut to the linear problem.
+Add a cut to the JuMP linear problem.
 
 Parameters:
 - model (SPModel)
@@ -167,39 +167,12 @@ end
 
 
 """
-Update linear problem with cuts stored in given PolyhedralFunction.
-
-Parameters:
-- model (SPModel)
-    Store the problem definition
-
-- problem (JuMP.Model)
-    Linear problem used to approximate the value functions
-
-- Vt (PolyhedralFunction)
-    Store values of each cut
-
-"""
-function add_constraints_with_cut!(model::SPModel, problem::JuMP.Model,
-                                   t::Int64, Vt::PolyhedralFunction)
-    for i in 1:Vt.numCuts
-
-        alpha = getVar(problem, :alpha)
-        x = getVar(problem, :x)
-        u = getVar(problem, :u)
-        w = getVar(problem, :w)
-        lambda = vec(Vt.lambdas[i, :])
-        @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
-    end
-end
-
-
-"""
 Make a backward pass of the algorithm
 
 For t:T-1 -> 0, compute a valid cut of the Bellman function
 Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
+
 
 Parameters:
 - model (SPmodel)
@@ -223,6 +196,10 @@ Parameters:
 
 - init (Bool)
     If specified, then init PolyhedralFunction
+
+- updateV (Bool)
+    Store new cuts in given Polyhedral functions if specified
+
 
 Return:
 - V0 (Float64)

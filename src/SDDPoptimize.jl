@@ -8,6 +8,157 @@
 #############################################################################
 
 
+"""
+Solve SDDP algorithm and return estimation of bellman functions.
+
+Alternate forward and backward phase till the stopping criterion is
+fulfilled.
+
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+
+- display (Bool) - Default is false
+    If specified, display progression in terminal
+
+
+Returns :
+- V (Array{PolyhedralFunction})
+    the collection of approximation of the bellman functions
+
+- problems (Array{JuMP.Model})
+    the collection of linear problems used to approximate
+    each value function
+
+"""
+function solve_SDDP(model::SPModel,
+                    param::SDDPparameters,
+                    display=true::Bool,
+                    returnValueFunctions=true::Bool)
+
+    # Initialize value functions:
+    V, problems = initialize_value_functions(model, param)
+    # Evaluation of initial cost:
+    V0::Float64 = 0
+
+    if display
+      println("Initialize cuts")
+    end
+
+
+    stopping_test::Bool = false
+    iteration_count::Int64 = 0
+
+    while (iteration_count < param.maxItNumber) & (~stopping_test)
+        # Time execution of current pass:
+        tic()
+
+        # Build given number of scenarios according to distribution
+        # law specified in model.noises:
+        aleas = simulate_scenarios(model.noises ,
+                                    (model.stageNumber,
+                                     param.forwardPassNumber,
+                                     model.dimNoises))
+
+        # Forward pass
+        costs, stockTrajectories, _ = forward_simulations(model,
+                            param,
+                            V,
+                            problems,
+                            aleas)
+
+        # Backward pass
+        backward_pass!(model,
+                      param,
+                      V,
+                      problems,
+                      stockTrajectories,
+                      model.noises,
+                      false,
+                      returnValueFunctions)
+
+        iteration_count += 1
+        upb = upper_bound(costs)
+
+        V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
+
+        time = toq()
+
+        if display
+            println("Pass number ", iteration_count,
+                    "\tEstimation of upper-bound: ", upb,
+                    "\tLower-bound: ", V0,
+                    "\tTime: ", time)
+        end
+
+    end
+
+    if display
+        println("Estimate upper-bound with Monte-Carlo ...")
+        upb, costs = estimate_upper_bound(model, param, V, problems)
+        println("Estimation of upper-bound: ", upb,
+                "\tExact lower bound: ", V0,
+                "\t Gap (\%) <  ", (V0-upb)/V0 , " with prob. > 97.5 \%")
+        println("Estimation of cost of the solution (fiability 95\%):",
+                 mean(costs), " +/- ", 1.96*std(costs)/sqrt(length(costs)))
+    end
+
+    return V, problems
+end
+
+
+
+"""
+Estimate upper bound with Monte Carlo.
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+
+- V (Array{PolyhedralFunction})
+    the current estimation of Bellman's functions
+
+- problems (Array{JuMP.Model})
+    Linear model used to approximate each value function
+
+- n_simulation (Float64)
+    Number of scenarios to use to compute Monte-Carlo estimation
+
+
+Return:
+Float64 (estimation of the upper bound)
+
+"""
+function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
+
+    n_fpn = param.forwardPassNumber
+    param.forwardPassNumber = n_simulation
+
+    aleas = simulate_scenarios(model.noises ,
+                                    (model.stageNumber,
+                                     param.forwardPassNumber,
+                                     model.dimNoises))
+
+    costs, stockTrajectories, _ = forward_simulations(model,
+                                                        param,
+                                                        V,
+                                                        problems,
+                                                        aleas)
+
+
+    param.forwardPassNumber = n_fpn
+
+    return upper_bound(costs), costs
+end
+
+
 
 """Build a collection of cuts initialize at 0"""
 function get_null_value_functions_array(model::SPModel)
@@ -124,10 +275,7 @@ Return:
 
 """
 function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters,
-                        )
-
-    n = param.forwardPassNumber
+                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -138,7 +286,7 @@ function initialize_value_functions( model::SPModel,
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises,
                                (model.stageNumber,
-                                n,
+                                param.forwardPassNumber,
                                 model.dimNoises))
 
 
@@ -160,6 +308,7 @@ function initialize_value_functions( model::SPModel,
                   solverProblems,
                   stockTrajectories,
                   model.noises,
+                  true,
                   true)
 
     return V, solverProblems
@@ -168,141 +317,42 @@ end
 
 
 """
-Make a forward pass of the algorithm
-
-Simulate a scenario of noise and compute an optimal trajectory on this
-scenario according to the current value functions.
+Compute value of Bellman function at point xt. Return V_t(xt)
 
 Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
+Parameter:
+- model (SPModel)
+    Parametrization of the problem
 
 - param (SDDPparameters)
-    the parameters of the SDDP algorithm
+    Parameters of SDDP
 
-- display (Bool) - Default is false
-    If specified, display progression in terminal
+- t (Int64)
+    Time t where to solve bellman value
 
+- Vt (Polyhedral function)
+    Estimation of bellman function as Polyhedral function
 
-Returns :
-- V (Array{PolyhedralFunction})
-    the collection of approximation of the bellman functions
-
-- problems (Array{JuMP.Model})
-    the collection of linear problems used to approximate
-    each value function
-
-"""
-function optimize(model::SPModel,
-                  param::SDDPparameters,
-                  display=true::Bool)
-
-    # Initialize value functions:
-    V, problems = initialize_value_functions(model, param)
-    # Evaluation of initial cost:
-    V0::Float64 = 0
-
-    if display
-      println("Initialize cuts")
-    end
-
-
-    stopping_test::Bool = false
-    iteration_count::Int64 = 0
-
-    while (iteration_count < param.maxItNumber) & (~stopping_test)
-        # Time execution of current pass:
-        tic()
-
-        # Build given number of scenarios according to distribution
-        # law specified in model.noises:
-        aleas = simulate_scenarios(model.noises ,
-                                    (model.stageNumber,
-                                     param.forwardPassNumber,
-                                     model.dimNoises))
-
-        # Forward pass
-        costs, stockTrajectories, _ = forward_simulations(model,
-                            param,
-                            V,
-                            problems,
-                            aleas)
-
-        # Backward pass
-        V0 = backward_pass!(model,
-                      param,
-                      V,
-                      problems,
-                      stockTrajectories,
-                      model.noises)
-
-        iteration_count += 1
-        upb = upper_bound(costs)
-        time = toq()
-
-        if display
-            println("Pass number ", iteration_count,
-                    "\tEstimation of upper-bound: ", upb,
-                    "\tV0: ", V0,
-                    "\tTime: ", time)
-        end
-
-    end
-
-    if display
-        println("Estimate upper-bound with Monte-Carlo ...")
-        upb = estimate_upper_bound(model, param, V, problems)
-        println("Estimation of upper-bound: ", upb,
-                "\tV0: ", V0,
-                "\t Gap (\%): ", (V0-upb)/V0)
-    end
-
-    return V, problems
-end
-
-
-"""
-Estimate upper bound with Monte Carlo.
-
-Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
-
-- param (SDDPparameters)
-    the parameters of the SDDP algorithm
-
-- V (Array{PolyhedralFunction})
-    the current estimation of Bellman's functions
-
-- problems (Array{JuMP.Model})
-    Linear model used to approximate each value function
-
-- n_simulation (Float64)
-    Number of scenarios to use to compute Monte-Carlo estimation
+- xt (Vector{Float64})
+    Point where to compute Bellman value.
 
 
 Return:
-Float64 (estimation of the upper bound)
+Bellman value (Float64)
 
 """
-function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
+function get_bellman_value(model::SPModel, param::SDDPparameters,
+                           t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
-    n_fpn = param.forwardPassNumber
-    param.forwardPassNumber = n_simulation
+    m = Model(solver=param.solver)
+    @defVar(m, alpha)
 
-    aleas = simulate_scenarios(model.noises ,
-                                    (model.stageNumber,
-                                     param.forwardPassNumber,
-                                     model.dimNoises))
+    for i in 1:Vt.numCuts
+        lambda = vec(Vt.lambdas[i, :])
+        @addConstraint(m, Vt.betas[i] + dot(lambda, xt) <= alpha)
+    end
 
-    costs, stockTrajectories, _ = forward_simulations(model,
-                                                        param,
-                                                        V,
-                                                        problems,
-                                                        aleas)
-
-
-    param.forwardPassNumber = n_fpn
-
-    return upper_bound(costs)
+    @setObjective(m, Min, alpha)
+    solve(m)
+    return getValue(alpha)
 end

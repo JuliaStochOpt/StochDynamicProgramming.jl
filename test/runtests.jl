@@ -92,13 +92,13 @@ facts("SDDP algorithm") do
                                                     epsilon, max_iterations)
 
     # Compute bellman functions with SDDP:
-    V, pbs = optimize(model, params, false)
+    V, pbs = solve_SDDP(model, params, false)
     @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
     @fact typeof(pbs) --> Vector{JuMP.Model}
 
     # Test upper bounds estimation with Monte-Carlo:
     n_simulations = 100
     upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
-                                                       n_simulations)
+                                                       n_simulations)[1]
     @fact typeof(upb) --> Float64
 end
