@@ -91,7 +91,7 @@ function build_models(model::SPModel, param::SDDPparameters)
             @setObjective(m, Min, cost + alpha)
 
         else
-            error("model must be: LinearDynamicLinearCostSPModel")
+            error("model must be: LinearDynamicLinearCostSPModel or LinearDynamicLinearCostSPmodel")
         end
 
         models[t] = m
@@ -172,7 +172,7 @@ end
 Make a forward pass of the algorithm
 
 Simulate a scenario of noise and compute an optimal trajectory on this
-scenario according to the current value functions.
+scenario according to the current lower approximation of value functions.
 
 Parameters:
 - model (SPmodel)
