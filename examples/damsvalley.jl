@@ -12,6 +12,8 @@ push!(LOAD_PATH, "../src")
 
 using StochDynamicProgramming, JuMP, Clp
 
+include("extensiveFormulation.jl")
+
 const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
@@ -20,11 +22,11 @@ const MAX_ITER = 20
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
-const N_STAGES = 52
-const N_SCENARIOS = 10
+const N_STAGES = 3
+const N_SCENARIOS = 2
 
 # FINAL TIME:
-const TF = 52
+const TF = N_STAGES
 
 # COST:
 const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
@@ -41,7 +43,7 @@ const W_MIN = 0
 const DW = 1
 
 const T0 = 1
-const HORIZON = 52
+const HORIZON = TF
 
 # Define aleas' space:
 const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
@@ -51,6 +53,7 @@ const X0 = [50, 50]
 
 # Define dynamic of the dam:
 function dynamic(t, x, u, w)
+    #return [x[1] - u[1] + w[1], x[2] - u[2] + u[1]]
     return [x[1] - u[1] - u[3] + w[1], x[2] - u[2] - u[4] + u[1] + u[3]]
 end
 
@@ -167,8 +170,8 @@ end
 
 
 """Solve the problem."""
-function solve_dams(display=false)
-    model, params = init_problem()
+function solve_dams(model,params,display=false)
+    
 
     V, pbs = optimize(model, params, display)
 
@@ -184,3 +187,10 @@ function solve_dams(display=false)
     println("SDDP cost: ", costs)
     return stocks, V
 end
+
+
+model, params = init_problem()
+
+solve_dams(model,params,true)
+
+extensive_formulation(model,params)
