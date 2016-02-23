@@ -11,16 +11,16 @@ function extensive_formulation(model,
                                param)
 
 
-    const N_SCENARS = 10
+    N_SCENARS = 10
 
     # Constants:
-    const V_MAX = 100
-    const V_MIN = 0
+    V_MAX = 100
+    V_MIN = 0
 
-    const C_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
-    const C_MIN = 0
+    C_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
+    C_MIN = 0
     
-    const X_init = [50, 50]
+    X_init = [50, 50]
     
     laws = model.noises
     T = model.stageNumber-1
@@ -64,8 +64,12 @@ function extensive_formulation(model,
         for n = 1 : N[t]
             for xi = 1 : laws[t].supportSize
                 m = (n-1)*laws[t].supportSize+xi
-                @addConstraint(mod, [x[t+1,2*(m-1)+1];x[t+1,2*m]] .== model.dynamics(t,[x[t,2*(n-1)+1];x[t,2*n]], [u[t,2*(m-1)+1];u[t,2*m]], laws[t].support[xi]))
-                @addConstraint(mod, c[t,m] == model.costFunctions(t, [x[t,2*(n-1)+1];x[t,2*n]], [u[t,2*(m-1)+1];u[t,2*m]], laws[t].support[xi]))
+                @addConstraint(mod, 
+                [x[t+1,2*(m-1)+1];x[t+1,2*m]] .== model.dynamics(t,[x[t,2*(n-1)+1];x[t,2*n]], 
+                [u[t,2*(m-1)+1];u[t,2*m]], laws[t].support[xi]))
+                @addConstraint(mod, 
+                c[t,m] == model.costFunctions(t, [x[t,2*(n-1)+1];x[t,2*n]],
+                [u[t,2*(m-1)+1];u[t,2*m]], laws[t].support[xi]))
             end
         end
     end
@@ -79,9 +83,10 @@ function extensive_formulation(model,
     @setObjective(mod, Min, sum{ sum{proba[t][N_SCENARS*(n-1)+k]*c[t,N_SCENARS*(n-1)+k],k = 1:N_SCENARS} , t = 1:T, n=1:div(N[t+1],N_SCENARS)})
     
     
+    
     status = solve(mod)
     
-    solved = (string(status) == "Optimal")
+    solved = (status == :Optimal)
     
     if solved
         println("resultat = ",getObjectiveValue(mod))
