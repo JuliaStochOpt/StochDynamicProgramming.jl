@@ -20,6 +20,9 @@ function extensive_formulation(model,
     C_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
     C_MIN = 0
     
+    DIM_STATE = model.dimStates
+    DIM_CONTROL = model.dimControls
+    
     X_init = [50, 50]
     
     laws = model.noises
@@ -39,13 +42,14 @@ function extensive_formulation(model,
     
     #Define the variables for the extensive formulation
     #At each node, we have as many variables as nodes
-    @defVar(mod,  V_MIN <= x[t=1:T+1,n=1:2*N[t]] <= V_MAX)
-    @defVar(mod,  C_MIN <= u[t=1:T,n=1:2*N[t+1]] <= C_MAX)
+    @defVar(mod,  V_MIN <= x[t=1:T+1,n=1:DIM_STATE*N[t]] <= V_MAX)
+    @defVar(mod,  C_MIN <= u[t=1:T,n=1:DIM_CONTROL*N[t+1]] <= C_MAX)
     @defVar(mod,  c[t=1:T,n=1:N_SCENARS*N[t]])
     
     
     #Define the conditional probabilities on each arc of the scenario tree
-    proba = Any[]
+    #proba = Any[]
+    proba = []
     push!(proba, laws[1].proba)
     for t = 2 : T
         println("t_proba",t)
@@ -65,18 +69,21 @@ function extensive_formulation(model,
             for xi = 1 : laws[t].supportSize
                 m = (n-1)*laws[t].supportSize+xi
                 @addConstraint(mod, 
-                [x[t+1,2*(m-1)+1];x[t+1,2*m]] .== model.dynamics(t,[x[t,2*(n-1)+1];x[t,2*n]], 
-                [u[t,2*(m-1)+1];u[t,2*m]], laws[t].support[xi]))
+                [x[t+1,DIM_STATE*(m-1)+k] for k = 1:DIM_STATE] .== model.dynamics(t,
+                                                                                    [x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE],
+                                                                                    [u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL],
+                                                                                    laws[t].support[xi]))
                 @addConstraint(mod, 
-                c[t,m] == model.costFunctions(t, [x[t,2*(n-1)+1];x[t,2*n]],
-                [u[t,2*(m-1)+1];u[t,2*m]], laws[t].support[xi]))
+                c[t,m] == model.costFunctions(t, 
+                                                [x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE],
+                                                [u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL], 
+                                                laws[t].support[xi]))
             end
         end
     end
     
     #Initial state
-    @addConstraint(mod, x[1,1] == X_init[1])
-    @addConstraint(mod, x[1,2] == X_init[2])
+    @addConstraint(mod, [x[1,k] for k = 1:DIM_STATE] .== X_init)
     
     
     #Define the objective of the function
