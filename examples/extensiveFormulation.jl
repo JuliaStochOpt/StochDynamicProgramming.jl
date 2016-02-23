@@ -8,27 +8,22 @@
 
 
 function extensive_formulation(model, 
-                               param)
+                               params)
 
-
-    N_SCENARS = 10
-
-    # Constants:
-    V_MAX = 100
-    V_MIN = 0
-
-    C_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
-    C_MIN = 0
+    
+    #TODO Recover all the constant in the model or in param
+    laws = model.noises
+    N_NOISES = laws[1].supportSize
     
     DIM_STATE = model.dimStates
     DIM_CONTROL = model.dimControls
     
-    X_init = [50, 50]
+    X_init = model.initialState
     
-    laws = model.noises
+    
     T = model.stageNumber-1
     
-    mod = Model(solver=param.solver)
+    mod = Model(solver=params.solver)
     
     
     #Calculate the number of nodes n at each step on the scenario tree
@@ -42,9 +37,9 @@ function extensive_formulation(model,
     
     #Define the variables for the extensive formulation
     #At each node, we have as many variables as nodes
-    @defVar(mod,  V_MIN <= x[t=1:T+1,n=1:DIM_STATE*N[t]] <= V_MAX)
-    @defVar(mod,  C_MIN <= u[t=1:T,n=1:DIM_CONTROL*N[t+1]] <= C_MAX)
-    @defVar(mod,  c[t=1:T,n=1:N_SCENARS*N[t]])
+    @defVar(mod,  u[t=1:T,n=1:DIM_CONTROL*N[t+1]])
+    @defVar(mod,  x[t=1:T+1,n=1:DIM_STATE*N[t]])
+    @defVar(mod,  c[t=1:T,n=1:N_NOISES*N[t]])
     
     
     #Define the conditional probabilities on each arc of the scenario tree
@@ -55,8 +50,8 @@ function extensive_formulation(model,
         println("t_proba",t)
         push!(proba, zeros(N[t+1]))
         for j = 1 : N[t]
-            for k = 1 : N_SCENARS
-                proba[t][N_SCENARS*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]
+            for k = 1 : N_NOISES
+                proba[t][N_NOISES*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]
             end
         end
     end
@@ -66,8 +61,14 @@ function extensive_formulation(model,
     for t = 1 : (T)
         println("\n\nt=",t)
         for n = 1 : N[t]
+            @addConstraint(mod,[x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE] .>= [model.xlim[k][1] for k = 1:DIM_STATE])
+            @addConstraint(mod,[x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE] .<= [model.xlim[k][2] for k = 1:DIM_STATE])
             for xi = 1 : laws[t].supportSize
                 m = (n-1)*laws[t].supportSize+xi
+                
+                @addConstraint(mod,[u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL] .>= [model.ulim[k][1] for k = 1:DIM_CONTROL])
+                @addConstraint(mod,[u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL] .<= [model.ulim[k][2] for k = 1:DIM_CONTROL])
+                
                 @addConstraint(mod, 
                 [x[t+1,DIM_STATE*(m-1)+k] for k = 1:DIM_STATE] .== model.dynamics(t,
                                                                                     [x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE],
@@ -87,9 +88,7 @@ function extensive_formulation(model,
     
     
     #Define the objective of the function
-    @setObjective(mod, Min, sum{ sum{proba[t][N_SCENARS*(n-1)+k]*c[t,N_SCENARS*(n-1)+k],k = 1:N_SCENARS} , t = 1:T, n=1:div(N[t+1],N_SCENARS)})
-    
-    
+    @setObjective(mod, Min, sum{ sum{proba[t][N_NOISES*(n-1)+k]*c[t,N_NOISES*(n-1)+k],k = 1:N_NOISES} , t = 1:T, n=1:div(N[t+1],N_NOISES)})
     
     status = solve(mod)
     
