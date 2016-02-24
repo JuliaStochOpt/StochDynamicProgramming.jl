@@ -10,14 +10,7 @@
 using ProgressMeter
 
 """
-Convert the state and control tuples (stored as arrays) of the problem into integers
-
-Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
-
-- param (SDDPparameters)
-    the parameters of the SDDP algorithm
+Convert the state and control tuples (stored as arrays) of the problem into integers and vice versa
 
 """
 
@@ -59,6 +52,10 @@ function variable_from_index( variable_ind::Int,
     return variable
 end
 
+"""
+Value iteration algorithm to compute optimal policy in the Decision Hazard (DH) case and value functions in the HD case
+
+"""
 
 function sdp_optimize_DH(model::SPModel,
                   param::SDPparameters,
@@ -229,6 +226,10 @@ function sdp_optimize_HD(model::SPModel,
     return V
 end
 
+"""
+Simulation of optimal control given an initial state and an alea scenario
+
+"""
 
 
 function sdp_forward_simulation_DH(model::SPModel,
