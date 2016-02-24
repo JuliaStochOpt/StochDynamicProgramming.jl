@@ -37,7 +37,7 @@ Returns :
 """
 function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
-                    display=true::Bool,
+                    display=0::Int64,
                     returnValueFunctions=true::Bool)
 
     # Initialize value functions:
@@ -45,7 +45,7 @@ function solve_SDDP(model::SPModel,
     # Evaluation of initial cost:
     V0::Float64 = 0
 
-    if display
+    if display > 0
       println("Initialize cuts")
     end
 
@@ -88,7 +88,7 @@ function solve_SDDP(model::SPModel,
 
         time = toq()
 
-        if display
+        if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
                     "\tEstimation of upper-bound: ", upb,
                     "\tLower-bound: ", V0,
@@ -97,7 +97,7 @@ function solve_SDDP(model::SPModel,
 
     end
 
-    if display
+    if (display>0)
         println("Estimate upper-bound with Monte-Carlo ...")
         upb, costs = estimate_upper_bound(model, param, V, problems)
         println("Estimation of upper-bound: ", upb,
@@ -308,7 +308,7 @@ function initialize_value_functions( model::SPModel,
                                 model.dimNoises))
 
 
-    V[end] = PolyhedralFunction(zeros(1), zeros(1, 1), 1)
+    V[end] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
 
 
     stockTrajectories = forward_simulations(model,
