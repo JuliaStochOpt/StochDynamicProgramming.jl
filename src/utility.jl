@@ -44,34 +44,29 @@ end
 
 
 """
-Estimate the upper bound with the Monte-Carlo error
+Estimate the upper bound with a distribution of costs
+
+Given a probability p, we have a confidence interval:
+[mu - alpha sigma/sqrt(n), mu + alpha sigma/sqrt(n)]
+where alpha depends upon p.
+
+Upper bound is the max of this interval.
 
 
 Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
+- cost (Vector{Float64})
+    Costs values
 
-- param (SDDPparameters)
-    the parameters of the SDDP algorithm
-
-- V (bellmanFunctions)
-    the current estimation of Bellman's functions
-
-- forwardPassNumber (int)
-    number of Monte-Carlo simulation
-
-- returnMCerror (Bool)
-    return or not the estimation of the MC error
-
+- probability (Float)
+    Probability to be inside the confidence interval
 
 Returns :
 - estimated-upper bound
 
-- Monte-Carlo error on the upper bound (if returnMCerror)
-
 """
-function upper_bound(cost::Vector{Float64})
-    return mean(cost) + 1.96*std(cost)/sqrt(length(cost))
+function upper_bound(cost::Vector{Float64}, probability=.975)
+    tol = sqrt(2) * erfinv(2*probability - 1)
+    return mean(cost) + tol*std(cost)/sqrt(length(cost))
 end
 
 

@@ -8,6 +8,157 @@
 #############################################################################
 
 
+"""
+Solve SDDP algorithm and return estimation of bellman functions.
+
+Alternate forward and backward phase till the stopping criterion is
+fulfilled.
+
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+
+- display (Bool) - Default is false
+    If specified, display progression in terminal
+
+
+Returns :
+- V (Array{PolyhedralFunction})
+    the collection of approximation of the bellman functions
+
+- problems (Array{JuMP.Model})
+    the collection of linear problems used to approximate
+    each value function
+
+"""
+function solve_SDDP(model::SPModel,
+                    param::SDDPparameters,
+                    display=true::Bool,
+                    returnValueFunctions=true::Bool)
+
+    # Initialize value functions:
+    V, problems = initialize_value_functions(model, param)
+    # Evaluation of initial cost:
+    V0::Float64 = 0
+
+    if display
+      println("Initialize cuts")
+    end
+
+
+    stopping_test::Bool = false
+    iteration_count::Int64 = 0
+
+    while (iteration_count < param.maxItNumber) & (~stopping_test)
+        # Time execution of current pass:
+        tic()
+
+        # Build given number of scenarios according to distribution
+        # law specified in model.noises:
+        aleas = simulate_scenarios(model.noises ,
+                                    (model.stageNumber,
+                                     param.forwardPassNumber,
+                                     model.dimNoises))
+
+        # Forward pass
+        costs, stockTrajectories, _ = forward_simulations(model,
+                            param,
+                            V,
+                            problems,
+                            aleas)
+
+        # Backward pass
+        backward_pass!(model,
+                      param,
+                      V,
+                      problems,
+                      stockTrajectories,
+                      model.noises,
+                      false,
+                      returnValueFunctions)
+
+        iteration_count += 1
+        upb = upper_bound(costs)
+
+        V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
+
+        time = toq()
+
+        if display
+            println("Pass number ", iteration_count,
+                    "\tEstimation of upper-bound: ", upb,
+                    "\tLower-bound: ", V0,
+                    "\tTime: ", time)
+        end
+
+    end
+
+    if display
+        println("Estimate upper-bound with Monte-Carlo ...")
+        upb, costs = estimate_upper_bound(model, param, V, problems)
+        println("Estimation of upper-bound: ", upb,
+                "\tExact lower bound: ", V0,
+                "\t Gap (\%) <  ", (V0-upb)/V0 , " with prob. > 97.5 \%")
+        println("Estimation of cost of the solution (fiability 95\%):",
+                 mean(costs), " +/- ", 1.96*std(costs)/sqrt(length(costs)))
+    end
+
+    return V, problems
+end
+
+
+
+"""
+Estimate upper bound with Monte Carlo.
+
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to optimize
+
+- param (SDDPparameters)
+    the parameters of the SDDP algorithm
+
+- V (Array{PolyhedralFunction})
+    the current estimation of Bellman's functions
+
+- problems (Array{JuMP.Model})
+    Linear model used to approximate each value function
+
+- n_simulation (Float64)
+    Number of scenarios to use to compute Monte-Carlo estimation
+
+
+Return:
+Float64 (estimation of the upper bound)
+
+"""
+function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
+
+    n_fpn = param.forwardPassNumber
+    param.forwardPassNumber = n_simulation
+
+    aleas = simulate_scenarios(model.noises ,
+                                    (model.stageNumber,
+                                     param.forwardPassNumber,
+                                     model.dimNoises))
+
+    costs, stockTrajectories, _ = forward_simulations(model,
+                                                        param,
+                                                        V,
+                                                        problems,
+                                                        aleas)
+
+
+    param.forwardPassNumber = n_fpn
+
+    return upper_bound(costs), costs
+end
+
+
 
 """Build a collection of cuts initialize at 0"""
 function get_null_value_functions_array(model::SPModel)
@@ -30,16 +181,34 @@ Parameter:
 - problem (JuMP.Model)
     Cut approximating the terminal cost
 
+- shape
+    If PolyhedralFunction is given, build terminal cost with it
+    Else, terminal cost is null
+
 """
-function build_terminal_cost(problem::JuMP.Model)
+function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt)
     alpha = getVar(problem, :alpha)
-    @addConstraint(problem, alpha >= 0)
+
+    # if shape is PolyhedralFunction, build terminal cost with it:
+    if isa(Vt, PolyhedralFunction)
+        alpha = getVar(problem, :alpha)
+        x = getVar(problem, :x)
+        u = getVar(problem, :u)
+        w = getVar(problem, :w)
+        t = model.stageNumber -1
+        for i in 1:Vt.numCuts
+            lambda = vec(Vt.lambdas[i, :])
+            @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+        end
+    else
+        @addConstraint(problem, alpha >= 0)
+    end
 end
 
 
 
 """
-Initialize each linear problem used to approximate value functions
+Initialize each linear problem used to approximate value  functions
 
 This function define the variables and the constraints of each
 linear problem.
@@ -124,10 +293,7 @@ Return:
 
 """
 function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters,
-                        )
-
-    n = param.forwardPassNumber
+                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -138,7 +304,7 @@ function initialize_value_functions( model::SPModel,
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises,
                                (model.stageNumber,
-                                n,
+                                param.forwardPassNumber,
                                 model.dimNoises))
 
 
@@ -149,18 +315,18 @@ function initialize_value_functions( model::SPModel,
                         param,
                         V_null,
                         solverProblems_null,
-                        n,
                         aleas,
                         false, true, false)[2]
 
-    build_terminal_cost(solverProblems[end-1])
+    build_terminal_cost!(model, solverProblems[end-1], V[end])
 
-    backward_pass(model,
+    backward_pass!(model,
                   param,
                   V,
                   solverProblems,
                   stockTrajectories,
                   model.noises,
+                  true,
                   true)
 
     return V, solverProblems
@@ -169,81 +335,41 @@ end
 
 
 """
-Make a forward pass of the algorithm
-
-Simulate a scenario of noise and compute an optimal trajectory on this
-scenario according to the current lower approximation of value functions.
+Compute value of Bellman function at point xt. Return V_t(xt)
 
 Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
+- model (SPModel)
+    Parametrization of the problem
 
 - param (SDDPparameters)
-    the parameters of the SDDP algorithm
+    Parameters of SDDP
 
-- display (Bool) - Default is false
-    If specified, display progression in terminal
+- t (Int64)
+    Time t where to solve bellman value
+
+- Vt (Polyhedral function)
+    Estimation of bellman function as Polyhedral function
+
+- xt (Vector{Float64})
+    Point where to compute Bellman value.
 
 
-Returns :
-- V (Array{PolyhedralFunction})
-    the collection of approximation of the bellman functions
-
-- problems (Array{JuMP.Model})
-    the collection of linear problems used to approximate
-    each value function
+Return:
+Bellman value (Float64)
 
 """
-function optimize(model::SPModel,
-                  param::SDDPparameters,
-                  display=true::Bool)
+function get_bellman_value(model::SPModel, param::SDDPparameters,
+                           t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
-    # Initialize value functions:
-    V, problems = initialize_value_functions(model, param)
+    m = Model(solver=param.solver)
+    @defVar(m, alpha)
 
-    if display
-      println("Initialize cuts")
+    for i in 1:Vt.numCuts
+        lambda = vec(Vt.lambdas[i, :])
+        @addConstraint(m, Vt.betas[i] + dot(lambda, xt) <= alpha)
     end
 
-
-    stopping_test::Bool = false
-    iteration_count::Int64 = 0
-    n::Int64 = param.forwardPassNumber
-
-
-
-    while (iteration_count < param.maxItNumber) & (~stopping_test)
-        # Build given number of scenarios according to distribution
-        # law specified in model.noises:
-        aleas = simulate_scenarios(model.noises ,
-                                    (model.stageNumber,
-                                     param.forwardPassNumber,
-                                     model.dimNoises))
-        costs, stockTrajectories, _ = forward_simulations(model,
-                            param,
-                            V,
-                            problems,
-                            n,
-                            aleas)
-
-        V0 = backward_pass(model,
-                      param,
-                      V,
-                      problems,
-                      stockTrajectories,
-                      model.noises)
-
-        iteration_count+=1;
-
-        upb = upper_bound(costs)
-        if display
-            println("Pass number ", iteration_count,
-                    "  Upper bound: ", upb,
-                    "  V0: ", V0)
-        end
-
-        stopping_test = test_stopping_criterion(V0, upb, param.sensibility)
-    end
-
-    return V, problems
+    @setObjective(m, Min, alpha)
+    solve(m)
+    return getValue(alpha)
 end
