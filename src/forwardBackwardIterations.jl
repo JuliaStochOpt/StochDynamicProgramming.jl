@@ -6,11 +6,6 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
-# <<<<<<< HEAD
-# using JuMP
-# include("oneStepOneAleaProblem.jl")
-# include("utility.jl")
-# include("objects.jl")
 
 """
 Make a forward pass of the algorithm
@@ -30,9 +25,6 @@ Parameters:
 
 - solverProblems (Array{JuMP.Model})
     Linear model used to approximate each value function
-
-- forwardPassNumber (int)
-    number of forward simulation
 
 - xi (Array{float})
     the noise scenarios on which we simulate, each line being one scenario.
@@ -66,7 +58,6 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
                             solverProblems::Vector{JuMP.Model},
-                            forwardPassNumber::Int64,
                             xi::Array{Float64, 3},
                             returnCosts=true::Bool,
                             init=false::Bool,
@@ -74,12 +65,12 @@ function forward_simulations(model::SPModel,
 
     # TODO: verify that loops are in the same order
     T = model.stageNumber
-    stocks = zeros(param.forwardPassNumber, T, model.dimStates)
-    controls = zeros(param.forwardPassNumber, T, model.dimControls)
+    stocks = zeros(T, param.forwardPassNumber, model.dimStates)
+    controls = zeros(T, param.forwardPassNumber, model.dimControls)
 
     # Set first value of stocks equal to x0:
-    for i in 1:forwardPassNumber
-        stocks[i, 1, :] = model.initialState
+    for i in 1:param.forwardPassNumber
+        stocks[1, i, :] = model.initialState
     end
 
     costs = nothing
@@ -90,7 +81,7 @@ function forward_simulations(model::SPModel,
     for t=1:T-1
         for k = 1:param.forwardPassNumber
 
-            state_t = extract_vector_from_3Dmatrix(stocks, t, k)
+            state_t = extract_vector_from_3Dmatrix(stocks, k, t)
             alea_t = extract_vector_from_3Dmatrix(xi, k, t)
 
             status, nextstep = solve_one_step_one_alea(
@@ -102,12 +93,9 @@ function forward_simulations(model::SPModel,
                                             alea_t,
                                             init)
 
-            stocks[k, t+1, :] = nextstep.next_state
+            stocks[t+1, k, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
-            controls[k, t, :] = opt_control
-            if display
-                println(opt_control)
-            end
+            controls[t, k, :] = opt_control
 
             if returnCosts
                 costs[k] += nextstep.cost - nextstep.cost_to_go
@@ -120,7 +108,7 @@ end
 
 
 """
-Add to Vt a cut of the form Vt >= beta + <lambda,.>
+Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 
 Parameters:
 - model (SPModel)
@@ -149,7 +137,7 @@ end
 
 
 """
-Add a cut to the linear problem.
+Add a cut to the JuMP linear problem.
 
 Parameters:
 - model (SPModel)
@@ -179,39 +167,12 @@ end
 
 
 """
-Update linear problem with cuts stored in given PolyhedralFunction.
-
-Parameters:
-- model (SPModel)
-    Store the problem definition
-
-- problem (JuMP.Model)
-    Linear problem used to approximate the value functions
-
-- Vt (PolyhedralFunction)
-    Store values of each cut
-
-"""
-function add_constraints_with_cut!(model::SPModel, problem::JuMP.Model,
-                                   t::Int64, Vt::PolyhedralFunction)
-    for i in 1:Vt.numCuts
-
-        alpha = getVar(problem, :alpha)
-        x = getVar(problem, :x)
-        u = getVar(problem, :u)
-        w = getVar(problem, :w)
-        lambda = vec(Vt.lambdas[i, :])
-        @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
-    end
-end
-
-
-"""
 Make a backward pass of the algorithm
 
 For t:T-1 -> 0, compute a valid cut of the Bellman function
 Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
+
 
 Parameters:
 - model (SPmodel)
@@ -236,37 +197,44 @@ Parameters:
 - init (Bool)
     If specified, then init PolyhedralFunction
 
+- updateV (Bool)
+    Store new cuts in given Polyhedral functions if specified
+
+
 Return:
 - V0 (Float64)
     Approximation of initial cost
 
 """
-function backward_pass(model::SPModel,
+function backward_pass!(model::SPModel,
                       param::SDDPparameters,
                       V::Array{PolyhedralFunction, 1},
                       solverProblems::Vector{JuMP.Model},
                       stockTrajectories::Array{Float64, 3},
                       law, #::NoiseLaw,
-                      init=false)
+                      init=false,
+                      updateV=false)
 
     T = model.stageNumber
 
     # Estimation of initial cost:
     V0 = 0.
 
-    cost::Vector{Float64} = zeros(1)
+    costs::Vector{Float64} = zeros(1)
+    costs_npass = zeros(Float64, param.forwardPassNumber)
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
+        costs = zeros(law[t].supportSize)
+
         for k = 1:param.forwardPassNumber
-            cost = zeros(1);
-            subgradient = zeros(Float64, model.dimStates)
+
+            subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
+            state_t = extract_vector_from_3Dmatrix(stockTrajectories, k, t)
 
             for w in 1:law[t].supportSize
-                state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
                 alea_t  = collect(law[t].support[:, w])
-                proba_t = law[t].proba[w]
 
                 nextstep = solve_one_step_one_alea(model,
                                                    param,
@@ -274,41 +242,42 @@ function backward_pass(model::SPModel,
                                                    t,
                                                    state_t,
                                                    alea_t)[2]
-                subgradientw = nextstep.sub_gradient
-                costw = nextstep.cost
-
-                #TODO: obtain probability cost += prob[w, t] * costw
-                #TODO: add non uniform distribution laws
-                #TODO: compute probability of costs outside this loop
-                cost += proba_t * costw
-                subgradient += proba_t * subgradientw
+                subgradient_array[:, w] = nextstep.sub_gradient
+                costs[w] = nextstep.cost
             end
 
-            beta = cost - dot(subgradient, state_t)
+            # Compute esperancy of subgradient:
+            subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
+            # ... and esperancy of cost:
+            costs_npass[k] = dot(law[t].proba, costs)
+            beta = costs_npass[k] - dot(subgradient, state_t)
 
+
+            # Add cut to polyhedral function and JuMP model:
             if init
-                V[t] = PolyhedralFunction(beta,
+                if updateV
+                    V[t] = PolyhedralFunction([beta],
                                                reshape(subgradient,
                                                        1,
                                                        model.dimStates), 1)
+                end
                 if t > 1
-                    subgradient = Array{Float64}(subgradient)
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                end
 
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta[1], subgradient)
-                    # add_constraints_with_cut!(model, solverProblems[t-1], t, V[t])
-                end
             else
-                subgradient = Array{Float64}(subgradient)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta[1], subgradient)
+                if updateV
+                    add_cut!(model, t, V[t], beta, subgradient)
                 end
-                add_cut!(model, t, V[t], beta[1], subgradient)
+                if t > 1
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                end
             end
 
         end
 
         if t==1
-            V0 = cost[1]
+            V0 = mean(costs_npass)
         end
 
     end
