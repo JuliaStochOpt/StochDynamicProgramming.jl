@@ -6,7 +6,7 @@
 # Define all types used in this module.
 #############################################################################
 
-include("simulate.jl")
+include("noises.jl")
 
 abstract SPModel
 

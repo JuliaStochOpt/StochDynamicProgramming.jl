@@ -3,8 +3,9 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-#  the actual optimization function
-#
+#  Implement the SDDP solver and initializers:
+#  - functions to initialize value functions
+#  - functions to build terminal cost
 #############################################################################
 
 
@@ -22,8 +23,9 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 
-- display (Bool) - Default is false
-    If specified, display progression in terminal
+- display (Int64) - Default is 0
+    If non null, display progression in terminal every
+    n iterations, where n is number specified by display.
 
 
 Returns :
@@ -165,7 +167,7 @@ function get_null_value_functions_array(model::SPModel)
 
     V = Vector{PolyhedralFunction}(model.stageNumber)
     for t = 1:model.stageNumber
-        V[t] = get_null_value_functions()
+        V[t] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
     end
 
     return V

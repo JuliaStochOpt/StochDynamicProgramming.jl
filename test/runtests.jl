@@ -32,10 +32,6 @@ end
 
 
 facts("Utility functions") do
-    V = StochDynamicProgramming.get_null_value_functions()
-    @fact typeof(V) --> PolyhedralFunction
-    @fact V.betas[1] --> 0
-
     arr = rand(4, 4, 2)
     vec = StochDynamicProgramming.extract_vector_from_3Dmatrix(arr, 2, 1)
     @fact typeof(vec) --> Vector{Float64}

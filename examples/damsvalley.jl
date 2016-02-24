@@ -171,7 +171,7 @@ end
 
 """Solve the problem."""
 function solve_dams(model,params,display=false)
-    
+
 
     V, pbs = solve_SDDP(model, params, display)
 

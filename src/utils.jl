@@ -3,17 +3,9 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-#  Some useful methods
+#  utility functions
 #
 #############################################################################
-
-"""
-Instantiate a Polyhedral function corresponding to f -> 0
-
-"""
-function get_null_value_functions()
-    return PolyhedralFunction(zeros(1), zeros(1, 1), 1)
-end
 
 
 """
