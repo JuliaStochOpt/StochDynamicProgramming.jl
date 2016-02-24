@@ -22,22 +22,21 @@ const TF = N_STAGES
 const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
 
 # Define bounds for states and controls:
-const VOLUME_MAX = 10
+const VOLUME_MAX = 50
 const VOLUME_MIN = 0
 
-const CONTROL_MAX = 10
+const CONTROL_MAX = 20
 const CONTROL_MIN = 0
 
 # Define realistic bounds for aleas:
-const W_MAX = 10
+const W_MAX = 20
 const W_MIN = 0
 
 # Randomly generate two deterministic scenarios for rain
-alea_year1 =(W_MAX-W_MIN)*rand(TF)-W_MIN
-alea_year2 =(W_MAX-W_MIN)*rand(TF)-W_MIN
+alea_year1 =round(Int, (W_MAX-W_MIN)*rand(TF)-W_MIN)
 
 # Define initial states of both dams:
-const X0 = [2, 2]
+const X0 = [50, 50]
 
 
 # Define dynamic of the dams:
