@@ -144,17 +144,22 @@ function init_problem()
     x0 = X0
     aleas = generate_probability_laws()
 
-    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1,
-                                                [(0, 100)], [(0, 7), (0, 7)],
+    x_bounds = [(0, 100)]
+    u_bounds = [(0, 7), (0, 7)]
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES,
+                                                u_bounds,
                                                 x0,
                                                 cost_t,
                                                 dynamic, aleas)
+
+    set_state_bounds(model, x_bounds)
 
     solver = SOLVER
     params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
+
 
 """Solve the problem."""
 function solve_dams(display=false)

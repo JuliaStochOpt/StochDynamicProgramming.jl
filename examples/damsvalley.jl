@@ -153,16 +153,15 @@ function init_problem()
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
 
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                4, 2, 1,
-                                                x_bounds,
                                                 u_bounds,
                                                 x0,
                                                 cost_t,
                                                 dynamic,
                                                 aleas)
 
-    solver = SOLVER
+    set_state_bounds(model, x_bounds)
 
+    solver = SOLVER
     params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
