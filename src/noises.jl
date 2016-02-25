@@ -3,7 +3,9 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-# Probability utilities
+# Probability utilities:
+# - implement a type to define discrete probability distributions
+# - add functions to build scenarios with given probability laws
 #############################################################################
 
 type NoiseLaw
@@ -76,21 +78,21 @@ end
 
 
 """
-Simulate n scenario according to a given NoiseLaw
+Simulate n scenarios according to a given NoiseLaw
 
 Parameters:
 - law::Vector{NoiseLaw}
     Vector of discrete independent random variables
 
 - n::Int
-    number of simulations computed
+    number of simulations to compute
 
 
 Returns :
 - scenarios Array(Float64,n,T)
-    an Array of scenario, scenarios[i,:] being the ith noise scenario
+    an Array of scenarios, scenarios[i,:] being the ith noise scenario
 """
-function simulate(law::Vector{NoiseLaw}, n::Int64)
+function generate_scenarios(law::Vector{NoiseLaw}, n::Int64)
     if n <= 0
         error("negative number of simulations")
     end
@@ -110,7 +112,7 @@ end
 
 
 """
-Simulate n scenario and return a 3D array
+Simulate n scenarios and return a 3D array
 
 
 Parameters:
@@ -119,7 +121,7 @@ Parameters:
 
 - dims (3-tuple)
     Dimension of array to return. Its shape is:
-        (time, numberScenario, dimAlea)
+        (time, numberScenarios, dimAlea)
 
 Return:
 - Array{Float64, 3}
@@ -132,14 +134,14 @@ function simulate_scenarios(laws, dims::Tuple)
     else
         scenarios = zeros(dims)
 
-    for k=1:dims[2]
-        for t=1:dims[1]
-            gen = Categorical(laws[t].proba)
-            scenarios[t, k, :] = laws[t].support[:, rand(gen)]
+        for k=1:dims[2]
+            for t=1:dims[1]
+                gen = Categorical(laws[t].proba)
+                scenarios[t, k, :] = laws[t].support[:, rand(gen)]
+            end
+
         end
+    end
 
-    end
-    end
     return scenarios
-
 end
