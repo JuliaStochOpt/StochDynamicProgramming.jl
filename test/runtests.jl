@@ -212,6 +212,7 @@ facts("SDDP algorithm: 2D case") do
 
 
          # Test a simulation upon given scenarios:
+         params.forwardPassNumber = n_simulations
         aleas = simulate_scenarios(model.noises,
                               (model.stageNumber,
                                params.forwardPassNumber,

@@ -42,7 +42,7 @@ function extensive_formulation(model,
     @defVar(mod,  c[t=1:T,n=1:N_NOISES*N[t]])
 
 
-    #Define the conditional probabilities on each arc of the scenario tree
+    #Computes the total probability of each node from the conditional probabilities
     #proba = Any[]
     proba = []
     push!(proba, laws[1].proba)

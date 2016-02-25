@@ -78,7 +78,7 @@ end
 
 
 """
-Simulate n scenario according to a given NoiseLaw
+Simulate n scenarios according to a given NoiseLaw
 
 Parameters:
 - law::Vector{NoiseLaw}
@@ -90,7 +90,7 @@ Parameters:
 
 Returns :
 - scenarios Array(Float64,n,T)
-    an Array of scenario, scenarios[i,:] being the ith noise scenario
+    an Array of scenarios, scenarios[i,:] being the ith noise scenario
 """
 function generate_scenarios(law::Vector{NoiseLaw}, n::Int64)
     if n <= 0
@@ -112,7 +112,7 @@ end
 
 
 """
-Simulate n scenario and return a 3D array
+Simulate n scenarios and return a 3D array
 
 
 Parameters:
@@ -121,7 +121,7 @@ Parameters:
 
 - dims (3-tuple)
     Dimension of array to return. Its shape is:
-        (time, numberScenario, dimAlea)
+        (time, numberScenarios, dimAlea)
 
 Return:
 - Array{Float64, 3}
