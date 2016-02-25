@@ -26,5 +26,5 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("noises.jl")
 include("SDDPoptimize.jl")
-
+include("extensiveFormulation.jl")
 end
