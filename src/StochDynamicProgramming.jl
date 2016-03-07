@@ -16,9 +16,9 @@ export optimize, NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearDynamicLinearCostSPmodel,
         PiecewiseLinearCostSPmodel,
         PolyhedralFunction, NextStep, forward_simulations,
-        DPSPmodel, SDPparameters, sdp_forward_simulation_DH,
-        sdp_optimize_DH, sdp_forward_simulation_HD, sdp_optimize_HD,
-        sampling, index_from_variable, variable_from_index
+        DPSPmodel, SDPparameters, sdp_optimize,
+        sdp_forward_simulation, sampling,
+        index_from_variable, variable_from_index
 
 include("objects.jl")
 include("utility.jl")

@@ -97,6 +97,7 @@ type SDPparameters
     stateVariablesSizes
     controlVariablesSizes
     monteCarloSize
+    infoStructure
 end
 
 type PolyhedralFunction

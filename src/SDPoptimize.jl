@@ -13,18 +13,15 @@ using ProgressMeter
 Convert the state and control tuples (stored as arrays) of the problem into integers and vice versa
 
 """
-
 function index_from_variable( variable::Array,
                     lower_bounds::Array,
                     variable_sizes::Array,
-                    variable_steps::Array,
-                    model::SPModel,
-                    param::SDPparameters)
+                    variable_steps::Array)
     index = 0;
     j = 1;
 
     for i = 1:length(variable)
-        index = index + j * round( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] )
+        index = index + j * floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] )
         j = j * variable_sizes[i]
     end
 
@@ -34,9 +31,8 @@ end
 function variable_from_index( variable_ind::Int,
                     lower_bounds::Array,
                     variable_sizes::Array,
-                    variable_steps::Array,
-                    model::SPModel,
-                    param::SDPparameters)
+                    variable_steps::Array)
+
     dim = length(lower_bounds)
     index = variable_ind
     variable = zeros(dim)
@@ -53,103 +49,66 @@ function variable_from_index( variable_ind::Int,
 end
 
 """
-Value iteration algorithm to compute optimal policy in the Decision Hazard (DH) case and value functions in the HD case
+Compute nearest neighbor of a continuous variable in the discrete variable space
 
 """
+function nearest_neighbor( variable::Array,
+                    lower_bounds::Array,
+                    variable_sizes::Array,
+                    variable_steps::Array)
 
-function sdp_optimize_DH(model::SPModel,
-                  param::SDPparameters,
-                  display=true::Bool)
+    maxIndex
 
-    V = zeros(Float64, (model.stageNumber+1) * param.totalStateSpaceSize)
-    Pi = zeros(Int64, (model.stageNumber+1) * param.totalStateSpaceSize)
-    x=zeros(Float64, model.dimStates)
-    x1=zeros(Float64, model.dimStates)
-    TF = model.stageNumber
-    law = model.noises
+    index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
 
-    u_lower_bounds = [ i for (i , j) in model.ulim]
-    x_lower_bounds = [ i for (i , j) in model.xlim]
-
-    count_iteration = 1
-    #println("Iteration number : ", count_iteration)
-    for indx = 0:(param.totalStateSpaceSize-1)
-        x = variable_from_index(indx,
-                        x_lower_bounds,
-                        param.stateVariablesSizes,
-                        param.stateSteps,
-                        model,
-                        param)
-        V[TF+1 + (TF+1) * indx] = model.finalCostFunction(x)
+    neighbors = [index]
+    if index < variable_sizes[1]
+        push!(neighbors, index+1)
     end
 
-    println("Starting sdp decision hazard policy computation")
-    p = Progress(TF*param.totalStateSpaceSize, 1)
-
-    for t = 1:TF
-        count_iteration = count_iteration + 1
-        #println("Iteration number : ", count_iteration)
-
-        for indx = 0:(param.totalStateSpaceSize-1)
-            next!(p)
-
-            v = Inf
-            v1 = 0
-            indu1 = -1
-            Lv = 0
-            x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-
-            for indu = 0:(param.totalControlSpaceSize-1)
-
-                v1 = 0
-                count = 0
-
-                for w = 1:param.monteCarloSize
-
-                    u = variable_from_index(indu, u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-                    wsample = sampling( law, t)
-                    x1 = model.dynamics(t, x, u, wsample)
-
-                    if model.constraints(t, x, x1, u, wsample)
-
-                        count = count + 1
-                        indx1 = index_from_variable(x1, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-                        Lv = model.costFunctions(t, x, u, wsample)
-                        v1 = v1 + Lv + V[t + 1 + (TF+1) * indx1]
-
-                    end
-                end
-
-                if (count>0)
-
-                    v1 = v1 / count
-
-                    if (v1 < v)
-
-                        v = v1
-                        indu1 = indu
-
-                    end
+    if length(variable)>1
+        K=1
+        for i = 2:length(variable)
+            K=K*variable_sizes[i-1]
+            neighbors0 = copy(neighbors)
+            for j in neighbors0
+                if (j+K)<=K*variable_sizes[i]
+                    push!(neighbors, j + K)
                 end
             end
-
-            V[t + (TF+1) * indx] = v
-            Pi[t + (TF+1) * indx] = indu1
-
         end
     end
 
-    return V, Pi
+    ref = -1
+    ref_dist = Inf
+
+    for inn0 in neighbors
+        nn0 = variable_from_index(inn0, lower_bounds, variable_sizes,
+                                    variable_steps)
+        dist = norm(variable-nn0)
+
+        if (dist < ref_dist)
+            ref =  inn0
+            ref_dist = dist
+        end
+    end
+
+    return ref
 end
 
 
-function sdp_optimize_HD(model::SPModel,
+
+"""
+Value iteration algorithm to compute optimal value functions in the Decision Hazard (DH)
+as well as the Hazard Decision (HD) case
+"""
+function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
     V = zeros(Float64, (model.stageNumber+1) * param.totalStateSpaceSize)
-    x=zeros(Float64, model.dimStates)
-    x1=zeros(Float64, model.dimStates)
+    x = zeros(Float64, model.dimStates)
+    x1 = zeros(Float64, model.dimStates)
     TF = model.stageNumber
     law = model.noises
 
@@ -157,207 +116,305 @@ function sdp_optimize_HD(model::SPModel,
     x_lower_bounds = [ i for (i , j) in model.xlim]
 
     count_iteration = 1
-    #println("Iteration number : ", count_iteration)
-    for indx = 0:(param.totalStateSpaceSize-1)
-        x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
 
+    #Compute final value functions
+    for indx = 0:(param.totalStateSpaceSize-1)
+        x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes,
+                                param.stateSteps)
         V[TF+1 + (TF+1) * indx] = model.finalCostFunction(x)
     end
 
-    println("Starting sdp hazard decision policy computation")
+    #Construct a progress meter
     p = Progress(TF*param.totalStateSpaceSize, 1)
 
-    for t = 1:TF
-        count_iteration = count_iteration + 1
-        #println("Iteration number : ", count_iteration)
+    #Display start of the algorithm in DH and HD cases
+    #Define the loops order in sdp
+    if (param.infoStructure == "DH")
 
+        println("Starting stochastic dynamic programming
+                decision hazard computation")
 
-        for indx = 0:(param.totalStateSpaceSize-1)
-            next!(p)
+        #Loop over time
+        for t = 1:TF
+            count_iteration = count_iteration + 1
 
-            v = 0
-            indu1 = -1
-            Lv = 0
-            x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
+            #Loop over states
+            for indx = 0:(param.totalStateSpaceSize-1)
+                next!(p)
 
-            count = 0
+                v = Inf
+                v1 = 0
+                indu1 = -1
+                Lv = 0
+                x = variable_from_index(indx, x_lower_bounds,
+                                        param.stateVariablesSizes,
+                                        param.stateSteps)
 
-            for w = 1:param.monteCarloSize
-
-                admissible_u_w_count = 0
-                v_x_w = 0
-                v_x_w1 = Inf
-
+                #Loop over controls
                 for indu = 0:(param.totalControlSpaceSize-1)
 
-                    u = variable_from_index(indu, u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-                    wsample = sampling( law, t)
-                    x1 = model.dynamics(t, x, u, wsample)
+                    v1 = 0
+                    count = 0
+                    u = variable_from_index(indu, u_lower_bounds,
+                                            param.controlVariablesSizes,
+                                            param.controlSteps)
 
-                    if model.constraints(t, x, x1, u, wsample)
+                    #Loop over uncertainty samples
+                    for w = 1:param.monteCarloSize
 
-                        if (admissible_u_w_count == 0)
-                            admissible_u_w_count = 1
+                        wsample = sampling( law, t)
+                        x1 = model.dynamics(t, x, u, wsample)
+
+                        if model.constraints(t, x, x1, u, wsample)
+
+                            count = count + 1
+                            indx1 = nearest_neighbor(x1,
+                                                    x_lower_bounds,
+                                                    param.stateVariablesSizes,
+                                                    param.stateSteps)
+                            Lv = model.costFunctions(t, x, u, wsample)
+                            v1 = v1 + Lv + V[t + 1 + (TF+1) * indx1]
+
                         end
+                    end
 
-                        count = count + admissible_u_w_count
-                        indx1 = index_from_variable(x1, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-                        Lv = model.costFunctions(t, x, u, wsample)
-                        v_x_w1 = Lv + V[t + 1 + (TF+1) * indx1]
+                    if (count>0)
 
-                        if (v_x_w1 < v_x_w)
-                            v_x_w = v_x_w1
+                        v1 = v1 / count
+
+                        if (v1 < v)
+
+                            v = v1
+                            indu1 = indu
+
                         end
                     end
                 end
 
-                v = v + v_x_w
+                V[t + (TF+1) * indx] = v
             end
+        end
 
-            if (count>0)
-                v = v / count
+    else
+
+        println("Starting stochastic dynamic programming
+                hazard decision computation")
+
+        #Loop over time
+        for t = 1:TF
+            count_iteration = count_iteration + 1
+
+            #Loop over states
+            for indx = 0:(param.totalStateSpaceSize-1)
+                next!(p)
+
+                v     = 0
+                indu1 = -1
+                Lv    = 0
+                x     = variable_from_index(indx, x_lower_bounds,
+                                            param.stateVariablesSizes,
+                                            param.stateSteps)
+
+                count = 0
+                #Loop over uncertainty samples
+                for w in 1:param.monteCarloSize
+
+                    admissible_u_w_count = 0
+                    v_x_w = 0
+                    v_x_w1 = Inf
+                    wsample = sampling( law, t)
+
+                    #Loop over controls
+                    for indu in 0:(param.totalControlSpaceSize-1)
+
+                        u = variable_from_index(indu, u_lower_bounds,
+                                                param.controlVariablesSizes,
+                                                param.controlSteps)
+
+                        x1 = model.dynamics(t, x, u, wsample)
+
+                        if model.constraints(t, x, x1, u, wsample)
+
+                            if (admissible_u_w_count == 0)
+                                admissible_u_w_count = 1
+                            end
+
+
+                            count = count + admissible_u_w_count
+                            indx1 = nearest_neighbor(x1, x_lower_bounds,
+                                                        param.stateVariablesSizes,
+                                                        param.stateSteps)
+                            Lv = model.costFunctions(t, x, u, wsample)
+                            v_x_w1 = Lv + V[t + 1 + (TF+1) * indx1]
+
+                            if (v_x_w1 < v_x_w)
+                                v_x_w = v_x_w1
+                            end
+
+                        end
+                    end
+
+                    v = v + v_x_w
+                end
+
+                if (count>0)
+                    v = v / count
+                end
+
+                V[t + (TF+1) * indx] = v
             end
-
-            V[t + (TF+1) * indx] = v
-
         end
     end
 
     return V
 end
 
+
 """
 Simulation of optimal control given an initial state and an alea scenario
 
 """
-
-
-function sdp_forward_simulation_DH(model::SPModel,
+function sdp_forward_simulation(model::SPModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,
                   value::Array,
-                  policy::Array,
                   display=true::Bool)
 
     TF = model.stageNumber
-
-
+    law = model.noises
     u_lower_bounds = [ i for (i , j) in model.ulim]
     x_lower_bounds = [ i for (i , j) in model.xlim]
-    U = zeros(Int64, TF)
-    X = zeros(Int64, TF+1)
-    X[1] = index_from_variable(X0, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-
-    J = value[1 + (TF+1) * X[1]]
-
-    for t = 1:TF
-
-        indx = X[t]
-        x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-        indu = policy[t + (TF+1) * indx]
-        u = variable_from_index(indu, u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-
-        x1 = model.dynamics(t, x, u, scenario[t])
-        println(x1)
-        X[t+1] = index_from_variable(x1, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-        println(X[t+1])
-        U[t] = indu
-
-    end
 
     controls = Inf*ones(1, TF, model.dimControls)
     states = Inf*ones(1, TF + 1, model.dimStates)
 
-    for i in 1:length(U)
-        Uloc = variable_from_index(U[i], u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-        println(Uloc)
-        for j in 1:length(Uloc)
-            controls[1, i, j] = Uloc[j]
-        end
+    inc = 0
+    for xj in X0
+        inc = inc + 1
+        states[1, 1, inc] = xj
     end
 
-
-    for i in 1:length(X)
-        Xloc = variable_from_index(X[i], x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-        for j in 1:length(Xloc)
-            states[1, i, j] = Xloc[j]
-        end
-    end
-
-    return J, states, controls
-end
-
-
-
-function sdp_forward_simulation_HD(model::SPModel,
-                  param::SDPparameters,
-                  scenario::Array,
-                  X0::Array,
-                  value::Array,
-                  display=true::Bool)
-
-    TF = model.stageNumber
-    u_lower_bounds = [ i for (i , j) in model.ulim]
-    x_lower_bounds = [ i for (i , j) in model.xlim]
-
-    U = zeros(Int64, TF)
-    X = zeros(Int64, TF+1)
-    X[1] = index_from_variable(X0, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
     J = 0
+    xRef = X0
 
-    for t = 1:TF
+    if (param.infoStructure == "DH")
 
-        indx = X[t]
-        x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-        xRef = x
-        induRef = 0
-        uRef = variable_from_index(induRef, u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-        indxRef = 0
-        LvRef = Inf
+        for t = 1:TF
 
-        for indu = 0:(param.totalControlSpaceSize-1)
+            x = states[1,t]
 
-            u = variable_from_index(indu, u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-            x1 = model.dynamics(t, x, u, scenario[t])
-            indx1 = index_from_variable(x1, x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-            if model.constraints(t, x, x1, u, scenario[t])
-                Lv = model.costFunctions(t, x, u, scenario[t]) + value[t + 1 + (TF+1) * indx1]
-                if (Lv < LvRef)
+            induRef = 0
+
+            LvRef = Inf
+
+            for indu = 0:(param.totalControlSpaceSize-1)
+
+                u = variable_from_index(indu, u_lower_bounds,
+                                        param.controlVariablesSizes,
+                                        param.controlSteps)
+
+                countW = 0.
+                Lv = 0.
+                for w = 1:param.monteCarloSize
+
+                    wsample = sampling( law, t)
+
+                    x1 = model.dynamics(t, x, u, wsample)
+
+                    indx1 = nearest_neighbor(x1, x_lower_bounds,
+                                            param.stateVariablesSizes,
+                                            param.stateSteps)
+
+                    if model.constraints(t, x, x1, u, scenario[t])
+                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + value[t + 1 + (TF+1) * indx1]
+                        countW = countW +1.
+                    end
+                end
+                Lv = Lv/countW
+                if (Lv < LvRef)&(countW>0)
                     induRef = indu
-                    indxRef = indx1
+                    xRef = model.dynamics(t, x, u, scenario[t])
                     LvRef = Lv
                 end
             end
 
+            inc = 0
+            uRef = variable_from_index(induRef, u_lower_bounds,
+                                        param.controlVariablesSizes,
+                                        param.controlSteps)
+            for uj in uRef
+                inc = inc +1
+                controls[1,t,inc] = uj
+            end
+
+            inc = 0
+            for xj in xRef
+                inc = inc +1
+                states[1,t+1,inc] = xj
+            end
+
+            J = J + model.costFunctions(t, x, uRef, scenario[t])
+
         end
 
-        U[t] = induRef
-        uRef = variable_from_index(induRef, u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-        X[t+1] = indxRef
-        J = J + model.costFunctions(t, x, uRef, scenario[t])
 
-    end
+    else
+        for t = 1:TF
 
-    J = J + model.finalCostFunction(variable_from_index(X[TF + 1], x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param))
+            x = states[1,t]
 
-    controls = Inf*ones(1, TF, model.dimControls)
-    states = Inf*ones(1, TF + 1, model.dimStates)
+            induRef = 0
 
-    for i in 1:length(U)
-        Uloc = variable_from_index(U[i], u_lower_bounds, param.controlVariablesSizes, param.controlSteps, model, param)
-        for j in 1:length(Uloc)
-            controls[1, i, j] = Uloc[j]
+            indxRef = 0
+            LvRef = Inf
+
+            for indu = 0:(param.totalControlSpaceSize-1)
+
+                u = variable_from_index(indu, u_lower_bounds,
+                                        param.controlVariablesSizes,
+                                        param.controlSteps)
+
+                x1 = model.dynamics(t, x, u, scenario[t])
+
+                indx1 = nearest_neighbor(x1, x_lower_bounds,
+                                            param.stateVariablesSizes,
+                                            param.stateSteps)
+
+                if model.constraints(t, x, x1, u, scenario[t])
+                    Lv = model.costFunctions(t, x, u, scenario[t]) + value[t + 1 + (TF+1) * indx1]
+                    if (Lv < LvRef)
+                        induRef = indu
+                        xRef = model.dynamics(t, x, u, scenario[t])
+                        LvRef = Lv
+                    end
+                end
+
+            end
+
+            inc = 0
+            uRef = variable_from_index(induRef, u_lower_bounds,
+                                                param.controlVariablesSizes,
+                                                param.controlSteps)
+            for uj in uRef
+                inc = inc +1
+                controls[1,t,inc] = uj
+            end
+
+            inc = 0
+            for xj in xRef
+                inc = inc +1
+                states[1,t+1,inc] = xj
+            end
+
+            J = J + model.costFunctions(t, x, uRef, scenario[t])
+
         end
     end
 
-
-    for i in 1:length(X)
-        Xloc = variable_from_index(X[i], x_lower_bounds, param.stateVariablesSizes, param.stateSteps, model, param)
-        for j in 1:length(Xloc)
-            states[1, i, j] = Xloc[j]
-        end
-    end
+    x = states[1,TF+1]
+    J = J + model.finalCostFunction(x)
 
     return J, states, controls
 end
+

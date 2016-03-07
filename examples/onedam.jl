@@ -12,14 +12,14 @@ const EPSILON = .05
 const MAX_ITER = 20
 
 # Define number of stages and scenarios:
-const N_STAGES = 3
-const N_SCENARIOS = 3
+const N_STAGES = 4
+const N_SCENARIOS = 4
 
 # Define time horizon:
 const TF = N_STAGES-1
 
 # Randomnly generate a cost scenario fixed for the whole problem:
-const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
+const COST = [-12, -200, -67]
 
 # Define bounds for states and controls:
 const VOLUME_MAX = 100
@@ -159,6 +159,7 @@ function init_problem_sdp()
     N_CONTROLS = 2
     N_STATES = 1
     N_ALEAS = 1
+    infoStruct = "HD"
 
     stateSteps = [1, 1]
     controlSteps = [1, 1, 1, 1]
@@ -166,7 +167,7 @@ function init_problem_sdp()
     controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1, (VOLUME_MAX)+1]
     totalStateSpaceSize = stateVariablesSizes[1]
     totalControlSpaceSize = controlVariablesSizes[1]*controlVariablesSizes[2]
-    monteCarloSize = 10
+    monteCarloSize = 30
 
     model = DPSPmodel(TF,
                     N_CONTROLS,
@@ -181,7 +182,9 @@ function init_problem_sdp()
                     constraints,
                     aleas)
 
-    params = SDPparameters(stateSteps, controlSteps, totalStateSpaceSize, totalControlSpaceSize, stateVariablesSizes, controlVariablesSizes, monteCarloSize)
+    params = SDPparameters(stateSteps, controlSteps, totalStateSpaceSize,
+                            totalControlSpaceSize, stateVariablesSizes,
+                            controlVariablesSizes, monteCarloSize, infoStruct)
 
     return model, params
 end
@@ -211,10 +214,11 @@ end
 """Solve the problem."""
 function solve_dams_sdp(display=false)
     model, params = init_problem_sdp()
+    params.infoStructure = "DH"
 
     law = model.noises
 
-    V, Pi = sdp_optimize_DH(model, params, display)
+    V = sdp_optimize(model, params, display)
 
     scenar = Array(Array, TF)
 
@@ -222,10 +226,10 @@ function solve_dams_sdp(display=false)
         scenar[t] = sampling(law, t)
     end
 
-    costs, stocks = sdp_forward_simulation_DH(model, params, scenar, X0, V, Pi, true)
+    costs, stocks, controls = sdp_forward_simulation(model, params, scenar, X0, V, true)
 
-    println("SDP cost: ", costs)
-    return stocks, V
+    println("SDP DH cost: ", costs)
+    return costs, stocks, controls, scenar, V
 end
 
 function solve_dams_sdp_HD(display=false)
@@ -233,7 +237,7 @@ function solve_dams_sdp_HD(display=false)
 
     law = model.noises
 
-    V = sdp_optimize_HD(model, params, display)
+    V = sdp_optimize(model, params, display)
 
     scenar = Array(Array, TF)
 
@@ -241,42 +245,68 @@ function solve_dams_sdp_HD(display=false)
         scenar[t] = sampling(law, t)
     end
 
-    costs, stocks = sdp_forward_simulation_HD(model, params, scenar, X0, V, true)
+    costs, stocks, controls = sdp_forward_simulation(model, params,
+                                                        scenar, X0, V, true)
 
-    println("SDP cost: ", costs)
-    return stocks, V
+    println("SDP HD cost: ", costs)
+    return costs, stocks, controls, scenar, V
 end
 
 
-function compare_SDP_SDDP(display=false)
+function compare_sdp_DH_HD(display=false)
+    model, params = init_problem_sdp()
 
-    modelSDP, paramsSDP = init_problem_sdp()
+    law = model.noises
 
-    lawSDP = modelSDP.noises
+    scenar = Array(Array, TF)
 
-    VSDP = sdp_optimize_HD(modelSDP, paramsSDP, display)
-    #VSDPDH, Pi = sdp_optimize_DH(modelSDP, paramsSDP, display)
+    for t in 1:TF
+        scenar[t] = sampling(law, t)
+    end
 
-    model, params = init_problem()
+    VHD = sdp_optimize(model, params, display)
 
-    V, pbs = optimize(model, params, display)
+    costHD, stocksHD, controlsHD = sdp_forward_simulation(model, params,
+                                                            scenar, X0, VHD, true)
 
-    params.forwardPassNumber = 1
+    params.infoStructure = "DH"
 
-    aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               params.forwardPassNumber,
-                               model.dimNoises))
+    VDH = sdp_optimize(model, params, display)
 
-    costsSDP, stocksSDP, uSDP = sdp_forward_simulation_HD(modelSDP, paramsSDP, aleas, X0, VSDP, display)
-    #costsSDPDH, stocksSDPDH, uSDPDH = sdp_forward_simulation_DH(modelSDP, paramsSDP, aleas, X0, VSDPDH, Pi, display)
+    costDH, stocksDH, controlsDH = sdp_forward_simulation(model, params,
+                                                            scenar, X0, VDH, true)
 
-    costs, stocks, u = forward_simulations(model, params, V, pbs, 1, aleas)
-
-    println("SDDP cost: ", costs)
-    println("SDP cost HD: ", costsSDP)
-    #println("SDP cost DH: ", costsSDPDH)
-
-    return stocks, stocksSDP, u, uSDP, aleas
-
+    return costHD, stocksHD, controlsHD, costDH, stocksDH, controlsDH, scenar
 end
+
+# function compare_SDP_SDDP(display=false)
+
+#     modelSDP, paramsSDP = init_problem_sdp()
+
+#     lawSDP = modelSDP.noises
+
+#     VSDP = sdp_optimize(modelSDP, paramsSDP, display)
+
+#     model, params = init_problem()
+
+#     V, pbs = optimize(model, params, display)
+
+#     params.forwardPassNumber = 1
+
+#     aleas = simulate_scenarios(model.noises,
+#                               (model.stageNumber,
+#                                params.forwardPassNumber,
+#                                model.dimNoises))
+
+#     costsSDP, stocksSDP, uSDP = sdp_forward_simulation(modelSDP, paramsSDP,
+#                                                         aleas, X0,
+#                                                         VSDP, display)
+
+#     costs, stocks, u = forward_simulations(model, params, V, pbs, 1, aleas)
+
+#     println("SDDP cost: ", costs)
+#     println("SDP cost HD: ", costsSDP)
+
+#     return stocks, stocksSDP, u, uSDP, aleas
+
+# end
