@@ -50,7 +50,7 @@ function cost_t(t, x, u, w)
 end
 
 function finalCostFuncion(x)
-    return 0
+    return 0.
 end
 
 function constraints(t, x, x1, u, w)

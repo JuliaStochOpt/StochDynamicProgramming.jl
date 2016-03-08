@@ -17,11 +17,11 @@ function index_from_variable( variable::Array,
                     lower_bounds::Array,
                     variable_sizes::Array,
                     variable_steps::Array)
-    index = 0;
+    index = 1;
     j = 1;
 
     for i = 1:length(variable)
-        index = index + j * floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] )
+        index = index + j * (floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
         j = j * variable_sizes[i]
     end
 
@@ -34,13 +34,13 @@ function variable_from_index( variable_ind::Int,
                     variable_steps::Array)
 
     dim = length(lower_bounds)
-    index = variable_ind
+    index = variable_ind-1
     variable = zeros(dim)
 
     if (variable_ind>-1)
         for i=1:dim
-            variable[i] = lower_bounds[i] + variable_steps[i] * (index % variable_sizes[i])
-            index = index -index % variable_sizes[i]
+            variable[i] = lower_bounds[i] + variable_steps[i] * ((index % variable_sizes[i]))
+            index += -(index % variable_sizes[i])
             index = index / variable_sizes[i]
         end
     end
@@ -57,12 +57,10 @@ function nearest_neighbor( variable::Array,
                     variable_sizes::Array,
                     variable_steps::Array)
 
-    maxIndex
-
-    index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
+    index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps)-1
 
     neighbors = [index]
-    if index < variable_sizes[1]
+    if ((index % variable_sizes[1]) < (variable_sizes[1]-1))
         push!(neighbors, index+1)
     end
 
@@ -72,7 +70,7 @@ function nearest_neighbor( variable::Array,
             K=K*variable_sizes[i-1]
             neighbors0 = copy(neighbors)
             for j in neighbors0
-                if (j+K)<=K*variable_sizes[i]
+                if (((j-j%K)/K)%variable_sizes[i] <variable_sizes[i]-1)
                     push!(neighbors, j + K)
                 end
             end
@@ -83,12 +81,13 @@ function nearest_neighbor( variable::Array,
     ref_dist = Inf
 
     for inn0 in neighbors
-        nn0 = variable_from_index(inn0, lower_bounds, variable_sizes,
+        nn0 = variable_from_index(inn0 + 1, lower_bounds, variable_sizes,
                                     variable_steps)
+
         dist = norm(variable-nn0)
 
         if (dist < ref_dist)
-            ref =  inn0
+            ref =  inn0 + 1
             ref_dist = dist
         end
     end
@@ -97,6 +96,53 @@ function nearest_neighbor( variable::Array,
 end
 
 
+"""
+Compute barycentre of value function with state neighbors in a discrete
+state space
+"""
+function value_function_barycentre( model::SPModel,
+                                    param::SDPparameters,
+                                    V::Array,
+                                    time::Int,
+                                    variable::Array,
+                                    lower_bounds::Array,
+                                    variable_sizes::Array,
+                                    variable_steps::Array)
+
+    TF = model.stageNumber
+    value_function = 0.
+    index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
+
+    neighbors = [index]
+    if ((index % variable_sizes[1]) < (variable_sizes[1]-1))
+        push!(neighbors, index+1)
+    end
+
+    if length(variable)>1
+        K=1
+        for i = 2:length(variable)
+            K=K*variable_sizes[i-1]
+            neighbors0 = copy(neighbors)
+            for j in neighbors0
+                if (((j-j%K)/K)%variable_sizes[i] <variable_sizes[i]-1)
+                    push!(neighbors, j + K)
+                end
+            end
+        end
+    end
+
+    sum_dist = 0.
+
+    for inn0 in neighbors
+        nn0 = variable_from_index(inn0 + 1, lower_bounds, variable_sizes,
+                                    variable_steps)
+        dist = norm(variable-nn0)
+        value_function += dist*V[inn0 + 1, time]
+        sum_dist += dist
+    end
+
+    return value_function/sum_dist
+end
 
 """
 Value iteration algorithm to compute optimal value functions in the Decision Hazard (DH)
@@ -106,10 +152,10 @@ function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
-    V = zeros(Float64, (model.stageNumber+1) * param.totalStateSpaceSize)
+    TF = model.stageNumber
+    V = zeros(Float64, param.totalStateSpaceSize, TF+1)
     x = zeros(Float64, model.dimStates)
     x1 = zeros(Float64, model.dimStates)
-    TF = model.stageNumber
     law = model.noises
 
     u_lower_bounds = [ i for (i , j) in model.ulim]
@@ -118,10 +164,10 @@ function sdp_optimize(model::SPModel,
     count_iteration = 1
 
     #Compute final value functions
-    for indx = 0:(param.totalStateSpaceSize-1)
+    for indx = 1:(param.totalStateSpaceSize)
         x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes,
                                 param.stateSteps)
-        V[TF+1 + (TF+1) * indx] = model.finalCostFunction(x)
+        V[indx, TF+1] = model.finalCostFunction(x)
     end
 
     #Construct a progress meter
@@ -139,7 +185,7 @@ function sdp_optimize(model::SPModel,
             count_iteration = count_iteration + 1
 
             #Loop over states
-            for indx = 0:(param.totalStateSpaceSize-1)
+            for indx = 1:(param.totalStateSpaceSize)
                 next!(p)
 
                 v = Inf
@@ -151,7 +197,7 @@ function sdp_optimize(model::SPModel,
                                         param.stateSteps)
 
                 #Loop over controls
-                for indu = 0:(param.totalControlSpaceSize-1)
+                for indu = 1:(param.totalControlSpaceSize)
 
                     v1 = 0
                     count = 0
@@ -173,7 +219,7 @@ function sdp_optimize(model::SPModel,
                                                     param.stateVariablesSizes,
                                                     param.stateSteps)
                             Lv = model.costFunctions(t, x, u, wsample)
-                            v1 = v1 + Lv + V[t + 1 + (TF+1) * indx1]
+                            v1 += Lv + V[indx1, t + 1]
 
                         end
                     end
@@ -191,7 +237,7 @@ function sdp_optimize(model::SPModel,
                     end
                 end
 
-                V[t + (TF+1) * indx] = v
+                V[indx, t] = v
             end
         end
 
@@ -205,7 +251,7 @@ function sdp_optimize(model::SPModel,
             count_iteration = count_iteration + 1
 
             #Loop over states
-            for indx = 0:(param.totalStateSpaceSize-1)
+            for indx = 1:(param.totalStateSpaceSize)
                 next!(p)
 
                 v     = 0
@@ -225,7 +271,7 @@ function sdp_optimize(model::SPModel,
                     wsample = sampling( law, t)
 
                     #Loop over controls
-                    for indu in 0:(param.totalControlSpaceSize-1)
+                    for indu in 1:(param.totalControlSpaceSize)
 
                         u = variable_from_index(indu, u_lower_bounds,
                                                 param.controlVariablesSizes,
@@ -242,10 +288,10 @@ function sdp_optimize(model::SPModel,
 
                             count = count + admissible_u_w_count
                             indx1 = nearest_neighbor(x1, x_lower_bounds,
-                                                        param.stateVariablesSizes,
-                                                        param.stateSteps)
+                                                    param.stateVariablesSizes,
+                                                    param.stateSteps)
                             Lv = model.costFunctions(t, x, u, wsample)
-                            v_x_w1 = Lv + V[t + 1 + (TF+1) * indx1]
+                            v_x_w1 = Lv + V[indx1, t+1]
 
                             if (v_x_w1 < v_x_w)
                                 v_x_w = v_x_w1
@@ -261,7 +307,7 @@ function sdp_optimize(model::SPModel,
                     v = v / count
                 end
 
-                V[t + (TF+1) * indx] = v
+                V[indx, t] = v
             end
         end
     end
@@ -299,7 +345,7 @@ function sdp_forward_simulation(model::SPModel,
     xRef = X0
 
     if (param.infoStructure == "DH")
-
+        #Decision hazard forward simulation
         for t = 1:TF
 
             x = states[1,t]
@@ -308,7 +354,7 @@ function sdp_forward_simulation(model::SPModel,
 
             LvRef = Inf
 
-            for indu = 0:(param.totalControlSpaceSize-1)
+            for indu = 1:(param.totalControlSpaceSize)
 
                 u = variable_from_index(indu, u_lower_bounds,
                                         param.controlVariablesSizes,
@@ -327,7 +373,7 @@ function sdp_forward_simulation(model::SPModel,
                                             param.stateSteps)
 
                     if model.constraints(t, x, x1, u, scenario[t])
-                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + value[t + 1 + (TF+1) * indx1]
+                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + value[indx1, t+1]
                         countW = countW +1.
                     end
                 end
@@ -360,6 +406,7 @@ function sdp_forward_simulation(model::SPModel,
 
 
     else
+        #Hazard desision forward simulation
         for t = 1:TF
 
             x = states[1,t]
@@ -369,7 +416,7 @@ function sdp_forward_simulation(model::SPModel,
             indxRef = 0
             LvRef = Inf
 
-            for indu = 0:(param.totalControlSpaceSize-1)
+            for indu = 1:(param.totalControlSpaceSize)
 
                 u = variable_from_index(indu, u_lower_bounds,
                                         param.controlVariablesSizes,
@@ -382,7 +429,7 @@ function sdp_forward_simulation(model::SPModel,
                                             param.stateSteps)
 
                 if model.constraints(t, x, x1, u, scenario[t])
-                    Lv = model.costFunctions(t, x, u, scenario[t]) + value[t + 1 + (TF+1) * indx1]
+                    Lv = model.costFunctions(t, x, u, scenario[t]) + value[indx1, t+1]
                     if (Lv < LvRef)
                         induRef = indu
                         xRef = model.dynamics(t, x, u, scenario[t])
