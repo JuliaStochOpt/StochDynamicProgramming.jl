@@ -27,7 +27,7 @@ function dump_polyhedral_functions(dump::AbstractString, Vts::Vector{PolyhedralF
         ncuts = V.numCuts
 
         for i in 1:ncuts
-            write(outfile, join((time, V.betas[i], tuple(V.lambdas[i]...)...), ","), "\n")
+            write(outfile, join((time, V.betas[i], tuple(V.lambdas[i, :]...)...), ","), "\n")
         end
 
         time += 1
@@ -61,7 +61,7 @@ function read_polyhedral_functions(dump::AbstractString)
         lambda = vec(process[it, 3:end])
 
         try
-            V[t].lambdas = vcat(V[t].lambdas, lambda)
+            V[t].lambdas = vcat(V[t].lambdas, lambda')
             V[t].betas = vcat(V[t].betas, beta)
             V[t].numCuts += 1
         catch
