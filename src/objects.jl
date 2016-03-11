@@ -73,6 +73,7 @@ type PiecewiseLinearCostSPmodel <: SPModel
 end
 
 
+"""Set bounds on state."""
 function set_state_bounds(model::SPModel, xbounds)
     if length(xbounds) != model.dimStates
         error("Bounds dimension, must be ", model.dimStates)
@@ -97,6 +98,9 @@ type SDDPparameters
     end
 end
 
+function set_max_iterations(param::SDDPparameters, n_iter::Int)
+    param.maxItNumber = n_iter
+end
 
 
 type PolyhedralFunction
