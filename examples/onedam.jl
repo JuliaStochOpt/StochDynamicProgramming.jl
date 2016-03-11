@@ -40,6 +40,10 @@ const X0 = [50]
 
 
 # Define dynamic of the dams:
+function dynamic(t, x, u, w)
+    return [x[1] - u[1] - u[2] + w[1]]
+end
+
 function dynamic_HD(t, x, u, w)
     return [x[1] - u[1] - u[2] + w[1]]
 end
@@ -50,6 +54,10 @@ function dynamic_DH(t, x, u, w)
 end
 
 # Define cost corresponding to each timestep:
+function cost_t(t, x, u, w)
+    return COST[t] * (u[1])
+end
+
 function cost_t_HD(t, x, u, w)
     return COST[t] * (u[1])
 end
@@ -128,35 +136,6 @@ end
 
 
 """Instantiate the problem."""
-function init_problem()
-
-    x0 = X0
-    aleas = generate_probability_laws()
-
-    x_bounds = [(VOLUME_MIN, VOLUME_MAX)]
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (0, VOLUME_MAX)]
-
-    N_CONTROLS = 2
-    N_STATES = 1
-    N_ALEAS = 1
-
-    model = LinearDynamicLinearCostSPmodel(TF+1,
-                                        N_CONTROLS,
-                                        N_STATES,
-                                        N_ALEAS,
-                                        x_bounds,
-                                        u_bounds,
-                                        x0,
-                                        cost_t,
-                                        dynamic,
-                                        aleas)
-
-    solver = SOLVER
-
-    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
-
-    return model, params
-end
 
 function init_problem_sdp_HD()
 
@@ -256,7 +235,8 @@ function solve_dams_sdp_DH(display=false)
         scenar[t] = sampling(law, t)
     end
 
-    costs, stocks, controls = sdp_forward_simulation(model, params, scenar, X0, V, true)
+    costs, stocks, controls = sdp_forward_simulation(model, params,
+                                                        scenar, X0, V, true)
 
     println("SDP DH cost: ", costs)
     return costs, stocks, controls, scenar, V
@@ -308,23 +288,57 @@ function compare_sdp_DH_HD(display=false)
     return costHD, stocksHD, controlsHD, costDH, stocksDH, controlsDH, scenar
 end
 
-# function solve_dams(display=false)
-#     model, params = init_problem()
+function init_problem()
 
-#     V, pbs = optimize(model, params, display)
+    x0 = X0
+    aleas = generate_probability_laws()
 
-#     params.forwardPassNumber = 1
+    x_bounds = [(VOLUME_MIN, VOLUME_MAX)]
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (0, VOLUME_MAX)]
 
-#     aleas = simulate_scenarios(model.noises,
-#                               (model.stageNumber,
-#                                params.forwardPassNumber,
-#                                model.dimNoises))
+    N_CONTROLS = 2
+    N_STATES = 1
+    N_ALEAS = 1
 
-#     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
+    model = LinearDynamicLinearCostSPmodel(TF+1,
+                                                u_bounds,
+                                                x0,
+                                                cost_t,
+                                                dynamic,
+                                                aleas)
 
-#     println("SDDP cost: ", costs)
-#     return stocks, V
-# end
+    solver = SOLVER
+
+    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+
+    return model, params
+end
+
+ function solve_dams(display=false)
+     model, params = init_problem()
+
+     V, pbs = solve_SDDP(model, params, display)
+
+     params.forwardPassNumber = 1
+
+     #aleas = simulate_scenarios(model.noises,
+     #                          (model.stageNumber,
+     #                           params.forwardPassNumber,
+     #                           model.dimNoises))
+
+    law = model.noises
+
+    scenar = Array(Array, TF)
+
+    for t in 1:TF
+        scenar[t] = sampling(law, t)
+    end
+
+     costs, stocks = forward_simulations(model, params, V, pbs, scenar)
+
+     println("SDDP cost: ", costs)
+     return stocks, V
+ end
 
 # function compare_SDP_SDDP(display=false)
 
