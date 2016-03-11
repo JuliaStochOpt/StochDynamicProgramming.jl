@@ -181,7 +181,7 @@ function sdp_optimize(model::SPModel,
                 decision hazard computation")
 
         #Loop over time
-        for t = 1:TF
+        for t = TF:-1:1
             count_iteration = count_iteration + 1
 
             #Loop over states
@@ -247,7 +247,7 @@ function sdp_optimize(model::SPModel,
                 hazard decision computation")
 
         #Loop over time
-        for t = 1:TF
+        for t = TF:-1:1
             count_iteration = count_iteration + 1
 
             #Loop over states
@@ -285,8 +285,6 @@ function sdp_optimize(model::SPModel,
                                 admissible_u_w_count = 1
                             end
 
-
-                            count = count + admissible_u_w_count
                             indx1 = nearest_neighbor(x1, x_lower_bounds,
                                                     param.stateVariablesSizes,
                                                     param.stateSteps)
@@ -301,6 +299,7 @@ function sdp_optimize(model::SPModel,
                     end
 
                     v = v + v_x_w
+                    count += 1
                 end
 
                 if (count>0)

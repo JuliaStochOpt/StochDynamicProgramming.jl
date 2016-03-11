@@ -12,8 +12,8 @@ const EPSILON = .05
 const MAX_ITER = 20
 
 # Define number of stages and scenarios:
-const N_STAGES = 4
-const N_SCENARIOS = 4
+const N_STAGES = 3
+const N_SCENARIOS = 10
 
 # Define time horizon:
 const TF = N_STAGES-1
@@ -22,14 +22,14 @@ const TF = N_STAGES-1
 const COST = [-12, -200, -67]
 
 # Define bounds for states and controls:
-const VOLUME_MAX = 100
+const VOLUME_MAX = 50
 const VOLUME_MIN = 0
 
-const CONTROL_MAX = 80
+const CONTROL_MAX = 40
 const CONTROL_MIN = 0
 
 # Define realistic bounds for aleas:
-const W_MAX = 70
+const W_MAX = 40
 const W_MIN = 0
 
 # Randomly generate two deterministic scenarios for rain
@@ -167,7 +167,7 @@ function init_problem_sdp()
     controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1, (VOLUME_MAX)+1]
     totalStateSpaceSize = stateVariablesSizes[1]
     totalControlSpaceSize = controlVariablesSizes[1]*controlVariablesSizes[2]
-    monteCarloSize = 30
+    monteCarloSize = 100
 
     model = DPSPmodel(TF,
                     N_CONTROLS,
