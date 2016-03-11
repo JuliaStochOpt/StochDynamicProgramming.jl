@@ -165,7 +165,7 @@ end
 function solve_dams(display=false)
     model, params = init_problem()
 
-    V, pbs = solve_SDDP!(model, params, display)
+    V, pbs = solve_SDDP(model, params, display)
     aleas = simulate_scenarios(model.noises ,(model.stageNumber,
                                params.forwardPassNumber , model.dimNoises))
     params.forwardPassNumber = 1

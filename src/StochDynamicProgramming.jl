@@ -12,7 +12,7 @@ module StochDynamicProgramming
 
 using JuMP, Distributions
 
-export solve_SDDP!, NoiseLaw, simulate_scenarios,
+export solve_SDDP, NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearDynamicLinearCostSPmodel, set_state_bounds,
         PiecewiseLinearCostSPmodel,
         PolyhedralFunction, NextStep, forward_simulations

@@ -109,7 +109,7 @@ facts("SDDP algorithm: 1D case") do
 
 
         # Compute bellman functions with SDDP:
-        V, pbs = solve_SDDP!(model, params, 0)
+        V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
 
@@ -135,7 +135,7 @@ facts("SDDP algorithm: 1D case") do
 
     context("Hotstart") do
         # Test hot start with previously computed value functions:
-        V, pbs = solve_SDDP!(model, params, 0, V)
+        V, pbs = solve_SDDP(model, params, 0, V)
         # Test if costs are roughly the same:
         sddp_costs2, stocks = forward_simulations(model, params, V, pbs, aleas)
         @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
@@ -149,7 +149,7 @@ facts("SDDP algorithm: 1D case") do
                                                     [cost],
                                                     dynamic, laws)
         set_state_bounds(model, x_bounds)
-        V, pbs = solve_SDDP!(model, params, false)
+        V, pbs = solve_SDDP(model, params, false)
     end
 
     context("Dump") do
@@ -218,7 +218,7 @@ facts("SDDP algorithm: 2D case") do
 
 
         # Compute bellman functions with SDDP:
-        V, pbs = solve_SDDP!(model, params, false)
+        V, pbs = solve_SDDP(model, params, false)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
 

@@ -37,7 +37,7 @@ Returns :
     each value function
 
 """
-function solve_SDDP!(model::SPModel,
+function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
                     display=0::Int64,
                     V=nothing,
