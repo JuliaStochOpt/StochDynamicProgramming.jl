@@ -40,16 +40,26 @@ const X0 = [50]
 
 
 # Define dynamic of the dams:
-function dynamic(t, x, u, w)
+function dynamic_HD(t, x, u, w)
     return [x[1] - u[1] - u[2] + w[1]]
 end
 
+function dynamic_DH(t, x, u, w)
+    x1=x[1] - u[1] + w[1]
+    return [min(VOLUME_MAX,max(0,x1))]
+end
+
 # Define cost corresponding to each timestep:
-function cost_t(t, x, u, w)
+function cost_t_HD(t, x, u, w)
     return COST[t] * (u[1])
 end
 
-function finalCostFuncion(x)
+function cost_t_DH(t, x, u, w)
+    x1=x[1] - u[1] + w[1]
+    return COST[t] * (x[1]+w[1]-min(VOLUME_MAX,max(0,x1)))
+end
+
+function finalCostFunction(x)
     return 0.
 end
 
@@ -148,7 +158,7 @@ function init_problem()
     return model, params
 end
 
-function init_problem_sdp()
+function init_problem_sdp_HD()
 
     x0 = X0
     aleas = generate_probability_laws()
@@ -161,8 +171,8 @@ function init_problem_sdp()
     N_ALEAS = 1
     infoStruct = "HD"
 
-    stateSteps = [1, 1]
-    controlSteps = [1, 1, 1, 1]
+    stateSteps = [1]
+    controlSteps = [1, 1]
     stateVariablesSizes = [(VOLUME_MAX-VOLUME_MIN)+1]
     controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1, (VOLUME_MAX)+1]
     totalStateSpaceSize = stateVariablesSizes[1]
@@ -176,9 +186,9 @@ function init_problem_sdp()
                     x_bounds,
                     u_bounds,
                     x0,
-                    cost_t,
-                    finalCostFuncion,
-                    dynamic,
+                    cost_t_HD,
+                    finalCostFunction,
+                    dynamic_HD,
                     constraints,
                     aleas)
 
@@ -190,31 +200,51 @@ function init_problem_sdp()
 end
 
 
+function init_problem_sdp_DH()
 
-"""Solve the problem."""
-function solve_dams(display=false)
-    model, params = init_problem()
+    x0 = X0
+    aleas = generate_probability_laws()
 
-    V, pbs = optimize(model, params, display)
+    x_bounds = [(VOLUME_MIN, VOLUME_MAX)]
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
 
-    params.forwardPassNumber = 1
+    N_CONTROLS = 1
+    N_STATES = 1
+    N_ALEAS = 1
+    infoStruct = "DH"
 
-    aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               params.forwardPassNumber,
-                               model.dimNoises))
+    stateSteps = [1]
+    controlSteps = [1]
+    stateVariablesSizes = [(VOLUME_MAX-VOLUME_MIN)+1]
+    controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1]
+    totalStateSpaceSize = stateVariablesSizes[1]
+    totalControlSpaceSize = controlVariablesSizes[1]
+    monteCarloSize = 100
 
-    costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
+    model = DPSPmodel(TF,
+                    N_CONTROLS,
+                    N_STATES,
+                    N_ALEAS,
+                    x_bounds,
+                    u_bounds,
+                    x0,
+                    cost_t_DH,
+                    finalCostFunction,
+                    dynamic_DH,
+                    constraints,
+                    aleas)
 
-    println("SDDP cost: ", costs)
-    return stocks, V
+    params = SDPparameters(stateSteps, controlSteps, totalStateSpaceSize,
+                            totalControlSpaceSize, stateVariablesSizes,
+                            controlVariablesSizes, monteCarloSize, infoStruct)
+
+    return model, params
 end
 
 
 """Solve the problem."""
-function solve_dams_sdp(display=false)
-    model, params = init_problem_sdp()
-    params.infoStructure = "DH"
+function solve_dams_sdp_DH(display=false)
+    model, params = init_problem_sdp_DH()
 
     law = model.noises
 
@@ -233,7 +263,7 @@ function solve_dams_sdp(display=false)
 end
 
 function solve_dams_sdp_HD(display=false)
-    model, params = init_problem_sdp()
+    model, params = init_problem_sdp_HD()
 
     law = model.noises
 
@@ -254,9 +284,10 @@ end
 
 
 function compare_sdp_DH_HD(display=false)
-    model, params = init_problem_sdp()
+    modelHD, paramsHD = init_problem_sdp_HD()
+    modelDH, paramsDH = init_problem_sdp_DH()
 
-    law = model.noises
+    law = modelHD.noises
 
     scenar = Array(Array, TF)
 
@@ -264,20 +295,36 @@ function compare_sdp_DH_HD(display=false)
         scenar[t] = sampling(law, t)
     end
 
-    VHD = sdp_optimize(model, params, display)
+    VHD = sdp_optimize(modelHD, paramsHD, display)
 
-    costHD, stocksHD, controlsHD = sdp_forward_simulation(model, params,
+    costHD, stocksHD, controlsHD = sdp_forward_simulation(modelHD, paramsHD,
                                                             scenar, X0, VHD, true)
 
-    params.infoStructure = "DH"
+    VDH = sdp_optimize(modelDH, paramsDH, display)
 
-    VDH = sdp_optimize(model, params, display)
-
-    costDH, stocksDH, controlsDH = sdp_forward_simulation(model, params,
+    costDH, stocksDH, controlsDH = sdp_forward_simulation(modelDH, paramsDH,
                                                             scenar, X0, VDH, true)
 
     return costHD, stocksHD, controlsHD, costDH, stocksDH, controlsDH, scenar
 end
+
+# function solve_dams(display=false)
+#     model, params = init_problem()
+
+#     V, pbs = optimize(model, params, display)
+
+#     params.forwardPassNumber = 1
+
+#     aleas = simulate_scenarios(model.noises,
+#                               (model.stageNumber,
+#                                params.forwardPassNumber,
+#                                model.dimNoises))
+
+#     costs, stocks = forward_simulations(model, params, V, pbs, 1, aleas)
+
+#     println("SDDP cost: ", costs)
+#     return stocks, V
+# end
 
 # function compare_SDP_SDDP(display=false)
 
