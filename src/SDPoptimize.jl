@@ -211,7 +211,7 @@ function sdp_optimize(model::SPModel,
                         wsample = sampling( law, t)
                         x1 = model.dynamics(t, x, u, wsample)
 
-                        if model.constraints(t, x, x1, u, wsample)
+                        if model.constraints(t, x1, u, wsample)
 
                             count = count + 1
                             indx1 = nearest_neighbor(x1,
@@ -279,7 +279,7 @@ function sdp_optimize(model::SPModel,
 
                         x1 = model.dynamics(t, x, u, wsample)
 
-                        if model.constraints(t, x, x1, u, wsample)
+                        if model.constraints(t, x1, u, wsample)
 
                             if (admissible_u_w_count == 0)
                                 admissible_u_w_count = 1
@@ -371,7 +371,7 @@ function sdp_forward_simulation(model::SPModel,
                                             param.stateVariablesSizes,
                                             param.stateSteps)
 
-                    if model.constraints(t, x, x1, u, scenario[t])
+                    if model.constraints(t, x1, u, scenario[t])
                         Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + value[indx1, t+1]
                         countW = countW +1.
                     end
@@ -427,7 +427,7 @@ function sdp_forward_simulation(model::SPModel,
                                             param.stateVariablesSizes,
                                             param.stateSteps)
 
-                if model.constraints(t, x, x1, u, scenario[t])
+                if model.constraints(t, x1, u, scenario[t])
                     Lv = model.costFunctions(t, x, u, scenario[t]) + value[indx1, t+1]
                     if (Lv < LvRef)
                         induRef = indu

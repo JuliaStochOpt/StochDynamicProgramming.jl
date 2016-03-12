@@ -25,7 +25,7 @@ const COST = [-12, -200, -67]
 const VOLUME_MAX = 50
 const VOLUME_MIN = 0
 
-const CONTROL_MAX = 40
+const CONTROL_MAX = 50
 const CONTROL_MIN = 0
 
 # Define realistic bounds for aleas:
@@ -71,10 +71,10 @@ function finalCostFunction(x)
     return 0.
 end
 
-function constraints(t, x, x1, u, w)
+function constraints(t, x1, u, w)
 
-    Bu = (x1[1]<=VOLUME_MAX)&(x[1]<=VOLUME_MAX)
-    Bl = (x1[1]>=VOLUME_MIN)&(x[1]>=VOLUME_MIN)
+    Bu = (x1[1]<=VOLUME_MAX)
+    Bl = (x1[1]>=VOLUME_MIN)
 
     return Bu&Bl
 
@@ -107,10 +107,10 @@ end
 
 """Build admissible scenarios for water inflow over the time horizon."""
 function build_scenarios(n_scenarios::Int64)
-    scenarios = zeros(n_scenarios, TF)
+    scenarios = zeros(n_scenarios, N_STAGES)
 
     for scen in 1:n_scenarios
-        scenarios[scen, :] = round(Int, (W_MAX-W_MIN)*rand(TF)+W_MIN)
+        scenarios[scen, :] = round(Int, (W_MAX-W_MIN)*rand(N_STAGES)+W_MIN)
     end
     return scenarios
 end
@@ -122,12 +122,12 @@ Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
     aleas = build_scenarios(N_SCENARIOS)
 
-    laws = Vector{NoiseLaw}(TF)
+    laws = Vector{NoiseLaw}(N_STAGES)
 
     # uniform probabilities:
     proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
 
-    for t=1:TF
+    for t=1:(N_STAGES)
         laws[t] = NoiseLaw(aleas[:, t], proba)
     end
 
@@ -156,9 +156,9 @@ function init_problem_sdp_HD()
     controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1, (VOLUME_MAX)+1]
     totalStateSpaceSize = stateVariablesSizes[1]
     totalControlSpaceSize = controlVariablesSizes[1]*controlVariablesSizes[2]
-    monteCarloSize = 100
+    monteCarloSize = 10
 
-    model = DPSPmodel(TF,
+    model = DPSPmodel(N_STAGES-1,
                     N_CONTROLS,
                     N_STATES,
                     N_ALEAS,
@@ -198,9 +198,9 @@ function init_problem_sdp_DH()
     controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1]
     totalStateSpaceSize = stateVariablesSizes[1]
     totalControlSpaceSize = controlVariablesSizes[1]
-    monteCarloSize = 100
+    monteCarloSize = 10
 
-    model = DPSPmodel(TF,
+    model = DPSPmodel(N_STAGES-1,
                     N_CONTROLS,
                     N_STATES,
                     N_ALEAS,
@@ -229,9 +229,9 @@ function solve_dams_sdp_DH(display=false)
 
     V = sdp_optimize(model, params, display)
 
-    scenar = Array(Array, TF)
+    scenar = Array(Array, N_STAGES-1)
 
-    for t in 1:TF
+    for t in 1:(N_STAGES-1)
         scenar[t] = sampling(law, t)
     end
 
@@ -249,9 +249,9 @@ function solve_dams_sdp_HD(display=false)
 
     V = sdp_optimize(model, params, display)
 
-    scenar = Array(Array, TF)
+    scenar = Array(Array, (N_STAGES-1))
 
-    for t in 1:TF
+    for t in 1:(N_STAGES-1)
         scenar[t] = sampling(law, t)
     end
 
@@ -269,9 +269,9 @@ function compare_sdp_DH_HD(display=false)
 
     law = modelHD.noises
 
-    scenar = Array(Array, TF)
+    scenar = Array(Array, (N_STAGES-1))
 
-    for t in 1:TF
+    for t in 1:(N_STAGES-1)
         scenar[t] = sampling(law, t)
     end
 
@@ -300,7 +300,7 @@ function init_problem()
     N_STATES = 1
     N_ALEAS = 1
 
-    model = LinearDynamicLinearCostSPmodel(TF+1,
+    model = LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 u_bounds,
                                                 x0,
                                                 cost_t,
@@ -321,53 +321,44 @@ end
 
      params.forwardPassNumber = 1
 
-     #aleas = simulate_scenarios(model.noises,
-     #                          (model.stageNumber,
-     #                           params.forwardPassNumber,
-     #                           model.dimNoises))
+     aleas = simulate_scenarios(model.noises,
+                               (model.stageNumber,
+                                params.forwardPassNumber,
+                                model.dimNoises))
 
-    law = model.noises
-
-    scenar = Array(Array, TF)
-
-    for t in 1:TF
-        scenar[t] = sampling(law, t)
-    end
-
-     costs, stocks = forward_simulations(model, params, V, pbs, scenar)
+     costs, stocks, controls = forward_simulations(model, params, V, pbs, aleas)
 
      println("SDDP cost: ", costs)
-     return stocks, V
+     return stocks, V, controls, aleas
  end
 
-# function compare_SDP_SDDP(display=false)
 
-#     modelSDP, paramsSDP = init_problem_sdp()
+ function compare_SDDP_SDP(display=false)
 
-#     lawSDP = modelSDP.noises
+    modelHD, paramsHD = init_problem_sdp_HD()
+    modelDH, paramsDH = init_problem_sdp_DH()
+    model, params = init_problem()
 
-#     VSDP = sdp_optimize(modelSDP, paramsSDP, display)
+    params.forwardPassNumber = 1
 
-#     model, params = init_problem()
+    aleas = simulate_scenarios(model.noises,
+                               (model.stageNumber-1,
+                                params.forwardPassNumber,
+                                model.dimNoises))
 
-#     V, pbs = optimize(model, params, display)
+    V, pbs = solve_SDDP(model, params, display)
 
-#     params.forwardPassNumber = 1
+    costs, stocks, controls = forward_simulations(model, params, V, pbs, aleas)
 
-#     aleas = simulate_scenarios(model.noises,
-#                               (model.stageNumber,
-#                                params.forwardPassNumber,
-#                                model.dimNoises))
+    VHD = sdp_optimize(modelHD, paramsHD, display)
 
-#     costsSDP, stocksSDP, uSDP = sdp_forward_simulation(modelSDP, paramsSDP,
-#                                                         aleas, X0,
-#                                                         VSDP, display)
+    costHD, stocksHD, controlsHD = sdp_forward_simulation(modelHD, paramsHD,
+                                                            aleas, X0, VHD, true)
 
-#     costs, stocks, u = forward_simulations(model, params, V, pbs, 1, aleas)
+    VDH = sdp_optimize(modelDH, paramsDH, display)
 
-#     println("SDDP cost: ", costs)
-#     println("SDP cost HD: ", costsSDP)
+    costDH, stocksDH, controlsDH = sdp_forward_simulation(modelDH, paramsDH,
+                                                            aleas, X0, VDH, true)
 
-#     return stocks, stocksSDP, u, uSDP, aleas
-
-# end
+    return costs, stocks, controls, aleas, costHD, stocksHD, controlsHD, costDH, stocksDH, controlsDH
+end
