@@ -17,14 +17,15 @@ const SOLVER = ClpSolver()
 const EPSILON = .05
 const MAX_ITER = 20
 
-const N_STAGES = 52
+# N_STAGES is the number of stage for states, including terminal state.
+const N_STAGES = 53
 const N_SCENARIOS = 10
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
 
 # FINAL TIME:
-const TF = 52
+const TF = 53
 
 # COST:
 const COST = -66*2.7*(1 + .5*(rand(TF) - .5))

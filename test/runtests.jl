@@ -91,18 +91,25 @@ facts("SDDP algorithm: 1D case") do
     params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
                                                     epsilon, max_iterations)
 
+    V = nothing
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
+                                                u_bounds, x0,
+                                                cost,
+                                                dynamic, laws)
+    # Generate scenarios for forward simulations:
+    aleas = simulate_scenarios(model.noises,
+                          (model.stageNumber,
+                           params.forwardPassNumber,
+                           model.dimNoises))
 
+    sddp_costs = 0
     context("Linear cost") do
         # Instantiate a SDDP linear model:
-        model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
-                                                    u_bounds, x0,
-                                                    cost,
-                                                    dynamic, laws)
         set_state_bounds(model, x_bounds)
 
 
         # Compute bellman functions with SDDP:
-        V, pbs = solve_SDDP(model, params, false)
+        V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
 
@@ -117,12 +124,6 @@ facts("SDDP algorithm: 1D case") do
                                                            n_simulations)[1]
         @fact typeof(upb) --> Float64
 
-        # Test a simulation upon given scenarios:
-        aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               params.forwardPassNumber,
-                               model.dimNoises))
-
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, aleas)
 
         # Compare sddp cost with those given by extensive formulation:
@@ -130,6 +131,14 @@ facts("SDDP algorithm: 1D case") do
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
+    end
+
+    context("Hotstart") do
+        # Test hot start with previously computed value functions:
+        V, pbs = solve_SDDP(model, params, 0, V)
+        # Test if costs are roughly the same:
+        sddp_costs2, stocks = forward_simulations(model, params, V, pbs, aleas)
+        @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
     end
 
 
@@ -141,6 +150,17 @@ facts("SDDP algorithm: 1D case") do
                                                     dynamic, laws)
         set_state_bounds(model, x_bounds)
         V, pbs = solve_SDDP(model, params, false)
+    end
+
+    context("Dump") do
+        # Dump V in text file:
+        StochDynamicProgramming.dump_polyhedral_functions("dump.dat", V)
+        # Get stored values:
+        Vdump = StochDynamicProgramming.read_polyhedral_functions("dump.dat")
+
+        @fact V[1].numCuts --> Vdump[1].numCuts
+        @fact V[1].betas --> Vdump[1].betas
+        @fact V[1].lambdas --> Vdump[1].lambdas
     end
 
 end
@@ -187,6 +207,7 @@ facts("SDDP algorithm: 2D case") do
     # Instantiate parameters of SDDP:
     params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
                                                     epsilon, max_iterations)
+    V = nothing
     context("Linear cost") do
         # Instantiate a SDDP linear model:
         model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
@@ -225,5 +246,18 @@ facts("SDDP algorithm: 2D case") do
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
+
+    end
+
+
+    context("Dump") do
+        # Dump V in text file:
+        StochDynamicProgramming.dump_polyhedral_functions("dump.dat", V)
+        # Get stored values:
+        Vdump = StochDynamicProgramming.read_polyhedral_functions("dump.dat")
+
+        @fact V[1].numCuts --> Vdump[1].numCuts
+        @fact V[1].betas --> Vdump[1].betas
+        @fact V[1].lambdas --> Vdump[1].lambdas
     end
 end

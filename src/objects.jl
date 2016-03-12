@@ -96,6 +96,7 @@ type DPSPmodel <: SPModel
     # upperbounds#::Tuple{Vector{Float64}}
 end
 
+"""Set bounds on state."""
 function set_state_bounds(model::SPModel, xbounds)
     if length(xbounds) != model.dimStates
         error("Bounds dimension, must be ", model.dimStates)
@@ -120,6 +121,7 @@ type SDDPparameters
     end
 end
 
+
 type SDPparameters
     stateSteps
     controlSteps
@@ -130,6 +132,10 @@ type SDPparameters
     monteCarloSize
     infoStructure
 end
+function set_max_iterations(param::SDDPparameters, n_iter::Int)
+    param.maxItNumber = n_iter
+end
+
 
 type PolyhedralFunction
     #function defined by max_k betas[k] + lambdas[k,:]*x
