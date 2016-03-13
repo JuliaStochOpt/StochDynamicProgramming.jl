@@ -379,7 +379,7 @@ function sdp_forward_simulation(model::SPModel,
                 Lv = Lv/countW
                 if (Lv < LvRef)&(countW>0)
                     induRef = indu
-                    xRef = model.dynamics(t, x, u, scenario[t])
+                    xRef = model.dynamics(t, x, u, scenario[t,:,:])
                     LvRef = Lv
                 end
             end
@@ -408,7 +408,7 @@ function sdp_forward_simulation(model::SPModel,
         #Hazard desision forward simulation
         for t = 1:TF
 
-            x = states[1,t]
+            x = states[1,t,:]
 
             induRef = 0
 
@@ -421,17 +421,17 @@ function sdp_forward_simulation(model::SPModel,
                                         param.controlVariablesSizes,
                                         param.controlSteps)
 
-                x1 = model.dynamics(t, x, u, scenario[t])
+                x1 = model.dynamics(t, x, u, scenario[t,:,:])
 
                 indx1 = nearest_neighbor(x1, x_lower_bounds,
                                             param.stateVariablesSizes,
                                             param.stateSteps)
 
                 if model.constraints(t, x1, u, scenario[t])
-                    Lv = model.costFunctions(t, x, u, scenario[t]) + value[indx1, t+1]
+                    Lv = model.costFunctions(t, x, u, scenario[t,:,:]) + value[indx1, t+1]
                     if (Lv < LvRef)
                         induRef = indu
-                        xRef = model.dynamics(t, x, u, scenario[t])
+                        xRef = model.dynamics(t, x, u, scenario[t,:,:])
                         LvRef = Lv
                     end
                 end
