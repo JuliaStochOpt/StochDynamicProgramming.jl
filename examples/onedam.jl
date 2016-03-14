@@ -147,7 +147,7 @@ function init_problem_sdp_HD()
 
     N_CONTROLS = 2
     N_STATES = 1
-    N_ALEAS = 1
+    N_NOISES = 1
     infoStruct = "HD"
 
     stateSteps = [1]
@@ -161,7 +161,7 @@ function init_problem_sdp_HD()
     model = DPSPmodel(N_STAGES-1,
                     N_CONTROLS,
                     N_STATES,
-                    N_ALEAS,
+                    N_NOISES,
                     x_bounds,
                     u_bounds,
                     x0,
@@ -189,7 +189,7 @@ function init_problem_sdp_DH()
 
     N_CONTROLS = 1
     N_STATES = 1
-    N_ALEAS = 1
+    N_NOISES = 1
     infoStruct = "DH"
 
     stateSteps = [1]
@@ -203,7 +203,7 @@ function init_problem_sdp_DH()
     model = DPSPmodel(N_STAGES-1,
                     N_CONTROLS,
                     N_STATES,
-                    N_ALEAS,
+                    N_NOISES,
                     x_bounds,
                     u_bounds,
                     x0,
@@ -306,6 +306,8 @@ function init_problem()
                                                 cost_t,
                                                 dynamic,
                                                 aleas)
+
+    set_state_bounds(model, x_bounds);
 
     solver = SOLVER
 
