@@ -41,8 +41,8 @@ function index_from_variable( variable::Array,
     j = 1;
 
     for i = 1:length(variable)
-        index = index + j * (floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
-        j = j * variable_sizes[i]
+        index += j * (floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
+        j *= variable_sizes[i]
     end
 
     return index
@@ -85,7 +85,7 @@ function variable_from_index( variable_ind::Int,
         for i=1:dim
             variable[i] = lower_bounds[i] + variable_steps[i] * ((index % variable_sizes[i]))
             index += -(index % variable_sizes[i])
-            index = index / variable_sizes[i]
+            index /= variable_sizes[i]
         end
     end
 
