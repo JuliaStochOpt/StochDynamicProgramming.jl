@@ -10,7 +10,27 @@
 using ProgressMeter
 
 """
-Convert the state and control tuples (stored as arrays) of the problem into integers and vice versa
+Convert the state and control tuples (stored as arrays) of the problem into integers
+
+Parameters:
+- variable (Array)
+    the vector variable we want to convert to an index (integer)
+
+- lower_bounds (Array)
+    the lower bounds for each component of the variable
+
+- variable_sizes (Array)
+    the number of possibilities at each component knowing the upper and lower bounds
+    and the discretizations
+
+- variable_steps (Array)
+    discretization step for each component
+
+
+Returns :
+- index (integer)
+    the index of the variable for the problem knowing the upper and lower bounds
+    as well as the discretization
 
 """
 function index_from_variable( variable::Array,
@@ -28,6 +48,30 @@ function index_from_variable( variable::Array,
     return index
 end
 
+"""
+Convert the index (integer) of a variable into the real variable (Array)
+
+Parameters:
+- index (integer)
+    the index of the variable for the problem knowing the upper and lower bounds
+    as well as the discretization
+
+- lower_bounds (Array)
+    the lower bounds for each component of the variable
+
+- variable_sizes (Array)
+    the number of possibilities at each component knowing the upper and lower bounds
+    and the discretizations
+
+- variable_steps (Array)
+    discretization step for each component
+
+
+Returns :
+- variable (Array)
+    the vector variable we want to convert to an index (integer)
+
+"""
 function variable_from_index( variable_ind::Int,
                     lower_bounds::Array,
                     variable_sizes::Array,
@@ -51,6 +95,26 @@ end
 """
 Compute nearest neighbor of a continuous variable in the discrete variable space
 
+Parameters:
+- variable (Array)
+    the vector variable we want to compute the nearest neighbor index (integer)
+
+- lower_bounds (Array)
+    the lower bounds for each component of the variable
+
+- variable_sizes (Array)
+    the number of possibilities at each component knowing the upper and lower bounds
+    and the discretizations
+
+- variable_steps (Array)
+    discretization step for each component
+
+
+Returns :
+- index_of_nearest_neighbor (integer)
+    the index of the nearest neighbor in the grid of the variable
+    for the problem knowing the upper and lower bounds
+    as well as the discretization
 """
 function nearest_neighbor( variable::Array,
                     lower_bounds::Array,
@@ -145,8 +209,25 @@ function value_function_barycentre( model::SPModel,
 end
 
 """
-Value iteration algorithm to compute optimal value functions in the Decision Hazard (DH)
-as well as the Hazard Decision (HD) case
+Value iteration algorithm to compute optimal value functions in
+the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- display (Bool)
+    the output display or verbosity parameter
+
+
+Returns :
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
 """
 function sdp_optimize(model::SPModel,
                   param::SDPparameters,
@@ -317,6 +398,37 @@ end
 
 """
 Simulation of optimal control given an initial state and an alea scenario
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- scenario (Array)
+    the scenario of uncertainties realizations we want to simulate on
+
+- X0 (SDPparameters)
+    the initial state of the system
+
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+- display (Bool)
+    the output display or verbosity parameter
+
+Returns :
+
+- J (Float)
+    the cost of the optimal control over the scenario provided
+
+- stocks (Array)
+    the state of the controlled system at each time step
+
+- controls (Array)
+    the controls applied to the system at each time step
 
 """
 function sdp_forward_simulation(model::SPModel,
