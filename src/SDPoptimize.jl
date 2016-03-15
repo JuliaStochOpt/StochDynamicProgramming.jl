@@ -260,9 +260,9 @@ function sdp_optimize(model::SPModel,
     #Display start of the algorithm in DH and HD cases
     #Define the loops order in sdp
     if (param.infoStructure == "DH")
-
-        println("Starting stochastic dynamic programming
-                decision hazard computation")
+        if display
+            println("Starting stochastic dynamic programming
+                    decision hazard computation")
 
         #Loop over time
         for t = TF:-1:1
@@ -270,7 +270,9 @@ function sdp_optimize(model::SPModel,
 
             #Loop over states
             for indx = 1:(param.totalStateSpaceSize)
-                next!(p)
+            
+                if display
+                    next!(p)
 
                 v = Inf
                 v1 = 0
@@ -326,9 +328,9 @@ function sdp_optimize(model::SPModel,
         end
 
     else
-
-        println("Starting stochastic dynamic programming
-                hazard decision computation")
+        if display
+            println("Starting stochastic dynamic programming
+                    hazard decision computation")
 
         #Loop over time
         for t = TF:-1:1
@@ -336,7 +338,9 @@ function sdp_optimize(model::SPModel,
 
             #Loop over states
             for indx = 1:(param.totalStateSpaceSize)
-                next!(p)
+            
+                if display
+                    next!(p)
 
                 v     = 0
                 indu1 = -1
