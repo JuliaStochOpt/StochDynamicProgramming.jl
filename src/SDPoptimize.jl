@@ -263,6 +263,7 @@ function sdp_optimize(model::SPModel,
         if display
             println("Starting stochastic dynamic programming
                     decision hazard computation")
+        end
 
         #Loop over time
         for t = TF:-1:1
@@ -273,6 +274,7 @@ function sdp_optimize(model::SPModel,
             
                 if display
                     next!(p)
+                end
 
                 v = Inf
                 v1 = 0
@@ -331,6 +333,7 @@ function sdp_optimize(model::SPModel,
         if display
             println("Starting stochastic dynamic programming
                     hazard decision computation")
+        end
 
         #Loop over time
         for t = TF:-1:1
@@ -341,6 +344,7 @@ function sdp_optimize(model::SPModel,
             
                 if display
                     next!(p)
+                end
 
                 v     = 0
                 indu1 = -1
