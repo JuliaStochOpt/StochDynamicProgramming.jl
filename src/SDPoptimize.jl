@@ -176,6 +176,7 @@ function value_function_barycentre( model::SPModel,
 
     TF = model.stageNumber
     value_function = 0.
+    neighbors_sum = 0.
     index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
 
     neighbors = [index]
@@ -203,10 +204,11 @@ function value_function_barycentre( model::SPModel,
                                     variable_steps)
         dist = norm(variable-nn0)
         value_function += dist*V[inn0 + 1, time]
+        neighbors_sum += V[inn0 + 1, time]
         sum_dist += dist
     end
 
-    return value_function/sum_dist
+    return neighbors_sum-(value_function/sum_dist)
 end
 
 """
