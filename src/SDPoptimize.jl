@@ -42,7 +42,7 @@ function index_from_variable( variable::Array,
     j = 1;
 
     for i = 1:length(variable)
-        index += j * (floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
+        index += j * (floor( Int, 1e-10 + ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
         j *= variable_sizes[i]
     end
 
@@ -271,7 +271,7 @@ function sdp_optimize(model::SPModel,
 
             #Loop over states
             for indx = 1:(param.totalStateSpaceSize)
-            
+
                 if display
                     next!(p)
                 end
@@ -341,7 +341,7 @@ function sdp_optimize(model::SPModel,
 
             #Loop over states
             for indx = 1:(param.totalStateSpaceSize)
-            
+
                 if display
                     next!(p)
                 end
