@@ -264,6 +264,7 @@ end
 
 
 facts("Indexation and interpolation for SDP") do
+
     var = [0.4, 3.7, 1.9]
     low = [0.1, 1.2, 0.5]
     size = [100, 800, 1000]
@@ -423,6 +424,34 @@ facts("SDP algorithm") do
         @fact size(stocks_sdp) --> (3,1,2)
         @fact size(controls_sdp) --> (2,1,2)
 
+        var = zeros(2)
+        var[1] = stocks_sdp[2,1,1]
+        var[2] = stocks_sdp[2,1,2]
+
+        indvar = StochDynamicProgramming.nearest_neighbor(var,
+                                                            [i for (i,j) in x_bounds],
+                                                            paramsSDP.stateVariablesSizes,
+                                                            stateSteps)
+        var2 = StochDynamicProgramming.variable_from_index(indvar,
+                                                            [i for (i,j) in x_bounds],
+                                                            paramsSDP.stateVariablesSizes,
+                                                            stateSteps)
+
+        vv = StochDynamicProgramming.value_function_barycentre(modelSDP,
+                                                                paramsSDP,
+                                                                V_sdp,
+                                                                2,
+                                                                var)
+
+
+
+        vv2 = StochDynamicProgramming.value_function_barycentre(modelSDP,
+                                                                paramsSDP,
+                                                                V_sdp,
+                                                                2,
+                                                                var2)
+
+        @fact ((var[1]<=var2[2])==(vv[1]<=vv[1])) --> true
     end
 
 end

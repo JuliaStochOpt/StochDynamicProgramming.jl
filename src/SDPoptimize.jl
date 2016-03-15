@@ -169,14 +169,15 @@ function value_function_barycentre( model::SPModel,
                                     param::SDPparameters,
                                     V::Array,
                                     time::Int,
-                                    variable::Array,
-                                    lower_bounds::Array,
-                                    variable_sizes::Array,
-                                    variable_steps::Array)
+                                    variable::Array)
 
     TF = model.stageNumber
     value_function = 0.
     neighbors_sum = 0.
+    lower_bounds = [ i for (i , j) in model.xlim]
+    variable_sizes = param.stateVariablesSizes
+    variable_steps = param.stateSteps
+
     index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
 
     neighbors = [index]
