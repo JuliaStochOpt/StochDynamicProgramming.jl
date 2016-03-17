@@ -12,7 +12,7 @@ using StochDynamicProgramming
 using Distributions, Clp, FactCheck, JuMP
 
 
-# Test simulate.jl
+# Test probability functions
 facts("Probability functions") do
     support = [1, 2, 3]
     proba = [.2 .5 .3]
@@ -28,7 +28,18 @@ facts("Probability functions") do
 
     scenarios2 = simulate_scenarios(Normal(), dims)
     @fact typeof(scenarios2) --> Array{Float64, 3}
+
+    # test product of noiselaws:
+    support2 = [4, 5, 6]
+    proba2 = [.3 .3 .4]
+    law2 = NoiseLaw(support2, proba2)
+    law3 = StochDynamicProgramming.noiselaw_product(law, law2)
+    @fact law3.supportSize --> law.supportSize*law2.supportSize
+    @fact law3.proba --> vec(proba' * proba2)
+    @fact size(law3.support)[1] --> size(law.support)[1] + size(law2.support)[1]
+    @fact law3.support[:, 1] --> [1., 4.]
 end
+
 
 
 facts("Utils functions") do
