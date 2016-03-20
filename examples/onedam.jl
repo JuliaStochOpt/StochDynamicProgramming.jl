@@ -158,7 +158,7 @@ function init_problem_sdp_HD()
     totalControlSpaceSize = controlVariablesSizes[1]*controlVariablesSizes[2]
     monteCarloSize = 10
 
-    model = DPSPmodel(N_STAGES-1,
+    model = StochDynProgModel(N_STAGES-1,
                     N_CONTROLS,
                     N_STATES,
                     N_NOISES,
@@ -200,7 +200,7 @@ function init_problem_sdp_DH()
     totalControlSpaceSize = controlVariablesSizes[1]
     monteCarloSize = 10
 
-    model = DPSPmodel(N_STAGES-1,
+    model = StochDynProgModel(N_STAGES-1,
                     N_CONTROLS,
                     N_STATES,
                     N_NOISES,

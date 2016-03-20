@@ -72,7 +72,17 @@ type PiecewiseLinearCostSPmodel <: SPModel
     end
 end
 
-type DPSPmodel <: SPModel
+"""Set bounds on state."""
+function set_state_bounds(model::SPModel, xbounds)
+    if length(xbounds) != model.dimStates
+        error("Bounds dimension, must be ", model.dimStates)
+    else
+        model.xlim = xbounds
+    end
+end
+
+
+type StochDynProgModel <: SPModel
     # problem dimension
     stageNumber::Int64
     dimControls::Int64
@@ -91,20 +101,25 @@ type DPSPmodel <: SPModel
     constraints::Function
     noises::Vector{NoiseLaw}
 
+    function StochDynProgModel(model::LinearDynamicLinearCostSPmodel, final, cons)
+        return new(model.stageNumber-1, model.dimControls, model.dimStates,
+                 model.dimNoises, model.xlim, model.ulim, model.initialState,
+                 model.costFunctions, final, model.dynamics, cons,
+                 model.noises)
+    end
+
+    function StochDynProgModel(TF, N_CONTROLS, N_STATES, N_NOISES,
+                    x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
+                    constraints, aleas)
+        return new(TF, N_CONTROLS, N_STATES, N_NOISES,
+                    x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
+                    constraints, aleas)
+    end
+
     # TODO: add this attributes to model
     # lowerbounds#::Tuple{Vector{Float64}}
     # upperbounds#::Tuple{Vector{Float64}}
 end
-
-"""Set bounds on state."""
-function set_state_bounds(model::SPModel, xbounds)
-    if length(xbounds) != model.dimStates
-        error("Bounds dimension, must be ", model.dimStates)
-    else
-        model.xlim = xbounds
-    end
-end
-
 
 type SDDPparameters
     # Solver to solve

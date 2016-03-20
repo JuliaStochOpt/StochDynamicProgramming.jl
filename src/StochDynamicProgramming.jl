@@ -16,7 +16,7 @@ export solve_SDDP, NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearDynamicLinearCostSPmodel, set_state_bounds,
         PiecewiseLinearCostSPmodel,
         PolyhedralFunction, NextStep, forward_simulations,
-        DPSPmodel, SDPparameters, sdp_optimize,
+        StochDynProgModel, SDPparameters, sdp_optimize,
         sdp_forward_simulation, sampling
 
 include("objects.jl")

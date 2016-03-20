@@ -304,19 +304,19 @@ end
 
 facts("SDP algorithm") do
 
-    # Number of timesteps (as we manage the dams over a year, it is equal to the number of weeks):
+    # Number of timesteps :
     TF = 3
 
     # Capacity of dams:
-    VOLUME_MAX = 30
+    VOLUME_MAX = 20
     VOLUME_MIN = 0
 
     # Specify the maximum flow of turbines:
-    CONTROL_MAX = 20
-    CONTROL_MIN = -20
+    CONTROL_MAX = 10
+    CONTROL_MIN = -10
 
     # Some statistics about aleas (water inflow):
-    W_MAX = 15
+    W_MAX = 5
     W_MIN = 0
     DW = 1
 
@@ -387,14 +387,14 @@ facts("SDP algorithm") do
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)];
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (VOLUME_MIN, VOLUME_MAX)];
 
-    x0 = [15, 15]
+    x0 = [5, 0]
 
     alea_year = Array([7.0 7.0])
 
     aleas_scen = zeros(2, 1, 1)
     aleas_scen[:, 1, 1] = alea_year;
 
-    modelSDP = DPSPmodel(TF-1, N_CONTROLS,
+    modelSDP = StochDynProgModel(TF-1, N_CONTROLS,
                         N_STATES, N_NOISES,
                         x_bounds, u_bounds,
                         x0, cost_t,
@@ -403,7 +403,7 @@ facts("SDP algorithm") do
 
     stateSteps = [1,1];
     controlSteps = [1,1];
-    monteCarloSize = 10;
+    monteCarloSize = 2;
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
                                                      controlSteps,
@@ -414,7 +414,7 @@ facts("SDP algorithm") do
 
         V_sdp = sdp_optimize(modelSDP, paramsSDP, false);
 
-        @fact size(V_sdp) --> (961,3)
+        @fact size(V_sdp) --> ((VOLUME_MAX+1)*(VOLUME_MAX+1)/(stateSteps[1]*stateSteps[2]),TF)
 
         costs_sdp, stocks_sdp, controls_sdp = sdp_forward_simulation(modelSDP,
                                                                 paramsSDP,
@@ -451,7 +451,7 @@ facts("SDP algorithm") do
                                                                 2,
                                                                 var2)
 
-        @fact ((var[1]<=var2[2])==(vv[1]<=vv[1])) --> true
+        @fact ((var[1]<=var2[2])==(vv[1]<=vv2[1])) --> true
     end
 
 end
