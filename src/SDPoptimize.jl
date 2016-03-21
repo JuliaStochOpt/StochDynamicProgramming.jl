@@ -42,7 +42,7 @@ function index_from_variable( variable::Array,
     j = 1;
 
     for i = 1:length(variable)
-        index += j * (floor( Int, ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
+        index += j * (floor( Int, 1e-10 + ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
         j *= variable_sizes[i]
     end
 
@@ -169,14 +169,15 @@ function value_function_barycentre( model::SPModel,
                                     param::SDPparameters,
                                     V::Array,
                                     time::Int,
-                                    variable::Array,
-                                    lower_bounds::Array,
-                                    variable_sizes::Array,
-                                    variable_steps::Array)
+                                    variable::Array)
 
     TF = model.stageNumber
     value_function = 0.
     neighbors_sum = 0.
+    lower_bounds = [ i for (i , j) in model.xlim]
+    variable_sizes = param.stateVariablesSizes
+    variable_steps = param.stateSteps
+
     index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
 
     neighbors = [index]
@@ -263,6 +264,7 @@ function sdp_optimize(model::SPModel,
         if display
             println("Starting stochastic dynamic programming
                     decision hazard computation")
+        end
 
         #Loop over time
         for t = TF:-1:1
@@ -270,9 +272,10 @@ function sdp_optimize(model::SPModel,
 
             #Loop over states
             for indx = 1:(param.totalStateSpaceSize)
-            
+
                 if display
                     next!(p)
+                end
 
                 v = Inf
                 v1 = 0
@@ -331,6 +334,7 @@ function sdp_optimize(model::SPModel,
         if display
             println("Starting stochastic dynamic programming
                     hazard decision computation")
+        end
 
         #Loop over time
         for t = TF:-1:1
@@ -338,9 +342,10 @@ function sdp_optimize(model::SPModel,
 
             #Loop over states
             for indx = 1:(param.totalStateSpaceSize)
-            
+
                 if display
                     next!(p)
+                end
 
                 v     = 0
                 indu1 = -1
