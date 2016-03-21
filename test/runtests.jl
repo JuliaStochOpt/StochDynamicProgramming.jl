@@ -424,34 +424,35 @@ facts("SDP algorithm") do
         @fact size(stocks_sdp) --> (3,1,2)
         @fact size(controls_sdp) --> (2,1,2)
 
-        var = zeros(2)
-        var[1] = stocks_sdp[2,1,1]
-        var[2] = stocks_sdp[2,1,2]
+        state_ref = zeros(2)
+        state_ref[1] = stocks_sdp[2,1,1]
+        state_ref[2] = stocks_sdp[2,1,2]
 
-        indvar = StochDynamicProgramming.nearest_neighbor(var,
+        ind_state_ref = StochDynamicProgramming.nearest_neighbor(state_ref,
                                                             [i for (i,j) in x_bounds],
                                                             paramsSDP.stateVariablesSizes,
                                                             stateSteps)
-        var2 = StochDynamicProgramming.variable_from_index(indvar,
+        state_neighbor = StochDynamicProgramming.variable_from_index(ind_state_ref,
                                                             [i for (i,j) in x_bounds],
                                                             paramsSDP.stateVariablesSizes,
                                                             stateSteps)
 
-        vv = StochDynamicProgramming.value_function_barycentre(modelSDP,
+        value_bar_ref = StochDynamicProgramming.value_function_barycentre(modelSDP,
                                                                 paramsSDP,
                                                                 V_sdp,
                                                                 2,
-                                                                var)
+                                                                state_ref)
 
 
 
-        vv2 = StochDynamicProgramming.value_function_barycentre(modelSDP,
+        value_bar_neighbor = StochDynamicProgramming.value_function_barycentre(modelSDP,
                                                                 paramsSDP,
                                                                 V_sdp,
                                                                 2,
-                                                                var2)
+                                                                state_neighbor)
 
-        @fact ((var[1]<=var2[2])==(vv[1]<=vv2[1])) --> true
+        #Check that value function is increasing w.r.t the first state
+        @fact ((state_ref[1]<=state_neighbor[1])==(value_bar_ref[1]<=value_bar_neighbor[1])) --> true
     end
 
 end

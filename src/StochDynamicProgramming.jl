@@ -22,9 +22,6 @@ export solve_SDDP, NoiseLaw, simulate_scenarios,
 include("objects.jl")
 include("utils.jl")
 include("oneStepOneAleaProblem.jl")
-
-
-
 include("forwardBackwardIterations.jl")
 include("noises.jl")
 include("SDDPoptimize.jl")
