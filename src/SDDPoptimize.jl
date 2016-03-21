@@ -294,7 +294,7 @@ function build_models(model::SPModel, param::SDDPparameters)
             @setObjective(m, Min, cost + alpha)
 
         else
-            error("model must be: LinearDynamicLinearCostSPModel or LinearDynamicLinearCostSPmodel")
+            error("model must be: LinearDynamicLinearCostSPModel or PiecewiseLinearCostSPmodel")
         end
 
         models[t] = m

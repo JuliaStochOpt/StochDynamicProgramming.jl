@@ -410,6 +410,35 @@ facts("SDP algorithm") do
                                                      monteCarloSize,
                                                      infoStruct);
 
+    context("Compare StochDynProgModel constructors") do
+
+        modelSDPPiecewise = StochDynamicProgramming.PiecewiseLinearCostSPmodel(TF,
+                                                                        u_bounds, x0,
+                                                                        [cost_t],
+                                                                        dynamic, aleas)
+        set_state_bounds(modelSDPPiecewise, x_bounds)
+
+        modelSDPLinear = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(TF,
+                                                                        u_bounds, x0,
+                                                                        cost_t,
+                                                                        dynamic, aleas)
+
+        set_state_bounds(modelSDPLinear, x_bounds)
+
+        test_costs = true
+        x = x0
+        u = [1, 1]
+        w = [4]
+
+        for t in 1:TF-1
+            test_costs &= (modelSDPLinear.costFunctions(t,x,u,w)==modelSDP.costFunctions(t,x,u,w))
+            test_costs &= (modelSDPPiecewise.costFunctions[1](t,x,u,w)==modelSDP.costFunctions(t,x,u,w))
+        end
+
+        @fact test_costs --> true
+    end
+
+
     context("Solve and simulate using SDP") do
 
         V_sdp = sdp_optimize(modelSDP, paramsSDP, false);
@@ -451,7 +480,7 @@ facts("SDP algorithm") do
                                                                 2,
                                                                 state_neighbor)
 
-        #Check that value function is increasing w.r.t the first state
+        #Check that the first value function is increasing w.r.t the first state
         @fact ((state_ref[1]<=state_neighbor[1])==(value_bar_ref[1]<=value_bar_neighbor[1])) --> true
     end
 

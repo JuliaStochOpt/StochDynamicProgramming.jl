@@ -108,6 +108,26 @@ type StochDynProgModel <: SPModel
                  model.noises)
     end
 
+    function StochDynProgModel(model::PiecewiseLinearCostSPmodel, final, cons)
+
+        function cost(t,x,u,w)
+            saved_cost = -Inf
+            current_cost = 0
+            for i in model.costFunctions
+                current_cost = i(t,x,u,w)
+                if (current_cost>saved_cost)
+                    saved_cost = current_cost
+                end
+            end
+            return saved_cost
+        end
+
+        return new(model.stageNumber-1, model.dimControls, model.dimStates,
+                 model.dimNoises, model.xlim, model.ulim, model.initialState,
+                 cost, final, model.dynamics, cons,
+                 model.noises)
+    end
+
     function StochDynProgModel(TF, N_CONTROLS, N_STATES, N_NOISES,
                     x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
                     constraints, aleas)
