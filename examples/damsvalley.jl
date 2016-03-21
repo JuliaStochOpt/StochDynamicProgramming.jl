@@ -12,7 +12,6 @@ push!(LOAD_PATH, "../src")
 
 using StochDynamicProgramming, JuMP, Clp
 
-include("extensiveFormulation.jl")
 
 const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
@@ -22,8 +21,8 @@ const MAX_ITER = 20
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
-const N_STAGES = 3
-const N_SCENARIOS = 2
+const N_STAGES = 52
+const N_SCENARIOS = 10
 
 # FINAL TIME:
 const TF = N_STAGES
@@ -153,16 +152,15 @@ function init_problem()
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
 
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                4, 2, 1,
-                                                x_bounds,
                                                 u_bounds,
                                                 x0,
                                                 cost_t,
                                                 dynamic,
                                                 aleas)
 
-    solver = SOLVER
+    set_state_bounds(model, x_bounds)
 
+    solver = SOLVER
     params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
@@ -170,8 +168,9 @@ end
 
 
 """Solve the problem."""
-function solve_dams(model,params,display=false)
-    
+function solve_dams(display=false)
+
+    model, params = init_problem()
 
     V, pbs = solve_SDDP(model, params, display)
 
@@ -184,13 +183,7 @@ function solve_dams(model,params,display=false)
 
     costs, stocks = forward_simulations(model, params, V, pbs, aleas)
 
+
     println("SDDP cost: ", costs)
-    return stocks, V
+    return stocks, V, controls
 end
-
-
-model, params = init_problem()
-
-solve_dams(model,params,true)
-
-extensive_formulation(model,params)

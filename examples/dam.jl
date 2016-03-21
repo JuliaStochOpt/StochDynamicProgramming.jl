@@ -17,14 +17,15 @@ const SOLVER = ClpSolver()
 const EPSILON = .05
 const MAX_ITER = 20
 
-const N_STAGES = 52
+# N_STAGES is the number of stage for states, including terminal state.
+const N_STAGES = 53
 const N_SCENARIOS = 10
 
 alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
 
 
 # FINAL TIME:
-const TF = 52
+const TF = 53
 
 # COST:
 const COST = -66*2.7*(1 + .5*(rand(TF) - .5))
@@ -144,17 +145,22 @@ function init_problem()
     x0 = X0
     aleas = generate_probability_laws()
 
-    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES, 2, 1, 1,
-                                                [(0, 100)], [(0, 7), (0, 7)],
+    x_bounds = [(0, 100)]
+    u_bounds = [(0, 7), (0, 7)]
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES,
+                                                u_bounds,
                                                 x0,
                                                 cost_t,
                                                 dynamic, aleas)
+
+    set_state_bounds(model, x_bounds)
 
     solver = SOLVER
     params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
+
 
 """Solve the problem."""
 function solve_dams(display=false)

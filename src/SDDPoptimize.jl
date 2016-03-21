@@ -3,8 +3,9 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-#  the actual optimization function
-#
+#  Implement the SDDP solver and initializers:
+#  - functions to initialize value functions
+#  - functions to build terminal cost
 #############################################################################
 
 
@@ -22,8 +23,9 @@ Parameters:
 - param (SDDPparameters)
     the parameters of the SDDP algorithm
 
-- display (Bool) - Default is false
-    If specified, display progression in terminal
+- display (Int64) - Default is 0
+    If non null, display progression in terminal every
+    n iterations, where n is number specified by display.
 
 
 Returns :
@@ -37,15 +39,46 @@ Returns :
 """
 function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
-                    display=true::Bool,
+                    display=0::Int64,
+                    V=nothing,
+                    V_final=nothing,
                     returnValueFunctions=true::Bool)
 
-    # Initialize value functions:
-    V, problems = initialize_value_functions(model, param)
+    # First step: process terminal costs.
+    # If not specified, default value is null functions
+    if isa(V_final, Void)
+        Vf = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
+    else
+        Vf = V_final
+    end
+
+    # Second step: process value functions if hotstart is called
+    if isa(V, Vector{PolyhedralFunction})
+        # If V is already specified, then call hotstart:
+        problems = hotstart(model, param, V)
+    else
+        # Otherwise, initialize value functions:
+        V, problems = initialize_value_functions(model, param, Vf)
+    end
+
+    return run_SDDP(model, param, V, problems, display, returnValueFunctions)
+end
+
+
+"""
+
+"""
+function run_SDDP(model::SPModel,
+                    param::SDDPparameters,
+                    V::Array{PolyhedralFunction, 1},
+                    problems::Vector{JuMP.Model},
+                    display=0::Int64,
+                    returnValueFunctions=true::Bool)
+
     # Evaluation of initial cost:
     V0::Float64 = 0
 
-    if display
+    if display > 0
       println("Initialize cuts")
     end
 
@@ -88,7 +121,7 @@ function solve_SDDP(model::SPModel,
 
         time = toq()
 
-        if display
+        if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
                     "\tEstimation of upper-bound: ", upb,
                     "\tLower-bound: ", V0,
@@ -97,7 +130,8 @@ function solve_SDDP(model::SPModel,
 
     end
 
-    if display
+    # Estimate upper bound with a great number of simulations:
+    if (display>0)
         println("Estimate upper-bound with Monte-Carlo ...")
         upb, costs = estimate_upper_bound(model, param, V, problems)
         println("Estimation of upper-bound: ", upb,
@@ -165,7 +199,7 @@ function get_null_value_functions_array(model::SPModel)
 
     V = Vector{PolyhedralFunction}(model.stageNumber)
     for t = 1:model.stageNumber
-        V[t] = get_null_value_functions()
+        V[t] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
     end
 
     return V
@@ -190,12 +224,12 @@ function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt)
     alpha = getVar(problem, :alpha)
 
     # if shape is PolyhedralFunction, build terminal cost with it:
+    alpha = getVar(problem, :alpha)
+    x = getVar(problem, :x)
+    u = getVar(problem, :u)
+    w = getVar(problem, :w)
+    t = model.stageNumber -1
     if isa(Vt, PolyhedralFunction)
-        alpha = getVar(problem, :alpha)
-        x = getVar(problem, :x)
-        u = getVar(problem, :u)
-        w = getVar(problem, :w)
-        t = model.stageNumber -1
         for i in 1:Vt.numCuts
             lambda = vec(Vt.lambdas[i, :])
             @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
@@ -291,9 +325,12 @@ Return:
     the initialization of linear problems used to approximate
     each value function
 
+- V_final (PolydrehalFunction)
+    Terminal cost to penalize final state.
+
 """
 function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters)
+                                     param::SDDPparameters, V_final::PolyhedralFunction)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -307,9 +344,7 @@ function initialize_value_functions( model::SPModel,
                                 param.forwardPassNumber,
                                 model.dimNoises))
 
-
-    V[end] = PolyhedralFunction(zeros(1), zeros(1, 1), 1)
-
+    V[end] = V_final
 
     stockTrajectories = forward_simulations(model,
                         param,
@@ -332,6 +367,31 @@ function initialize_value_functions( model::SPModel,
     return V, solverProblems
 end
 
+
+"""
+Initialize JuMP.Model vector with a already computed PolyhedralFunction
+vector.
+
+Parameters:
+- model (SPModel)
+    Parametrization of the problem
+
+- param (SDDPparameters)
+    Parameters of SDDP
+
+- V (Vector{PolyhedralFunction})
+    Estimation of bellman functions as Polyhedral functions
+
+"""
+function hotstart(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
+
+    solverProblems = build_models(model, param)
+
+    for t in 1:model.stageNumber
+        add_cuts_to_model!(model, t, solverProblems[t], V[t])
+    end
+    return solverProblems
+end
 
 
 """
@@ -372,4 +432,35 @@ function get_bellman_value(model::SPModel, param::SDDPparameters,
     @setObjective(m, Min, alpha)
     solve(m)
     return getValue(alpha)
+end
+
+
+"""
+Add several cuts to JuMP.Model from a PolyhedralFunction
+
+Parameters:
+- model (SPModel)
+    Store the problem definition
+
+- t (Int)
+    Time index
+
+- problem (JuMP.Model)
+    Linear problem used to approximate the value functions
+
+
+- V (PolyhedralFunction)
+    Cuts are stored in V
+
+"""
+function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::PolyhedralFunction)
+    alpha = getVar(problem, :alpha)
+    x = getVar(problem, :x)
+    u = getVar(problem, :u)
+    w = getVar(problem, :w)
+
+    for i in 1:V.numCuts
+        lambda = vec(V.lambdas[i, :])
+        @addConstraint(problem, V.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+    end
 end

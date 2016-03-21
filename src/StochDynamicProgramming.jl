@@ -13,18 +13,22 @@ module StochDynamicProgramming
 using JuMP, Distributions
 
 export solve_SDDP, NoiseLaw, simulate_scenarios,
-        SDDPparameters, LinearDynamicLinearCostSPmodel,
+        SDDPparameters, LinearDynamicLinearCostSPmodel, set_state_bounds,
         PiecewiseLinearCostSPmodel,
-        PolyhedralFunction, NextStep, forward_simulations
+        PolyhedralFunction, NextStep, forward_simulations,
+        DPSPmodel, SDPparameters, sdp_optimize,
+        sdp_forward_simulation, sampling,
+        index_from_variable, variable_from_index
 
 include("objects.jl")
-include("utility.jl")
+include("utils.jl")
 include("oneStepOneAleaProblem.jl")
 
 
 
 include("forwardBackwardIterations.jl")
-include("simulate.jl")
+include("noises.jl")
 include("SDDPoptimize.jl")
-
+include("extensiveFormulation.jl")
+include("SDPoptimize.jl")
 end
