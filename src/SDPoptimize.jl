@@ -250,10 +250,24 @@ function sdp_optimize(model::SPModel,
     count_iteration = 1
 
     #Compute final value functions
-    for indx = 1:(param.totalStateSpaceSize)
-        x = variable_from_index(indx, x_lower_bounds, param.stateVariablesSizes,
-                                param.stateSteps)
-        V[indx, TF+1] = model.finalCostFunction(x)
+
+    product_states = model.xlim[1][1]:param.stateSteps[1]:model.xlim[1][2]
+    product_controls = model.ulim[1][1]:param.controlSteps[1]:model.ulim[1][2]
+
+    if model.dimStates>1
+
+        for i = 1:model.dimStates
+            product_states = product(product_states, model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2])
+        end
+
+    end
+
+    if model.dimControls>1
+
+        for i = 1:model.dimControls
+            product_controls = product(product_controls, model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2])
+        end
+
     end
 
     #Construct a progress meter
