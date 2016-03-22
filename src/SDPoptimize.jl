@@ -9,6 +9,7 @@
 #############################################################################
 
 using ProgressMeter
+using Iterators
 
 """
 Convert the state and control tuples (stored as arrays) of the problem into integers
