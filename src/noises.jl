@@ -86,7 +86,6 @@ Parameters:
 - t::Int
     time step at which a sample is needed
 
-"""
 Generate all permutations between discrete probabilities specified in args.
 
 Exemple:
@@ -142,6 +141,8 @@ function noiselaw_product(law, laws...)
         return noiselaw_product(law, noiselaw_product(laws[1], laws[2:end]...))
     end
 end
+
+"""
 
 Returns :
 - sample Array(Float64, dimAlea)
