@@ -47,49 +47,6 @@ function index_from_variable( variable::Tuple,
     return index
 end
 
-"""
-Convert the index (integer) of a variable into the real variable (Array)
-
-Parameters:
-- index (integer)
-    the index of the variable for the problem knowing the upper and lower bounds
-    as well as the discretization
-
-- lower_bounds (Array)
-    the lower bounds for each component of the variable
-
-- variable_sizes (Array)
-    the number of possibilities at each component knowing the upper and lower bounds
-    and the discretizations
-
-- variable_steps (Array)
-    discretization step for each component
-
-
-Returns :
-- variable (Array)
-    the vector variable we want to convert to an index (integer)
-
-"""
-function variable_from_index( variable_ind::Int,
-                    lower_bounds::Array,
-                    variable_sizes::Array,
-                    variable_steps::Array)
-
-    dim = length(lower_bounds)
-    index = variable_ind-1
-    variable = zeros(dim)
-
-    if (variable_ind>-1)
-        for i=1:dim
-            variable[i] = lower_bounds[i] + variable_steps[i] * ((index % variable_sizes[i]))
-            index += -(index % variable_sizes[i])
-            index /= variable_sizes[i]
-        end
-    end
-
-    return variable
-end
 
 """
 Compute nearest neighbor of a continuous variable in the discrete variable space
@@ -221,7 +178,7 @@ function sdp_optimize(model::SPModel,
                   display=true::Bool)
 
     TF = model.stageNumber
-    V = zeros(Float64, param.totalStateSpaceSize, TF+1)
+    V = zeros(Float64, param.totalStateSpaceSize, TF)
     x = zeros(Float64, model.dimStates)
     x1 = zeros(Float64, model.dimStates)
     law = model.noises
@@ -257,10 +214,11 @@ function sdp_optimize(model::SPModel,
 
     for x in product_states
         indx = index_from_variable(x, x__bounds, x_steps)
+        V[TF, indx...] = finalCostFunction(x)
     end
 
     #Construct a progress meter
-    p = Progress(TF*param.totalStateSpaceSize, 1)
+    p = Progress((TF-1)*param.totalStateSpaceSize, 1)
 
     #Display start of the algorithm in DH and HD cases
     #Define the loops order in sdp
@@ -271,7 +229,7 @@ function sdp_optimize(model::SPModel,
         end
 
         #Loop over time
-        for t = TF:-1:1
+        for t = (TF-1):-1:1
             count_iteration = count_iteration + 1
 
             #Loop over states
@@ -333,7 +291,7 @@ function sdp_optimize(model::SPModel,
         end
 
         #Loop over time
-        for t = TF:-1:1
+        for t = (TF-1):-1:1
             count_iteration = count_iteration + 1
 
             #Loop over states
@@ -344,11 +302,7 @@ function sdp_optimize(model::SPModel,
                 end
 
                 v     = 0
-                indu1 = -1
                 Lv    = 0
-                x     = variable_from_index(indx, x_lower_bounds,
-                                            param.stateVariablesSizes,
-                                            param.stateSteps)
 
                 count = 0
                 #Loop over uncertainty samples
@@ -445,8 +399,29 @@ function sdp_forward_simulation(model::SPModel,
     u_bounds = model.ulim
     x_bounds = model.xlim
 
-    controls = Inf*ones(TF, 1, model.dimControls)
-    states = Inf*ones(TF + 1, 1, model.dimStates)
+
+    product_states = x__bounds[1][1]:param.stateSteps[1]:x__bounds[1][2]
+    product_controls = u__bounds[1][1]:param.controlSteps[1]:u__bounds[1][2]
+
+    tab_states = Array{UnitRange(Float64)}(model.dim_states)
+    tab_controls = Array{UnitRange(Float64)}(model.dim_controls)
+
+
+    for i = 1:model.dimStates
+        tab_states[i] = x__bounds[i][1]:param.stateSteps[i]:x__bounds[i][2]
+    end
+
+    for i = 1:model.dimControls
+        tab_controls[i] = u__bounds[i][1]:param.controlSteps[i]:u__bounds[i][2]
+    end
+
+    product_states = product(tab_states...)
+
+    product_controls = product(tab_controls...)
+
+
+    controls = Inf*ones(TF-1, 1, model.dimControls)
+    states = Inf*ones(TF, 1, model.dimStates)
 
     inc = 0
     for xj in X0
@@ -459,19 +434,15 @@ function sdp_forward_simulation(model::SPModel,
 
     if (param.infoStructure == "DH")
         #Decision hazard forward simulation
-        for t = 1:TF
+        for t = 1:(TF-1)
 
             x = states[t,1,:]
 
-            induRef = 0
+            uRef = tuple()
 
             LvRef = Inf
 
-            for indu = 1:(param.totalControlSpaceSize)
-
-                u = variable_from_index(indu, u_lower_bounds,
-                                        param.controlVariablesSizes,
-                                        param.controlSteps)
+            for u in product_controls
 
                 countW = 0.
                 Lv = 0.
@@ -481,27 +452,22 @@ function sdp_forward_simulation(model::SPModel,
 
                     x1 = model.dynamics(t, x, u, wsample)
 
-                    indx1 = nearest_neighbor(x1, x_lower_bounds,
-                                            param.stateVariablesSizes,
-                                            param.stateSteps)
-
                     if model.constraints(t, x1, u, scenario[t])
-                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + value[indx1, t+1]
+                        barV = value_function_barycentre(model, param, value, t+1, x1)
+                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + barV
                         countW = countW +1.
                     end
                 end
                 Lv = Lv/countW
                 if (Lv < LvRef)&(countW>0)
-                    induRef = indu
+                    uRef = u
                     xRef = model.dynamics(t, x, u, scenario[t,1,:])
                     LvRef = Lv
                 end
             end
 
             inc = 0
-            uRef = variable_from_index(induRef, u_lower_bounds,
-                                        param.controlVariablesSizes,
-                                        param.controlSteps)
+
             for uj in uRef
                 inc = inc +1
                 controls[t,1,inc] = uj
@@ -524,27 +490,20 @@ function sdp_forward_simulation(model::SPModel,
 
             x = states[t,1,:]
 
-            induRef = 0
+            uRef = tuple()
 
-            indxRef = 0
+            xRef = tuple()
             LvRef = Inf
 
-            for indu = 1:(param.totalControlSpaceSize)
-
-                u = variable_from_index(indu, u_lower_bounds,
-                                        param.controlVariablesSizes,
-                                        param.controlSteps)
+            for u = product_controls
 
                 x1 = model.dynamics(t, x, u, scenario[t,1,:])
 
-                indx1 = nearest_neighbor(x1, x_lower_bounds,
-                                            param.stateVariablesSizes,
-                                            param.stateSteps)
-
                 if model.constraints(t, x1, u, scenario[t])
-                    Lv = model.costFunctions(t, x, u, scenario[t,1,:]) + value[indx1, t+1]
+                    barV = value_function_barycentre(model, param, value, t+1, x1)
+                    Lv = model.costFunctions(t, x, u, scenario[t,1,:]) + barV
                     if (Lv < LvRef)
-                        induRef = indu
+                        uRef = u
                         xRef = model.dynamics(t, x, u, scenario[t,1,:])
                         LvRef = Lv
                     end
@@ -553,9 +512,7 @@ function sdp_forward_simulation(model::SPModel,
             end
 
             inc = 0
-            uRef = variable_from_index(induRef, u_lower_bounds,
-                                                param.controlVariablesSizes,
-                                                param.controlSteps)
+
             for uj in uRef
                 inc = inc +1
                 controls[t,1,inc] = uj
@@ -572,7 +529,7 @@ function sdp_forward_simulation(model::SPModel,
         end
     end
 
-    x = states[TF+1,1,:]
+    x = states[TF,1,:]
     J = J + model.finalCostFunction(x)
 
     return J, states, controls
