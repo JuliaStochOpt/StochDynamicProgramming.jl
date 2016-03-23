@@ -178,43 +178,40 @@ function sdp_optimize(model::SPModel,
                   display=true::Bool)
 
     TF = model.stageNumber
-    V = zeros(Float64, param.totalStateSpaceSize, TF)
     x = zeros(Float64, model.dimStates)
     x1 = zeros(Float64, model.dimStates)
     law = model.noises
 
     u_bounds = model.ulim
-    x__bounds = model.xlim
+    x_bounds = model.xlim
     x_steps = param.stateSteps
 
     count_iteration = 1
 
     #Compute cartesian product spaces
 
-    product_states = x__bounds[1][1]:param.stateSteps[1]:x__bounds[1][2]
-    product_controls = u__bounds[1][1]:param.controlSteps[1]:u__bounds[1][2]
-
-    tab_states = Array{UnitRange(Float64)}(model.dim_states)
-    tab_controls = Array{UnitRange(Float64)}(model.dim_controls)
+    tab_states = Array{FloatRange}(model.dimStates)
+    tab_controls = Array{FloatRange}(model.dimControls)
 
 
     for i = 1:model.dimStates
-        tab_states[i] = x__bounds[i][1]:param.stateSteps[i]:x__bounds[i][2]
+        tab_states[i] = x_bounds[i][1]:param.stateSteps[i]:x_bounds[i][2]
     end
 
     for i = 1:model.dimControls
-        tab_controls[i] = u__bounds[i][1]:param.controlSteps[i]:u__bounds[i][2]
+        tab_controls[i] = u_bounds[i][1]:param.controlSteps[i]:u_bounds[i][2]
     end
 
     product_states = product(tab_states...)
 
     product_controls = product(tab_controls...)
 
+    V = zeros(Float64, TF, param.stateVariablesSizes...)
     #Compute final value functions
 
     for x in product_states
-        indx = index_from_variable(x, x__bounds, x_steps)
-        V[TF, indx...] = finalCostFunction(x)
+        indx = index_from_variable(x, x_bounds, x_steps)
+        V[TF, indx...] = model.finalCostFunction(x)
     end
 
     #Construct a progress meter
@@ -314,7 +311,7 @@ function sdp_optimize(model::SPModel,
                     wsample = sampling( law, t)
 
                     #Loop over controls
-                    for u in poduct_controls
+                    for u in product_controls
 
                         x1 = model.dynamics(t, x, u, wsample)
 
@@ -342,7 +339,7 @@ function sdp_optimize(model::SPModel,
                 if (count>0)
                     v = v / count
                 end
-                indx = index_from_variable(x, x__bounds, x_steps)
+                indx = index_from_variable(x, x_bounds, x_steps)
                 V[t, indx...] = v
             end
         end
@@ -400,19 +397,19 @@ function sdp_forward_simulation(model::SPModel,
     x_bounds = model.xlim
 
 
-    product_states = x__bounds[1][1]:param.stateSteps[1]:x__bounds[1][2]
-    product_controls = u__bounds[1][1]:param.controlSteps[1]:u__bounds[1][2]
+    product_states = x_bounds[1][1]:param.stateSteps[1]:x_bounds[1][2]
+    product_controls = u_bounds[1][1]:param.controlSteps[1]:u_bounds[1][2]
 
-    tab_states = Array{UnitRange(Float64)}(model.dim_states)
-    tab_controls = Array{UnitRange(Float64)}(model.dim_controls)
+    tab_states = Array{FloatRange}(model.dimStates)
+    tab_controls = Array{FloatRange}(model.dimControls)
 
 
     for i = 1:model.dimStates
-        tab_states[i] = x__bounds[i][1]:param.stateSteps[i]:x__bounds[i][2]
+        tab_states[i] = x_bounds[i][1]:param.stateSteps[i]:x_bounds[i][2]
     end
 
     for i = 1:model.dimControls
-        tab_controls[i] = u__bounds[i][1]:param.controlSteps[i]:u__bounds[i][2]
+        tab_controls[i] = u_bounds[i][1]:param.controlSteps[i]:u_bounds[i][2]
     end
 
     product_states = product(tab_states...)
@@ -486,7 +483,7 @@ function sdp_forward_simulation(model::SPModel,
 
     else
         #Hazard desision forward simulation
-        for t = 1:TF
+        for t = 1:TF-1
 
             x = states[t,1,:]
 

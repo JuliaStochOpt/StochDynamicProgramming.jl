@@ -266,38 +266,21 @@ end
 facts("Indexation and interpolation for SDP") do
 
     var = [0.4, 3.7, 1.9]
-    low = [0.1, 1.2, 0.5]
-    size = [100, 800, 1000]
+    bounds = [(0.1,10.0), (1.2, 4.0), (0.5, 2.0)]
     steps = [0.1, 0.05, 0.01]
-    totalsize = size[1]*size[2]*size[3]
 
     vart = [0.42, 3.78, 1.932]
     vart2 = [10.0, 3.78, 1.932]
 
-    ind = StochDynamicProgramming.index_from_variable(var, low, size, steps)
-    varind = StochDynamicProgramming.variable_from_index(ind , low, size, steps)
+    ind = StochDynamicProgramming.index_from_variable(tuple(var...), bounds, steps)
 
-    @fact (ind <= totalsize) --> true
-    @fact varind --> roughly(var)
+    nn = StochDynamicProgramming.nearest_neighbor(tuple(vart...) , bounds, steps)
+    nn2 = StochDynamicProgramming.nearest_neighbor(tuple(vart2...) , bounds, steps)
 
-    indnn = StochDynamicProgramming.nearest_neighbor(vart , low, size, steps)
-    nn = StochDynamicProgramming.variable_from_index(indnn , low, size, steps)
-    indnn3 = StochDynamicProgramming.index_from_variable(nn , low, size, steps)
-    nn3 = StochDynamicProgramming.variable_from_index(indnn3 , low, size, steps)
+    @fact ind --> (4,51,141)
+    @fact nn --> (0.5,3.8,1.94)
+    @fact nn2 --> (10.0,3.8,1.94)
 
-    @fact (nn == [0.4, 3.8, 1.93]) --> true
-
-    @fact (indnn == indnn3) --> true
-
-    ind2 = StochDynamicProgramming.index_from_variable(vart2, low, size, steps)
-    varind2 = StochDynamicProgramming.variable_from_index(ind2 , low, size, steps)
-
-    @fact (varind2 == [10.0,3.75,1.93]) --> true
-
-    indnn2 = StochDynamicProgramming.nearest_neighbor(vart2 , low, size, steps)
-    nn2 = StochDynamicProgramming.variable_from_index(indnn2 , low, size, steps)
-
-    @fact (nn2 == [10, 3.8, 1.93]) --> true
 
 end
 
@@ -353,11 +336,11 @@ facts("SDP algorithm") do
     end
 
     """Build admissible scenarios for water inflow over the time horizon."""
-    function build_scenarios(n_scenarios::Int64)
-        scenarios = zeros(n_scenarios, TF)
+    function build_scenarios(n_scenarios::Int64, N_STAGES)
+        scenarios = zeros(n_scenarios, N_STAGES)
 
         for scen in 1:n_scenarios
-            scenarios[scen, :] = (W_MAX-W_MIN)*rand(TF)+W_MIN
+            scenarios[scen, :] = (W_MAX-W_MIN)*rand(N_STAGES)+W_MIN
         end
         return scenarios
     end
@@ -365,8 +348,8 @@ facts("SDP algorithm") do
         """Build probability distribution at each timestep based on N scenarios.
     Return a Vector{NoiseLaw}"""
     function generate_probability_laws(N_STAGES, N_SCENARIOS)
-        aleas = zeros(N_SCENARIOS, TF, 1)
-        aleas[:, :, 1] = build_scenarios(N_SCENARIOS)
+        aleas = zeros(N_SCENARIOS, N_STAGES, 1)
+        aleas[:, :, 1] = build_scenarios(N_SCENARIOS, N_STAGES)
 
         laws = Vector{NoiseLaw}(N_STAGES)
 
@@ -382,7 +365,7 @@ facts("SDP algorithm") do
     end
 
     N_SCENARIO = 10
-    aleas = generate_probability_laws(TF, N_SCENARIO)
+    aleas = generate_probability_laws(TF-1, N_SCENARIO)
 
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)];
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (VOLUME_MIN, VOLUME_MAX)];
@@ -394,7 +377,7 @@ facts("SDP algorithm") do
     aleas_scen = zeros(2, 1, 1)
     aleas_scen[:, 1, 1] = alea_year;
 
-    modelSDP = StochDynProgModel(TF-1, N_CONTROLS,
+    modelSDP = StochDynProgModel(TF, N_CONTROLS,
                         N_STATES, N_NOISES,
                         x_bounds, u_bounds,
                         x0, cost_t,
@@ -443,7 +426,7 @@ facts("SDP algorithm") do
 
         V_sdp = sdp_optimize(modelSDP, paramsSDP, false);
 
-        @fact size(V_sdp) --> ((VOLUME_MAX+1)*(VOLUME_MAX+1)/(stateSteps[1]*stateSteps[2]),TF)
+        @fact size(V_sdp) --> (TF, paramsSDP.stateVariablesSizes...)
 
         costs_sdp, stocks_sdp, controls_sdp = sdp_forward_simulation(modelSDP,
                                                                 paramsSDP,
@@ -457,13 +440,8 @@ facts("SDP algorithm") do
         state_ref[1] = stocks_sdp[2,1,1]
         state_ref[2] = stocks_sdp[2,1,2]
 
-        ind_state_ref = StochDynamicProgramming.nearest_neighbor(state_ref,
-                                                            [i for (i,j) in x_bounds],
-                                                            paramsSDP.stateVariablesSizes,
-                                                            stateSteps)
-        state_neighbor = StochDynamicProgramming.variable_from_index(ind_state_ref,
-                                                            [i for (i,j) in x_bounds],
-                                                            paramsSDP.stateVariablesSizes,
+        state_neighbor = StochDynamicProgramming.nearest_neighbor(tuple(state_ref...),
+                                                            x_bounds,
                                                             stateSteps)
 
         value_bar_ref = StochDynamicProgramming.value_function_barycentre(modelSDP,
@@ -472,13 +450,8 @@ facts("SDP algorithm") do
                                                                 2,
                                                                 state_ref)
 
+        value_bar_neighbor = V_sdp[2, StochDynamicProgramming.index_from_variable(state_neighbor, x_bounds, stateSteps)...]
 
-
-        value_bar_neighbor = StochDynamicProgramming.value_function_barycentre(modelSDP,
-                                                                paramsSDP,
-                                                                V_sdp,
-                                                                2,
-                                                                state_neighbor)
 
         #Check that the first value function is increasing w.r.t the first state
         @fact ((state_ref[1]<=state_neighbor[1])==(value_bar_ref[1]<=value_bar_neighbor[1])) --> true
