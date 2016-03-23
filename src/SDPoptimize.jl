@@ -35,16 +35,13 @@ Returns :
     as well as the discretization
 
 """
-function index_from_variable( variable::Array,
-                    lower_bounds::Array,
-                    variable_sizes::Array,
+function index_from_variable( variable::Tuple,
+                    bounds::Array,
                     variable_steps::Array)
-    index = 1;
-    j = 1;
+    index = tuple();
 
     for i = 1:length(variable)
-        index += j * (floor( Int, 1e-10 + ( variable[i] - lower_bounds[i] ) / variable_steps[i] ))
-        j *= variable_sizes[i]
+        index = tuple(index..., 1 + (floor( Int, 1e-10 + ( variable[i] - bounds[i][1] ) / variable_steps[i] )))
     end
 
     return index
@@ -118,43 +115,34 @@ Returns :
     for the problem knowing the upper and lower bounds
     as well as the discretization
 """
-function nearest_neighbor( variable::Array,
-                    lower_bounds::Array,
-                    variable_sizes::Array,
+function nearest_neighbor( variable::Tuple,
+                    variable_bounds::Array,
                     variable_steps::Array)
 
-    index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps)-1
+    n = length(variable)
 
-    neighbors = [index]
-    if ((index % variable_sizes[1]) < (variable_sizes[1]-1))
-        push!(neighbors, index+1)
-    end
+    tab = Array{Array{Float64}}(n)
 
-    if length(variable)>1
-        K=1
-        for i = 2:length(variable)
-            K=K*variable_sizes[i-1]
-            neighbors0 = copy(neighbors)
-            for j in neighbors0
-                if (((j-j%K)/K)%variable_sizes[i] <variable_sizes[i]-1)
-                    push!(neighbors, j + K)
-                end
-            end
+    for i in 1:n
+    bounds = variable_bounds[i]
+    ui = floor(Int64, 1e-10+(variable[i]-(bounds[1]))/variable_steps[i])
+        xi = (bounds[1]) + ui*variable_steps[i]
+    if ((xi+variable_steps[i])<=bounds[2])
+           tab[i] = [xi;(xi+variable_steps[i])]
+    else
+       tab[i] = [xi]
         end
     end
 
-    ref = -1
-    ref_dist = Inf
+    neighbors = product(tab...)
 
-    for inn0 in neighbors
-        nn0 = variable_from_index(inn0 + 1, lower_bounds, variable_sizes,
-                                    variable_steps)
+    dist_ref = Inf
+    ref = tuple()
 
-        dist = norm(variable-nn0)
-
-        if (dist < ref_dist)
-            ref =  inn0 + 1
-            ref_dist = dist
+    for neigh in neighbors
+        dist = norm(collect(neigh)-collect(variable))
+        if (dist<dist_ref)
+            ref = neigh
         end
     end
 
@@ -172,41 +160,35 @@ function value_function_barycentre( model::SPModel,
                                     time::Int,
                                     variable::Array)
 
-    TF = model.stageNumber
     value_function = 0.
     neighbors_sum = 0.
-    lower_bounds = [ i for (i , j) in model.xlim]
     variable_sizes = param.stateVariablesSizes
     variable_steps = param.stateSteps
 
-    index = index_from_variable(variable, lower_bounds, variable_sizes, variable_steps);
+    n = length(variable)
 
-    neighbors = [index]
-    if ((index % variable_sizes[1]) < (variable_sizes[1]-1))
-        push!(neighbors, index+1)
-    end
+    tab = Array{Array{Float64}}(n)
 
-    if length(variable)>1
-        K=1
-        for i = 2:length(variable)
-            K=K*variable_sizes[i-1]
-            neighbors0 = copy(neighbors)
-            for j in neighbors0
-                if (((j-j%K)/K)%variable_sizes[i] <variable_sizes[i]-1)
-                    push!(neighbors, j + K)
-                end
-            end
+    for i in 1:n
+    bounds = model.xlim[i]
+    ui = floor(Int64, 1e-10+(variable[i]-(bounds[1]))/variable_steps[i])
+        xi = (bounds[1]) + ui*variable_steps[i]
+    if ((xi+variable_steps[i])<=bounds[2])
+           tab[i] = [xi;(xi+variable_steps[i])]
+    else
+       tab[i] = [xi]
         end
     end
 
+    neighbors = product(tab...)
+
     sum_dist = 0.
 
-    for inn0 in neighbors
-        nn0 = variable_from_index(inn0 + 1, lower_bounds, variable_sizes,
-                                    variable_steps)
-        dist = norm(variable-nn0)
-        value_function += dist*V[inn0 + 1, time]
-        neighbors_sum += V[inn0 + 1, time]
+    for nn0 in neighbors
+        dist = norm(collect(variable)-collect(nn0))
+        inn0 = index_from_variable(nn0,model.xlim, variable_steps)
+        value_function += dist*V[time,inn0...]
+        neighbors_sum += V[ time, inn0...]
         sum_dist += dist
     end
 
@@ -244,30 +226,37 @@ function sdp_optimize(model::SPModel,
     x1 = zeros(Float64, model.dimStates)
     law = model.noises
 
-    u_lower_bounds = [ i for (i , j) in model.ulim]
-    x_lower_bounds = [ i for (i , j) in model.xlim]
+    u_bounds = model.ulim
+    x__bounds = model.xlim
+    x_steps = param.stateSteps
 
     count_iteration = 1
 
-    #Compute final value functions
+    #Compute cartesian product spaces
 
-    product_states = model.xlim[1][1]:param.stateSteps[1]:model.xlim[1][2]
-    product_controls = model.ulim[1][1]:param.controlSteps[1]:model.ulim[1][2]
+    product_states = x__bounds[1][1]:param.stateSteps[1]:x__bounds[1][2]
+    product_controls = u__bounds[1][1]:param.controlSteps[1]:u__bounds[1][2]
 
-    if model.dimStates>1
+    tab_states = Array{UnitRange(Float64)}(model.dim_states)
+    tab_controls = Array{UnitRange(Float64)}(model.dim_controls)
 
-        for i = 1:model.dimStates
-            product_states = product(product_states, model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2])
-        end
 
+    for i = 1:model.dimStates
+        tab_states[i] = x__bounds[i][1]:param.stateSteps[i]:x__bounds[i][2]
     end
 
-    if model.dimControls>1
+    for i = 1:model.dimControls
+        tab_controls[i] = u__bounds[i][1]:param.controlSteps[i]:u__bounds[i][2]
+    end
 
-        for i = 1:model.dimControls
-            product_controls = product(product_controls, model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2])
-        end
+    product_states = product(tab_states...)
 
+    product_controls = product(tab_controls...)
+
+    #Compute final value functions
+
+    for x in product_states
+        indx = index_from_variable(x, x__bounds, x_steps)
     end
 
     #Construct a progress meter
@@ -286,7 +275,7 @@ function sdp_optimize(model::SPModel,
             count_iteration = count_iteration + 1
 
             #Loop over states
-            for indx = 1:(param.totalStateSpaceSize)
+            for x in product_states
 
                 if display
                     next!(p)
@@ -294,20 +283,14 @@ function sdp_optimize(model::SPModel,
 
                 v = Inf
                 v1 = 0
-                indu1 = -1
+                u1 = tuple()
                 Lv = 0
-                x = variable_from_index(indx, x_lower_bounds,
-                                        param.stateVariablesSizes,
-                                        param.stateSteps)
 
                 #Loop over controls
-                for indu = 1:(param.totalControlSpaceSize)
+                for u = product_controls
 
                     v1 = 0
                     count = 0
-                    u = variable_from_index(indu, u_lower_bounds,
-                                            param.controlVariablesSizes,
-                                            param.controlSteps)
 
                     #Loop over uncertainty samples
                     for w = 1:param.monteCarloSize
@@ -318,12 +301,9 @@ function sdp_optimize(model::SPModel,
                         if model.constraints(t, x1, u, wsample)
 
                             count = count + 1
-                            indx1 = nearest_neighbor(x1,
-                                                    x_lower_bounds,
-                                                    param.stateVariablesSizes,
-                                                    param.stateSteps)
+                            barV = value_function_barycentre(model, param, V, t+1, x1)
                             Lv = model.costFunctions(t, x, u, wsample)
-                            v1 += Lv + V[indx1, t + 1]
+                            v1 += Lv + barV
 
                         end
                     end
@@ -335,13 +315,14 @@ function sdp_optimize(model::SPModel,
                         if (v1 < v)
 
                             v = v1
-                            indu1 = indu
+                            u1 = u
 
                         end
                     end
                 end
+                indx = index_from_variable(x, x__bounds, x_steps)
 
-                V[indx, t] = v
+                V[t, indx...] = v
             end
         end
 
@@ -356,7 +337,7 @@ function sdp_optimize(model::SPModel,
             count_iteration = count_iteration + 1
 
             #Loop over states
-            for indx = 1:(param.totalStateSpaceSize)
+            for x in product_states
 
                 if display
                     next!(p)
@@ -379,11 +360,7 @@ function sdp_optimize(model::SPModel,
                     wsample = sampling( law, t)
 
                     #Loop over controls
-                    for indu in 1:(param.totalControlSpaceSize)
-
-                        u = variable_from_index(indu, u_lower_bounds,
-                                                param.controlVariablesSizes,
-                                                param.controlSteps)
+                    for u in poduct_controls
 
                         x1 = model.dynamics(t, x, u, wsample)
 
@@ -393,11 +370,9 @@ function sdp_optimize(model::SPModel,
                                 admissible_u_w_count = 1
                             end
 
-                            indx1 = nearest_neighbor(x1, x_lower_bounds,
-                                                    param.stateVariablesSizes,
-                                                    param.stateSteps)
                             Lv = model.costFunctions(t, x, u, wsample)
-                            v_x_w1 = Lv + V[indx1, t+1]
+                            barV =  value_function_barycentre(model, param, V, t+1, x1)
+                            v_x_w1 = Lv + barV
 
                             if (v_x_w1 < v_x_w)
                                 v_x_w = v_x_w1
@@ -413,8 +388,8 @@ function sdp_optimize(model::SPModel,
                 if (count>0)
                     v = v / count
                 end
-
-                V[indx, t] = v
+                indx = index_from_variable(x, x__bounds, x_steps)
+                V[t, indx...] = v
             end
         end
     end
@@ -467,8 +442,8 @@ function sdp_forward_simulation(model::SPModel,
 
     TF = model.stageNumber
     law = model.noises
-    u_lower_bounds = [ i for (i , j) in model.ulim]
-    x_lower_bounds = [ i for (i , j) in model.xlim]
+    u_bounds = model.ulim
+    x_bounds = model.xlim
 
     controls = Inf*ones(TF, 1, model.dimControls)
     states = Inf*ones(TF + 1, 1, model.dimStates)
