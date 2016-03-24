@@ -59,7 +59,7 @@ function cost_t(t, x, u, w)
 end
 
 
-"""Solve the problem with a solver, supposing the aleas are known
+"""Solve the problem assuming the aleas are known
 in advance."""
 function solve_determinist_problem()
     m = Model(solver=SOLVER)

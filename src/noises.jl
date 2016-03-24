@@ -169,7 +169,7 @@ Returns :
 - scenarios Array(Float64,n,T)
     an Array of scenarios, scenarios[i,:] being the ith noise scenario
 """
-function generate_scenarios(law::Vector{NoiseLaw}, n::Int64)
+function generate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
     if n <= 0
         error("negative number of simulations")
     end
@@ -178,7 +178,7 @@ function generate_scenarios(law::Vector{NoiseLaw}, n::Int64)
     for i = 1:n#TODO can be parallelized
         scenario = []
         for t=1:Tf
-            new_val = law[t].support[:, rand(Categorical(law[t].proba))]
+            new_val = laws[t].support[:, rand(Categorical(law[t].proba))]
             push!(scenario, new_val)
         end
         scenarios[i,:]=scenario
