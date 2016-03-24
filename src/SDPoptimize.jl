@@ -144,12 +144,12 @@ function value_function_barycentre( model::SPModel,
     for nn0 in neighbors
         dist = norm(collect(variable)-collect(nn0))
         inn0 = index_from_variable(nn0,model.xlim, variable_steps)
-        value_function += dist*V[time,inn0...]
-        neighbors_sum += V[ time, inn0...]
+        value_function += dist*V[inn0...,time]
+        neighbors_sum += V[ inn0...,time]
         sum_dist += dist
     end
 
-    return neighbors_sum-(value_function/sum_dist)
+    return (neighbors_sum-(value_function/sum_dist))/length(neighbors)
 end
 
 """
@@ -206,12 +206,12 @@ function sdp_optimize(model::SPModel,
 
     product_controls = product(tab_controls...)
 
-    V = zeros(Float64, TF, param.stateVariablesSizes...)
+    V = zeros(Float64, param.stateVariablesSizes..., TF)
     #Compute final value functions
 
     for x in product_states
         indx = index_from_variable(x, x_bounds, x_steps)
-        V[TF, indx...] = model.finalCostFunction(x)
+        V[indx..., TF] = model.finalCostFunction(x)
     end
 
     #Construct a progress meter
@@ -277,7 +277,7 @@ function sdp_optimize(model::SPModel,
                 end
                 indx = index_from_variable(x, x__bounds, x_steps)
 
-                V[t, indx...] = v
+                V[indx..., t] = v
             end
         end
 
@@ -340,7 +340,7 @@ function sdp_optimize(model::SPModel,
                     v = v / count
                 end
                 indx = index_from_variable(x, x_bounds, x_steps)
-                V[t, indx...] = v
+                V[indx..., t] = v
             end
         end
     end

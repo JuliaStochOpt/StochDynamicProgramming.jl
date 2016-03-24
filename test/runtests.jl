@@ -426,7 +426,7 @@ facts("SDP algorithm") do
 
         V_sdp = sdp_optimize(modelSDP, paramsSDP, false);
 
-        @fact size(V_sdp) --> (TF, paramsSDP.stateVariablesSizes...)
+        @fact size(V_sdp) --> (paramsSDP.stateVariablesSizes..., TF)
 
         costs_sdp, stocks_sdp, controls_sdp = sdp_forward_simulation(modelSDP,
                                                                 paramsSDP,
@@ -450,11 +450,11 @@ facts("SDP algorithm") do
                                                                 2,
                                                                 state_ref)
 
-        value_bar_neighbor = V_sdp[2, StochDynamicProgramming.index_from_variable(state_neighbor, x_bounds, stateSteps)...]
+        value_bar_neighbor = V_sdp[StochDynamicProgramming.index_from_variable(state_neighbor, x_bounds, stateSteps)...,2]
 
 
         #Check that the first value function is increasing w.r.t the first state
-        @fact ((state_ref[1]<=state_neighbor[1])==(value_bar_ref[1]<=value_bar_neighbor[1])) --> true
+        @fact ((state_ref[1]<=state_neighbor[1])==(value_bar_ref<=value_bar_neighbor)) --> true
     end
 
 end
