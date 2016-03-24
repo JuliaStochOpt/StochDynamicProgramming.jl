@@ -10,6 +10,7 @@
 
 using ProgressMeter
 using Iterators
+using Interpolations
 
 """
 Convert the state and control tuples (stored as arrays) of the problem into integers
@@ -153,6 +154,21 @@ function value_function_barycentre( model::SPModel,
 end
 
 """
+Compute barycentre of value function with state neighbors in a discrete
+state space
+"""
+function value_function_interpolation( model::SPModel,
+                                    V::Array,
+                                    time::Int)
+    columns = Array{Colon}(model.dimStates)
+    for i in 1:model.dimStates
+        columns[i] = Colon()
+    end
+
+    return interpolate(V[columns...,time], BSpline(Linear()), OnGrid())
+end
+
+"""
 Value iteration algorithm to compute optimal value functions in
 the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 
@@ -228,6 +244,7 @@ function sdp_optimize(model::SPModel,
         #Loop over time
         for t = (TF-1):-1:1
             count_iteration = count_iteration + 1
+            Vtp1 = value_function_interpolation(model, V, t+1)
 
             #Loop over states
             for x in product_states
@@ -256,9 +273,9 @@ function sdp_optimize(model::SPModel,
                         if model.constraints(t, x1, u, wsample)
 
                             count = count + 1
-                            barV = value_function_barycentre(model, param, V, t+1, x1)
+                            itV = Vtp1[x1...]
                             Lv = model.costFunctions(t, x, u, wsample)
-                            v1 += Lv + barV
+                            v1 += Lv + itV
 
                         end
                     end
@@ -290,6 +307,7 @@ function sdp_optimize(model::SPModel,
         #Loop over time
         for t = (TF-1):-1:1
             count_iteration = count_iteration + 1
+            Vtp1 = value_function_interpolation(model, V, t+1)
 
             #Loop over states
             for x in product_states
@@ -322,8 +340,8 @@ function sdp_optimize(model::SPModel,
                             end
 
                             Lv = model.costFunctions(t, x, u, wsample)
-                            barV =  value_function_barycentre(model, param, V, t+1, x1)
-                            v_x_w1 = Lv + barV
+                            itV = Vtp1[x1...]
+                            v_x_w1 = Lv + itV
 
                             if (v_x_w1 < v_x_w)
                                 v_x_w = v_x_w1
@@ -438,6 +456,7 @@ function sdp_forward_simulation(model::SPModel,
             uRef = tuple()
 
             LvRef = Inf
+            Vtp1 = value_function_interpolation(model, value, t+1)
 
             for u in product_controls
 
@@ -450,8 +469,8 @@ function sdp_forward_simulation(model::SPModel,
                     x1 = model.dynamics(t, x, u, wsample)
 
                     if model.constraints(t, x1, u, scenario[t])
-                        barV = value_function_barycentre(model, param, value, t+1, x1)
-                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + barV
+                        itV = Vtp1[x1...]
+                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + itV
                         countW = countW +1.
                     end
                 end
@@ -487,6 +506,8 @@ function sdp_forward_simulation(model::SPModel,
 
             x = states[t,1,:]
 
+            Vtp1 = value_function_interpolation(model, value, t+1)
+
             uRef = tuple()
 
             xRef = tuple()
@@ -497,8 +518,8 @@ function sdp_forward_simulation(model::SPModel,
                 x1 = model.dynamics(t, x, u, scenario[t,1,:])
 
                 if model.constraints(t, x1, u, scenario[t])
-                    barV = value_function_barycentre(model, param, value, t+1, x1)
-                    Lv = model.costFunctions(t, x, u, scenario[t,1,:]) + barV
+                    itV = Vtp1[x1...]
+                    Lv = model.costFunctions(t, x, u, scenario[t,1,:]) + itV
                     if (Lv < LvRef)
                         uRef = u
                         xRef = model.dynamics(t, x, u, scenario[t,1,:])
