@@ -382,8 +382,8 @@ facts("SDP algorithm") do
                         finalCostFunction, dynamic,
                         constraints, aleas);
 
-    stateSteps = [1,1];
-    controlSteps = [1,1];
+    stateDisc = [1,1];
+    controlDisc = [1,1];
     monteCarloSize = 2;
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,

@@ -168,25 +168,29 @@ type SDPparameters
     infoStructure
     expectation_computation
 
-    function SDPparameters(model, stateSteps, controlSteps, infoStruct, expectation_computation = "Exact" ,monteCarloSize = 1000)
+    function SDPparameters(model, stateSteps, controlSteps, infoStruct,
+                            expectation_computation="Exact" ,monteCarloSize=1000)
 
         stateVariablesSizes = zeros(Int64, length(stateSteps))
         controlVariablesSizes = zeros(Int64, length(controlSteps))
         totalStateSpaceSize = 1
         totalControlSpaceSize = 1
         for i=1:length(stateSteps)
-            stateVariablesSizes[i] = round(Int64,1 + (model.xlim[i][2]-model.xlim[i][1])/stateSteps[i])
+            stateVariablesSizes[i] = round(Int64,1 +
+                                    (model.xlim[i][2]-model.xlim[i][1])/stateSteps[i])
             totalStateSpaceSize *= stateVariablesSizes[i]
         end
 
         for i=1:length(controlSteps)
-            controlVariablesSizes[i] = round(Int64, 1 + (model.ulim[i][2]-model.ulim[i][1])/controlSteps[i])
+            controlVariablesSizes[i] = round(Int64, 1 +
+                                    (model.ulim[i][2]-model.ulim[i][1])/controlSteps[i])
             totalControlSpaceSize *= controlVariablesSizes[i]
         end
 
         return new(stateSteps, controlSteps, totalStateSpaceSize,
                     totalControlSpaceSize, stateVariablesSizes,
-                    controlVariablesSizes, monteCarloSize, infoStruct, expectation_computation)
+                    controlVariablesSizes, monteCarloSize, infoStruct,
+                    expectation_computation)
     end
 
 end

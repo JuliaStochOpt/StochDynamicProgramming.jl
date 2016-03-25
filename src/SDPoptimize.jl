@@ -108,21 +108,9 @@ Returns :
 """
 function generate_grid(model::SPModel, param::SDPparameters)
 
-    tab_states = Array{FloatRange}(model.dimStates)
-    tab_controls = Array{FloatRange}(model.dimControls)
+    product_states = product([model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2] for i in 1:model.dimStates]...)
 
-
-    for i = 1:model.dimStates
-        tab_states[i] = model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2]
-    end
-
-    for i = 1:model.dimControls
-        tab_controls[i] = model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2]
-    end
-
-    product_states = product(tab_states...)
-
-    product_controls = product(tab_controls...)
+    product_controls = product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
 
     return product_states, product_controls
 
