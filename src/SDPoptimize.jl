@@ -190,41 +190,30 @@ function sdp_optimize(model::SPModel,
                     expected_V_u = 0
                     count_admissible_w = 0
 
-                    #Loop over uncertainty samples
                     if (param.expectation_computation=="MonteCarlo")
-                        for w = 1:param.monteCarloSize
-
-                            w_sample = sampling( law, t)
-                            next_state = model.dynamics(t, x, u, wsample)
-
-                            if model.constraints(t, x1, u, wsample)
-
-                                count_admissible_w = count_admissible_w + 1
-                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                                next_V = Vitp[ind_next_state...]
-                                current_cost = model.costFunctions(t, x, u, w_sample)
-                                expected_V_u += current_cost + next_V
-
-                            end
-                        end
+                        sampling_size = param.monteCarloSize
+                        samples = [sampling(law,t) for i in 1:sampling_size]
+                        probas = (1/sampling_size)
                     else
-                        for w = 1:law[t].supportSize
+                        sampling_size = law[t].supportSize
+                        samples = law[t].support[:]
+                        probas = law[t].proba
+                    end
 
-                            wsample = law[t].support[w]
-                            proba = law[t].proba[w]
+                    for w = 1:param.samplingSize
+
+                            w_sample = samples[w]
                             next_state = model.dynamics(t, x, u, w_sample)
 
-                            if model.constraints(t, next_state, u, w_sample)
+                            if model.constraints(t, x1, u, w_sample)
 
                                 count_admissible_w = count_admissible_w + proba
                                 ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                                 next_V = Vitp[ind_next_state...]
-                                current_cost = model.costFunctions(t, x, u, wsample)
-                                expected_V_u += proba *(current_cost + next_V)
+                                current_cost = model.costFunctions(t, x, u, w_sample)
+                                expected_V_u += proba*(current_cost + next_V)
 
                             end
-                        end
-
                     end
 
                     if (count>0)
@@ -265,76 +254,51 @@ function sdp_optimize(model::SPModel,
                 current_cost = 0
                 count_admissible_w = 0
 
-                #Loop over uncertainty samples
+                #Tuning expectation computation parameters
                 if (param.expectation_computation=="MonteCarlo")
-                    for w in 1:param.monteCarloSize
-
-                        admissible_u_w_count = 0
-                        best_V_x_w = 0
-                        next_V_x_w = Inf
-                        w_sample = sampling( law, t)
-
-                        #Loop over controls
-                        for u in product_controls
-
-                            next_state = model.dynamics(t, x, u, w_sample)
-
-                            if model.constraints(t, next_state, u, w_sample)
-
-                                if (admissible_u_w_count == 0)
-                                    admissible_u_w_count = 1
-                                end
-
-                                current_cost = model.costFunctions(t, x, u, wsample)
-                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                                next_V_x_w_u = Vitp[ind_next_state...]
-                                next_V_x_w = current_cost + next_V_x_w_u
-
-                                if (next_V_x_w < best_V_x_w)
-                                    best_V_x_w = next_V_x_w
-                                end
-
-                            end
-                        end
-
-                        expected_V += best_V_x_w
-                        count_admissible_w += admissible_u_w_count
-                    end
-
+                    sampling_size = param.monteCarloSize
+                    samples = [sampling(law,t) for i in 1:sampling_size]
+                    probas = (1/sampling_size)
                 else
-                    for w in 1:law[t].supportSize
+                    sampling_size = law[t].supportSize
+                    samples = law[t].support[:]
+                    probas = law[t].proba
+                end
 
-                        admissible_u_w_count = 0
-                        best_V_x_w = 0
-                        next_V_x_w = Inf
-                        w_sample = law[t].support[:,w]
-                        proba = law[t].proba[w]
+                #Compute expectation
+                for w in 1:sampling_size
 
-                        #Loop over controls
-                        for u in product_controls
+                    admissible_u_w_count = 0
+                    best_V_x_w = 0
+                    next_V_x_w = Inf
+                    w_sample = samples[w]
+                    proba = probas[w]
 
-                            next_state = model.dynamics(t, x, u, w_sample)
+                    #Loop over controls to find best next value function
+                    for u in product_controls
 
-                            if model.constraints(t, next_state, u, w_sample)
+                        next_state = model.dynamics(t, x, u, w_sample)
 
-                                if (admissible_u_w_count == 0)
-                                    admissible_u_w_count = 1
-                                end
+                        if model.constraints(t, next_state, u, w_sample)
 
-                                current_cost = model.costFunctions(t, x, u, w_sample)
-                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                                next_V_x_w_u = Vitp[ind_next_state...]
-                                next_V_x_w = current_cost + next_V_x_w_u
-
-                                if (next_V_x_w < best_V_x_w)
-                                    best_V_x_w = next_V_x_w
-                                end
-
+                            if (admissible_u_w_count == 0)
+                                admissible_u_w_count = 1
                             end
+
+                            current_cost = model.costFunctions(t, x, u, wsample)
+                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                            next_V_x_w_u = Vitp[ind_next_state...]
+                            next_V_x_w = current_cost + next_V_x_w_u
+
+                            if (next_V_x_w < best_V_x_w)
+                                best_V_x_w = next_V_x_w
+                            end
+
                         end
-                        expected_V += proba * best_V_x_w
-                        count_admissible_w += admissible_u_w_count*proba
                     end
+
+                    expected_V += proba*best_V_x_w
+                    count_admissible_w += admissible_u_w_count*proba
                 end
 
                 if (count_admissible_w>0)
@@ -428,34 +392,29 @@ function sdp_forward_simulation(model::SPModel,
 
                 count_admissible_w = 0.
                 current_V = 0.
+
                 if (param.expectation_computation=="MonteCarlo")
-                    for w = 1:param.monteCarloSize
-
-                        w_sample = sampling( law, t)
-
-                        next_state = model.dynamics(t, x, u, w_sample)
-
-                        if model.constraints(t, x1, u, scenario[t])
-                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                            next_V = Vitp[ind_next_state...]
-                            current_V += model.costFunctions(t, x, u, scenario[t]) + next_V
-                            count_admissible_w = count_admissible_w +1.
-                        end
-                    end
+                    sampling_size = param.monteCarloSize
+                    samples = [sampling(law,t) for i in 1:sampling_size]
+                    probas = (1/sampling_size)
                 else
-                    for w = 1:law[t].supportSize
+                    sampling_size = law[t].supportSize
+                    samples = law[t].support[:]
+                    probas = law[t].proba
+                end
 
-                        w_sample = law[t].support[w]
-                        proba = law[t].proba[w]
+                for w = 1:sampling_size
 
-                        next_state = model.dynamics(t, x, u, w_sample)
+                    w_sample = samples[w]
+                    proba = probas[w]
 
-                        if model.constraints(t, x1, u, scenario[t])
-                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                            next_V = Vitp[ind_next_state...]
-                            current_V += proba *(model.costFunctions(t, x, u, scenario[t]) + next_V)
-                            count_admissible_w = count_admissible_w + proba
-                        end
+                    next_state = model.dynamics(t, x, u, w_sample)
+
+                    if model.constraints(t, x1, u, scenario[t])
+                        ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                        next_V = Vitp[ind_next_state...]
+                        current_V += proba *(model.costFunctions(t, x, u, scenario[t]) + next_V)
+                        count_admissible_w = count_admissible_w + proba
                     end
                 end
                 current_V = current_V/count_admissible_w
