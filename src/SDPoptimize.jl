@@ -35,13 +35,8 @@ Returns :
 function index_from_variable( variable,
                     bounds::Array,
                     variable_steps::Array)
-    index = tuple();
 
-    for i = 1:length(variable)
-        index = tuple(index..., floor(Int64, 1 + fld(1e-10+( variable[i] - bounds[i][1] ), variable_steps[i] )))
-    end
-
-    return index
+    return tuple([floor(Int64, 1 + fld(1e-10+( variable[i] - bounds[i][1] ), variable_steps[i] )) for i in 1:length(variable)]...)
 end
 
 """
@@ -68,13 +63,8 @@ Returns :
 function real_index_from_variable( variable,
                     bounds::Array,
                     variable_steps::Array)
-    index = tuple();
 
-    for i = 1:length(variable)
-        index = tuple(index..., 1 + (( variable[i] - bounds[i][1] )/variable_steps[i] ))
-    end
-
-    return index
+    return tuple([1 + ( variable[i] - bounds[i][1] )/variable_steps[i] for i in 1:length(variable)]...)
 end
 
 """
@@ -97,12 +87,8 @@ Returns :
 function value_function_interpolation( model::SPModel,
                                     V::Array,
                                     time::Int)
-    columns = Array{Colon}(model.dimStates)
-    for i in 1:model.dimStates
-        columns[i] = Colon()
-    end
 
-    return interpolate(V[columns...,time], BSpline(Linear()), OnGrid())
+    return interpolate(V[[Colon() for i in 1:model.dimStates]...,time], BSpline(Linear()), OnGrid())
 end
 
 """
@@ -168,15 +154,12 @@ function sdp_optimize(model::SPModel,
                   display=true::Bool)
 
     TF = model.stageNumber
-    x = zeros(Float64, model.dimStates)
-    x1 = zeros(Float64, model.dimStates)
+    next_state = zeros(Float64, model.dimStates)
     law = model.noises
 
     u_bounds = model.ulim
     x_bounds = model.xlim
     x_steps = param.stateSteps
-
-    count_iteration = 1
 
     #Compute cartesian product spaces
     product_states, product_controls = generate_grid(model, param)
@@ -185,25 +168,22 @@ function sdp_optimize(model::SPModel,
 
     #Compute final value functions
     for x in product_states
-        indx = index_from_variable(x, x_bounds, x_steps)
-        V[indx..., TF] = model.finalCostFunction(x)
+        ind_x = index_from_variable(x, x_bounds, x_steps)
+        V[ind_x..., TF] = model.finalCostFunction(x)
     end
 
     #Construct a progress meter
     p = Progress((TF-1)*param.totalStateSpaceSize, 1)
 
     #Display start of the algorithm in DH and HD cases
-    #Define the loops order in sdp
     if (param.infoStructure == "DH")
         if display
-            println("Starting stochastic dynamic programming
-                    decision hazard computation")
+            println("Starting stochastic dynamic programming decision hazard computation")
         end
 
         #Loop over time
         for t = (TF-1):-1:1
-            count_iteration = count_iteration + 1
-            Vtp1 = value_function_interpolation(model, V, t+1)
+            Vitp = value_function_interpolation(model, V, t+1)
 
             #Loop over states
             for x in product_states
@@ -212,62 +192,79 @@ function sdp_optimize(model::SPModel,
                     next!(p)
                 end
 
-                v = Inf
-                v1 = 0
-                u1 = tuple()
-                Lv = 0
+                expected_V = Inf
+                optimal_u = tuple()
+                current_cost = 0
 
                 #Loop over controls
                 for u = product_controls
 
-                    v1 = 0
-                    count = 0
+                    expected_V_u = 0
+                    count_admissible_w = 0
 
                     #Loop over uncertainty samples
-                    for w = 1:param.monteCarloSize
+                    if (param.expectation_computation=="MonteCarlo")
+                        for w = 1:param.monteCarloSize
 
-                        wsample = sampling( law, t)
-                        x1 = model.dynamics(t, x, u, wsample)
+                            w_sample = sampling( law, t)
+                            next_state = model.dynamics(t, x, u, wsample)
 
-                        if model.constraints(t, x1, u, wsample)
+                            if model.constraints(t, x1, u, wsample)
 
-                            count = count + 1
-                            indx1 = real_index_from_variable(x1, x_bounds, x_steps)
-                            itV = Vtp1[indx1...]
-                            Lv = model.costFunctions(t, x, u, wsample)
-                            v1 += Lv + itV
+                                count_admissible_w = count_admissible_w + 1
+                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                                next_V = Vitp[ind_next_state...]
+                                current_cost = model.costFunctions(t, x, u, w_sample)
+                                expected_V_u += current_cost + next_V
 
+                            end
                         end
+                    else
+                        for w = 1:law[t].supportSize
+
+                            wsample = law[t].support[w]
+                            proba = law[t].proba[w]
+                            next_state = model.dynamics(t, x, u, w_sample)
+
+                            if model.constraints(t, next_state, u, w_sample)
+
+                                count_admissible_w = count_admissible_w + proba
+                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                                next_V = Vitp[ind_next_state...]
+                                current_cost = model.costFunctions(t, x, u, wsample)
+                                expected_V_u += proba *(current_cost + next_V)
+
+                            end
+                        end
+
                     end
 
                     if (count>0)
 
-                        v1 = v1 / count
+                        next_V = next_V / count_admissible_w
 
-                        if (v1 < v)
+                        if (expected_V_u < expected_V)
 
-                            v = v1
-                            u1 = u
+                            expected_V = expected_V_u
+                            optimal_u = u
 
                         end
                     end
                 end
-                indx = index_from_variable(x, x_bounds, x_steps)
+                ind_x = index_from_variable(x, x_bounds, x_steps)
 
-                V[indx..., t] = v
+                V[ind_x..., t] = expected_V
             end
         end
 
     else
         if display
-            println("Starting stochastic dynamic programming
-                    hazard decision computation")
+            println("Starting stochastic dynamic programming hazard decision computation")
         end
 
         #Loop over time
         for t = (TF-1):-1:1
-            count_iteration = count_iteration + 1
-            Vtp1 = value_function_interpolation(model, V, t+1)
+            Vitp = value_function_interpolation(model, V, t+1)
 
             #Loop over states
             for x in product_states
@@ -276,50 +273,87 @@ function sdp_optimize(model::SPModel,
                     next!(p)
                 end
 
-                v     = 0
-                Lv    = 0
+                expected_V = 0
+                current_cost = 0
+                count_admissible_w = 0
 
-                count = 0
                 #Loop over uncertainty samples
-                for w in 1:param.monteCarloSize
+                if (param.expectation_computation=="MonteCarlo")
+                    for w in 1:param.monteCarloSize
 
-                    admissible_u_w_count = 0
-                    v_x_w = 0
-                    v_x_w1 = Inf
-                    wsample = sampling( law, t)
+                        admissible_u_w_count = 0
+                        best_V_x_w = 0
+                        next_V_x_w = Inf
+                        w_sample = sampling( law, t)
 
-                    #Loop over controls
-                    for u in product_controls
+                        #Loop over controls
+                        for u in product_controls
 
-                        x1 = model.dynamics(t, x, u, wsample)
+                            next_state = model.dynamics(t, x, u, w_sample)
 
-                        if model.constraints(t, x1, u, wsample)
+                            if model.constraints(t, next_state, u, w_sample)
 
-                            if (admissible_u_w_count == 0)
-                                admissible_u_w_count = 1
+                                if (admissible_u_w_count == 0)
+                                    admissible_u_w_count = 1
+                                end
+
+                                current_cost = model.costFunctions(t, x, u, wsample)
+                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                                next_V_x_w_u = Vitp[ind_next_state...]
+                                next_V_x_w = current_cost + next_V_x_w_u
+
+                                if (next_V_x_w < best_V_x_w)
+                                    best_V_x_w = next_V_x_w
+                                end
+
                             end
-
-                            Lv = model.costFunctions(t, x, u, wsample)
-                            indx1 = real_index_from_variable(x1, x_bounds, x_steps)
-                            itV = Vtp1[indx1...]
-                            v_x_w1 = Lv + itV
-
-                            if (v_x_w1 < v_x_w)
-                                v_x_w = v_x_w1
-                            end
-
                         end
+
+                        expected_V += best_V_x_w
+                        count_admissible_w += admissible_u_w_count
                     end
 
-                    v = v + v_x_w
-                    count += 1
+                else
+                    for w in 1:law[t].supportSize
+
+                        admissible_u_w_count = 0
+                        best_V_x_w = 0
+                        next_V_x_w = Inf
+                        w_sample = law[t].support[:,w]
+                        proba = law[t].proba[w]
+
+                        #Loop over controls
+                        for u in product_controls
+
+                            next_state = model.dynamics(t, x, u, w_sample)
+
+                            if model.constraints(t, next_state, u, w_sample)
+
+                                if (admissible_u_w_count == 0)
+                                    admissible_u_w_count = 1
+                                end
+
+                                current_cost = model.costFunctions(t, x, u, w_sample)
+                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                                next_V_x_w_u = Vitp[ind_next_state...]
+                                next_V_x_w = current_cost + next_V_x_w_u
+
+                                if (next_V_x_w < best_V_x_w)
+                                    best_V_x_w = next_V_x_w
+                                end
+
+                            end
+                        end
+                        expected_V += proba * best_V_x_w
+                        count_admissible_w += admissible_u_w_count*proba
+                    end
                 end
 
-                if (count>0)
-                    v = v / count
+                if (count_admissible_w>0)
+                    expected_V = expected_V / count_admissible_w
                 end
-                indx = index_from_variable(x, x_bounds, x_steps)
-                V[indx..., t] = v
+                ind_x = index_from_variable(x, x_bounds, x_steps)
+                V[ind_x..., t] = expected_V
             end
         end
     end
@@ -382,14 +416,16 @@ function sdp_forward_simulation(model::SPModel,
     controls = Inf*ones(TF-1, 1, model.dimControls)
     states = Inf*ones(TF, 1, model.dimStates)
 
-    inc = 0
+    state_num = 0
     for xj in X0
-        inc = inc + 1
-        states[1, 1, inc] = xj
+        state_num += 1
+        states[1, 1, state_num] = xj
     end
 
     J = 0
-    xRef = X0
+    best_state = X0
+
+    best_control = tuple()
 
     if (param.infoStructure == "DH")
         #Decision hazard forward simulation
@@ -397,53 +433,64 @@ function sdp_forward_simulation(model::SPModel,
 
             x = states[t,1,:]
 
-            uRef = tuple()
-
-            LvRef = Inf
-            Vtp1 = value_function_interpolation(model, value, t+1)
+            best_V = Inf
+            Vitp = value_function_interpolation(model, value, t+1)
 
             for u in product_controls
 
-                countW = 0.
-                Lv = 0.
-                for w = 1:param.monteCarloSize
+                count_admissible_w = 0.
+                current_V = 0.
+                if (param.expectation_computation=="MonteCarlo")
+                    for w = 1:param.monteCarloSize
 
-                    wsample = sampling( law, t)
+                        w_sample = sampling( law, t)
 
-                    x1 = model.dynamics(t, x, u, wsample)
+                        next_state = model.dynamics(t, x, u, w_sample)
 
-                    if model.constraints(t, x1, u, scenario[t])
-                        indx1 = real_index_from_variable(x1, x_bounds, x_steps)
-                        itV = Vtp1[indx1...]
-                        Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + itV
-                        countW = countW +1.
+                        if model.constraints(t, x1, u, scenario[t])
+                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                            next_V = Vitp[ind_next_state...]
+                            current_V += model.costFunctions(t, x, u, scenario[t]) + next_V
+                            count_admissible_w = count_admissible_w +1.
+                        end
+                    end
+                else
+                    for w = 1:law[t].supportSize
+
+                        w_sample = law[t].support[w]
+                        proba = law[t].proba[w]
+
+                        next_state = model.dynamics(t, x, u, w_sample)
+
+                        if model.constraints(t, x1, u, scenario[t])
+                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                            next_V = Vitp[ind_next_state...]
+                            current_V += proba *(model.costFunctions(t, x, u, scenario[t]) + next_V)
+                            count_admissible_w = count_admissible_w + proba
+                        end
                     end
                 end
-                Lv = Lv/countW
-                if (Lv < LvRef)&(countW>0)
-                    uRef = u
-                    xRef = model.dynamics(t, x, u, scenario[t,1,:])
-                    LvRef = Lv
+                current_V = current_V/count_admissible_w
+                if (current_V < best_V)&(count_admissible_w>0)
+                    best_control = u
+                    best_state = model.dynamics(t, x, u, scenario[t,1,:])
+                    best_V = current_V
                 end
             end
 
-            inc = 0
-
-            for uj in uRef
-                inc = inc +1
-                controls[t,1,inc] = uj
+            index_control = 0
+            for uj in best_control
+                index_control += 1
+                controls[t,1,index_control] = uj
             end
 
-            inc = 0
-            for xj in xRef
-                inc = inc +1
-                states[t+1,1,inc] = xj
+            index_state = 0
+            for xj in best_state
+                index_state = index_state +1
+                states[t+1,1,index_state] = xj
             end
-
-            J = J + model.costFunctions(t, x, uRef, scenario[t,1,:])
-
+            J += model.costFunctions(t, x, best_control, scenario[t,1,:])
         end
-
 
     else
         #Hazard desision forward simulation
@@ -451,45 +498,38 @@ function sdp_forward_simulation(model::SPModel,
 
             x = states[t,1,:]
 
-            Vtp1 = value_function_interpolation(model, value, t+1)
+            Vitp = value_function_interpolation(model, value, t+1)
 
-            uRef = tuple()
-
-            xRef = tuple()
-            LvRef = Inf
+            best_V = Inf
 
             for u = product_controls
 
-                x1 = model.dynamics(t, x, u, scenario[t,1,:])
+                next_state = model.dynamics(t, x, u, scenario[t,1,:])
 
-                if model.constraints(t, x1, u, scenario[t])
-                    indx1 = real_index_from_variable(x1, x_bounds, x_steps)
-                    itV = Vtp1[indx1...]
-                    Lv = model.costFunctions(t, x, u, scenario[t,1,:]) + itV
-                    if (Lv < LvRef)
-                        uRef = u
-                        xRef = model.dynamics(t, x, u, scenario[t,1,:])
-                        LvRef = Lv
+                if model.constraints(t, next_state, u, scenario[t])
+                    ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                    next_V = Vitp[ind_next_state...]
+                    current_V = model.costFunctions(t, x, u, scenario[t,1,:]) + next_V
+                    if (current_V < best_V)
+                        best_control = u
+                        best_state = model.dynamics(t, x, u, scenario[t,1,:])
+                        best_V = current_V
                     end
                 end
 
             end
-
-            inc = 0
-
-            for uj in uRef
-                inc = inc +1
-                controls[t,1,inc] = uj
+            index_control = 0
+            for uj in best_control
+                index_control += 1
+                controls[t,1,index_control] = uj
             end
 
-            inc = 0
-            for xj in xRef
-                inc = inc +1
-                states[t+1,1,inc] = xj
+            index_state = 0
+            for xj in best_state
+                index_state = index_state +1
+                states[t+1,1,index_state] = xj
             end
-
-            J = J + model.costFunctions(t, x, uRef, scenario[t])
-
+            J += model.costFunctions(t, x, best_control, scenario[t,1,:])
         end
     end
 

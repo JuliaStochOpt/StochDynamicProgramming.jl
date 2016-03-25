@@ -166,8 +166,9 @@ type SDPparameters
     controlVariablesSizes
     monteCarloSize
     infoStructure
+    expectation_computation
 
-    function SDPparameters(model, stateSteps, controlSteps, monteCarloSize, infoStruct)
+    function SDPparameters(model, stateSteps, controlSteps, infoStruct, expectation_computation = "Exact" ,monteCarloSize = 1000)
 
         stateVariablesSizes = zeros(Int64, length(stateSteps))
         controlVariablesSizes = zeros(Int64, length(controlSteps))
@@ -185,8 +186,9 @@ type SDPparameters
 
         return new(stateSteps, controlSteps, totalStateSpaceSize,
                     totalControlSpaceSize, stateVariablesSizes,
-                    controlVariablesSizes, monteCarloSize, infoStruct)
+                    controlVariablesSizes, monteCarloSize, infoStruct, expectation_computation)
     end
+
 end
 
 function set_max_iterations(param::SDDPparameters, n_iter::Int)

@@ -388,8 +388,9 @@ facts("SDP algorithm") do
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
                                                      controlSteps,
-                                                     monteCarloSize,
-                                                     infoStruct);
+                                                     infoStruct,
+                                                     "Exact",
+                                                     monteCarloSize);
 
     context("Compare StochDynProgModel constructors") do
 
