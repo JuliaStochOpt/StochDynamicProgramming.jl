@@ -13,149 +13,86 @@ using Iterators
 using Interpolations
 
 """
-Convert the state and control tuples (stored as arrays) of the problem into integers
+Convert the state and control float tuples (stored as arrays or tuples) of the
+problem into integer tuples that can be used as indexes for the value function
 
 Parameters:
 - variable (Array)
     the vector variable we want to convert to an index (integer)
 
-- lower_bounds (Array)
+- bounds (Array)
     the lower bounds for each component of the variable
-
-- variable_sizes (Array)
-    the number of possibilities at each component knowing the upper and lower bounds
-    and the discretizations
 
 - variable_steps (Array)
     discretization step for each component
 
 
 Returns :
-- index (integer)
-    the index of the variable for the problem knowing the upper and lower bounds
-    as well as the discretization
+- index (tuple of integers)
+    the indexes of the variable
 
 """
-function index_from_variable( variable::Tuple,
+function index_from_variable( variable,
                     bounds::Array,
                     variable_steps::Array)
     index = tuple();
 
     for i = 1:length(variable)
-        index = tuple(index..., 1 + (floor( Int, 1e-10 + ( variable[i] - bounds[i][1] ) / variable_steps[i] )))
+        index = tuple(index..., floor(Int64, 1 + fld(1e-10+( variable[i] - bounds[i][1] ), variable_steps[i] )))
     end
 
     return index
 end
 
-
 """
-Compute nearest neighbor of a continuous variable in the discrete variable space
+Convert the state and control float tuples (stored as arrays or tuples) of the
+problem into float tuples that can be used as indexes for the interpolated
+value function
 
 Parameters:
 - variable (Array)
-    the vector variable we want to compute the nearest neighbor index (integer)
+    the vector variable we want to convert to an index (integer)
 
-- lower_bounds (Array)
+- bounds (Array)
     the lower bounds for each component of the variable
-
-- variable_sizes (Array)
-    the number of possibilities at each component knowing the upper and lower bounds
-    and the discretizations
 
 - variable_steps (Array)
     discretization step for each component
 
 
 Returns :
-- index_of_nearest_neighbor (integer)
-    the index of the nearest neighbor in the grid of the variable
-    for the problem knowing the upper and lower bounds
-    as well as the discretization
+- index (tuple of integers)
+    the indexes of the variable
+
 """
-function nearest_neighbor( variable::Tuple,
-                    variable_bounds::Array,
+function real_index_from_variable( variable,
+                    bounds::Array,
                     variable_steps::Array)
+    index = tuple();
 
-    n = length(variable)
-
-    tab = Array{Array{Float64}}(n)
-
-    for i in 1:n
-    bounds = variable_bounds[i]
-    ui = floor(Int64, 1e-10+(variable[i]-(bounds[1]))/variable_steps[i])
-        xi = (bounds[1]) + ui*variable_steps[i]
-    if ((xi+variable_steps[i])<=bounds[2])
-           tab[i] = [xi;(xi+variable_steps[i])]
-    else
-       tab[i] = [xi]
-        end
+    for i = 1:length(variable)
+        index = tuple(index..., 1 + (( variable[i] - bounds[i][1] )/variable_steps[i] ))
     end
 
-    neighbors = product(tab...)
-
-    dist_ref = Inf
-    ref = tuple()
-
-    for neigh in neighbors
-        dist = norm(collect(neigh)-collect(variable))
-        if (dist<dist_ref)
-            ref = neigh
-        end
-    end
-
-    return ref
-end
-
-
-"""
-Compute barycentre of value function with state neighbors in a discrete
-state space
-"""
-function value_function_barycentre( model::SPModel,
-                                    param::SDPparameters,
-                                    V::Array,
-                                    time::Int,
-                                    variable::Array)
-
-    value_function = 0.
-    neighbors_sum = 0.
-    variable_sizes = param.stateVariablesSizes
-    variable_steps = param.stateSteps
-
-    n = length(variable)
-
-    tab = Array{Array{Float64}}(n)
-
-    for i in 1:n
-    bounds = model.xlim[i]
-    ui = floor(Int64, 1e-10+(variable[i]-(bounds[1]))/variable_steps[i])
-        xi = (bounds[1]) + ui*variable_steps[i]
-    if ((xi+variable_steps[i])<=bounds[2])
-           tab[i] = [xi;(xi+variable_steps[i])]
-    else
-       tab[i] = [xi]
-        end
-    end
-
-    neighbors = product(tab...)
-
-    sum_dist = 0.
-
-    for nn0 in neighbors
-        dist = norm(collect(variable)-collect(nn0))
-        inn0 = index_from_variable(nn0,model.xlim, variable_steps)
-        value_function += dist*V[inn0...,time]
-        neighbors_sum += V[ inn0...,time]
-        sum_dist += dist
-    end
-
-    return (neighbors_sum-(value_function/sum_dist))/length(neighbors)
+    return index
 end
 
 """
-Compute barycentre of value function with state neighbors in a discrete
-state space
+Compute interpolation of the value function at time t
+
+Parameters:
+- model (SPmodel)
+
+- v (Array)
+    the value function to interpolate
+
+- time (Int)
+    time at which we have to interpolate V
+
+
+Returns :
+- Interpolation
+    the interpolated value function (working as an array with float indexes)
 """
 function value_function_interpolation( model::SPModel,
                                     V::Array,
@@ -166,6 +103,43 @@ function value_function_interpolation( model::SPModel,
     end
 
     return interpolate(V[columns...,time], BSpline(Linear()), OnGrid())
+end
+
+"""
+Compute interpolation of the value function at time t
+
+Parameters:
+- model (SPmodel)
+    the model of the problem
+
+- param (SDPparameters)
+    the parameters of the problem
+
+
+Returns :
+- Iterators : product_states and product_controls
+    the cartesian product iterators for both states and controls
+"""
+function generate_grid(model::SPModel, param::SDPparameters)
+
+    tab_states = Array{FloatRange}(model.dimStates)
+    tab_controls = Array{FloatRange}(model.dimControls)
+
+
+    for i = 1:model.dimStates
+        tab_states[i] = model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2]
+    end
+
+    for i = 1:model.dimControls
+        tab_controls[i] = model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2]
+    end
+
+    product_states = product(tab_states...)
+
+    product_controls = product(tab_controls...)
+
+    return product_states, product_controls
+
 end
 
 """
@@ -205,26 +179,11 @@ function sdp_optimize(model::SPModel,
     count_iteration = 1
 
     #Compute cartesian product spaces
-
-    tab_states = Array{FloatRange}(model.dimStates)
-    tab_controls = Array{FloatRange}(model.dimControls)
-
-
-    for i = 1:model.dimStates
-        tab_states[i] = x_bounds[i][1]:param.stateSteps[i]:x_bounds[i][2]
-    end
-
-    for i = 1:model.dimControls
-        tab_controls[i] = u_bounds[i][1]:param.controlSteps[i]:u_bounds[i][2]
-    end
-
-    product_states = product(tab_states...)
-
-    product_controls = product(tab_controls...)
+    product_states, product_controls = generate_grid(model, param)
 
     V = zeros(Float64, param.stateVariablesSizes..., TF)
-    #Compute final value functions
 
+    #Compute final value functions
     for x in product_states
         indx = index_from_variable(x, x_bounds, x_steps)
         V[indx..., TF] = model.finalCostFunction(x)
@@ -273,7 +232,8 @@ function sdp_optimize(model::SPModel,
                         if model.constraints(t, x1, u, wsample)
 
                             count = count + 1
-                            itV = Vtp1[x1...]
+                            indx1 = real_index_from_variable(x1, x_bounds, x_steps)
+                            itV = Vtp1[indx1...]
                             Lv = model.costFunctions(t, x, u, wsample)
                             v1 += Lv + itV
 
@@ -292,7 +252,7 @@ function sdp_optimize(model::SPModel,
                         end
                     end
                 end
-                indx = index_from_variable(x, x__bounds, x_steps)
+                indx = index_from_variable(x, x_bounds, x_steps)
 
                 V[indx..., t] = v
             end
@@ -340,7 +300,8 @@ function sdp_optimize(model::SPModel,
                             end
 
                             Lv = model.costFunctions(t, x, u, wsample)
-                            itV = Vtp1[x1...]
+                            indx1 = real_index_from_variable(x1, x_bounds, x_steps)
+                            itV = Vtp1[indx1...]
                             v_x_w1 = Lv + itV
 
                             if (v_x_w1 < v_x_w)
@@ -413,27 +374,10 @@ function sdp_forward_simulation(model::SPModel,
     law = model.noises
     u_bounds = model.ulim
     x_bounds = model.xlim
+    x_steps = param.stateSteps
 
-
-    product_states = x_bounds[1][1]:param.stateSteps[1]:x_bounds[1][2]
-    product_controls = u_bounds[1][1]:param.controlSteps[1]:u_bounds[1][2]
-
-    tab_states = Array{FloatRange}(model.dimStates)
-    tab_controls = Array{FloatRange}(model.dimControls)
-
-
-    for i = 1:model.dimStates
-        tab_states[i] = x_bounds[i][1]:param.stateSteps[i]:x_bounds[i][2]
-    end
-
-    for i = 1:model.dimControls
-        tab_controls[i] = u_bounds[i][1]:param.controlSteps[i]:u_bounds[i][2]
-    end
-
-    product_states = product(tab_states...)
-
-    product_controls = product(tab_controls...)
-
+    #Compute cartesian product spaces
+    product_states, product_controls = generate_grid(model, param)
 
     controls = Inf*ones(TF-1, 1, model.dimControls)
     states = Inf*ones(TF, 1, model.dimStates)
@@ -469,7 +413,8 @@ function sdp_forward_simulation(model::SPModel,
                     x1 = model.dynamics(t, x, u, wsample)
 
                     if model.constraints(t, x1, u, scenario[t])
-                        itV = Vtp1[x1...]
+                        indx1 = real_index_from_variable(x1, x_bounds, x_steps)
+                        itV = Vtp1[indx1...]
                         Lv = Lv + model.costFunctions(t, x, u, scenario[t]) + itV
                         countW = countW +1.
                     end
@@ -518,7 +463,8 @@ function sdp_forward_simulation(model::SPModel,
                 x1 = model.dynamics(t, x, u, scenario[t,1,:])
 
                 if model.constraints(t, x1, u, scenario[t])
-                    itV = Vtp1[x1...]
+                    indx1 = real_index_from_variable(x1, x_bounds, x_steps)
+                    itV = Vtp1[indx1...]
                     Lv = model.costFunctions(t, x, u, scenario[t,1,:]) + itV
                     if (Lv < LvRef)
                         uRef = u

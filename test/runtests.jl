@@ -265,21 +265,19 @@ end
 
 facts("Indexation and interpolation for SDP") do
 
-    var = [0.4, 3.7, 1.9]
     bounds = [(0.1,10.0), (1.2, 4.0), (0.5, 2.0)]
     steps = [0.1, 0.05, 0.01]
-
+    var = [0.4, 3.7, 1.9]
     vart = [0.42, 3.78, 1.932]
-    vart2 = [10.0, 3.78, 1.932]
 
-    ind = StochDynamicProgramming.index_from_variable(tuple(var...), bounds, steps)
+    ind = StochDynamicProgramming.index_from_variable(var, bounds, steps)
+    ind2 = StochDynamicProgramming.real_index_from_variable(vart, bounds, steps)
 
-    nn = StochDynamicProgramming.nearest_neighbor(tuple(vart...) , bounds, steps)
-    nn2 = StochDynamicProgramming.nearest_neighbor(tuple(vart2...) , bounds, steps)
 
     @fact ind --> (4,51,141)
-    @fact nn --> (0.5,3.8,1.94)
-    @fact nn2 --> (10.0,3.8,1.94)
+    @fact ind2[1] --> roughly(4.2)
+    @fact ind2[2] --> roughly(52.6)
+    @fact ind2[3] --> roughly(144.2)
 
 
 end
@@ -440,21 +438,6 @@ facts("SDP algorithm") do
         state_ref[1] = stocks_sdp[2,1,1]
         state_ref[2] = stocks_sdp[2,1,2]
 
-        state_neighbor = StochDynamicProgramming.nearest_neighbor(tuple(state_ref...),
-                                                            x_bounds,
-                                                            stateSteps)
-
-        value_bar_ref = StochDynamicProgramming.value_function_barycentre(modelSDP,
-                                                                paramsSDP,
-                                                                V_sdp,
-                                                                2,
-                                                                state_ref)
-
-        value_bar_neighbor = V_sdp[StochDynamicProgramming.index_from_variable(state_neighbor, x_bounds, stateSteps)...,2]
-
-
-        #Check that the first value function is increasing w.r.t the first state
-        @fact ((state_ref[1]<=state_neighbor[1])==(value_bar_ref<=value_bar_neighbor)) --> true
     end
 
 end
