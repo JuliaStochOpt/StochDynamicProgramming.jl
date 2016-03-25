@@ -1,15 +1,26 @@
-srand(2713)
-push!(LOAD_PATH, "../src")
-# include("../src/objects.jl")
-# include("../src/SDPoptimize.jl")
+#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#############################################################################
+# Compare different ways of solving a stock problem
+#############################################################################
 
+push!(LOAD_PATH, "../src")
 using StochDynamicProgramming, JuMP, Clp, Distributions
 
+######## Optimization parameters  ########
+# choose the LP solver used. 
 const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+# const SOLVER = GurobiSolver()
 
+# Stopping test parameters
 const EPSILON = .05
 const MAX_ITER = 20
+
+
+######## Stochastic problem parameters  ########
 
 # Define number of stages and scenarios:
 const N_STAGES = 3
@@ -19,7 +30,7 @@ const N_SCENARIOS = 10
 const TF = N_STAGES-1
 
 # Randomnly generate a cost scenario fixed for the whole problem:
-const COST = [-12, -200, -67]
+const COST = -rand(N_STAGES)
 
 # Define bounds for states and controls:
 const VOLUME_MAX = 50
@@ -81,7 +92,7 @@ function constraints(t, x1, u, w)
 end
 
 
-"""Solve the problem with a solver, supposing the aleas are known
+"""Solve the optimization problem assuming the aleas are known
 in advance."""
 function solve_determinist_problem()
     m = Model(solver=SOLVER)

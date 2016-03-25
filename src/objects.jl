@@ -142,16 +142,16 @@ type StochDynProgModel <: SPModel
 end
 
 type SDDPparameters
-    # Solver to solve
+    # Solver used to solve LP
     solver
-    # number of simulated scenario in the forward pass
+    # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # Admissible gap between the estimation of the upper-bound
     sensibility::Float64
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
 
-    function SDDPparameters(solver, passnumber, sensibility=0.01, max_iterations=20)
+    function SDDPparameters(solver, passnumber=10, sensibility=0., max_iterations=20)
         return new(solver, passnumber, sensibility, max_iterations)
     end
 end
