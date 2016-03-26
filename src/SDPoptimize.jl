@@ -161,7 +161,9 @@ function sdp_optimize(model::SPModel,
     end
 
     #Construct a progress meter
-    p = Progress((TF-1)*param.totalStateSpaceSize, 1)
+    if display
+        p = Progress((TF-1)*param.totalStateSpaceSize, 1)
+    end
 
     #Display start of the algorithm in DH and HD cases
     if (param.infoStructure == "DH")
