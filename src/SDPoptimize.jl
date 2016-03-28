@@ -202,7 +202,7 @@ function sdp_optimize(model::SPModel,
                         probas = law[t].proba
                     end
 
-                    for w = 1:param.samplingSize
+                    for w = 1:samplingSize
 
                             w_sample = samples[w]
                             next_state = model.dynamics(t, x, u, w_sample)
