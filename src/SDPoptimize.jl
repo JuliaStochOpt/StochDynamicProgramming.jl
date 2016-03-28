@@ -202,12 +202,13 @@ function sdp_optimize(model::SPModel,
                         probas = law[t].proba
                     end
 
-                    for w = 1:samplingSize
+                    for w = 1:sampling_size
 
                             w_sample = samples[w]
+			    proba = probas[w]
                             next_state = model.dynamics(t, x, u, w_sample)
 
-                            if model.constraints(t, x1, u, w_sample)
+                            if model.constraints(t, next_state, u, w_sample)
 
                                 count_admissible_w = count_admissible_w + proba
                                 ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
@@ -218,7 +219,7 @@ function sdp_optimize(model::SPModel,
                             end
                     end
 
-                    if (count>0)
+                    if (count_admissible_w>0)
 
                         next_V = next_V / count_admissible_w
 
