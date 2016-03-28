@@ -413,7 +413,7 @@ function sdp_forward_simulation(model::SPModel,
 
                     next_state = model.dynamics(t, x, u, w_sample)
 
-                    if model.constraints(t, x1, u, scenario[t])
+                    if model.constraints(t, next_state, u, scenario[t])
                         ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                         next_V = Vitp[ind_next_state...]
                         current_V += proba *(model.costFunctions(t, x, u, scenario[t]) + next_V)
