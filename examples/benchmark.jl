@@ -35,7 +35,7 @@ end
 
 function final_cost(x)
 	return 0.
-end 
+end
 
 
 function constraints(t, x1, u, w)
@@ -169,12 +169,12 @@ function init_problem_sdp_HD(model)
                     u_bounds,
                     x0,
                     cost_t,
-                    final_cost, 
+                    final_cost,
                     dynamic,
                     constraints,
                     aleas)
 
-    params = SDPparameters(model, stateSteps, controlSteps, 
+    params = SDPparameters(model, stateSteps, controlSteps,
                             monteCarloSize, infoStruct)
 
 
@@ -269,17 +269,17 @@ function benchmark_sdp(display=false)
 	N_STAGES = 5
 	TF = N_STAGES
     # Capacity of dams:
-    VOLUME_MAX = 50.
-    VOLUME_MIN = 0
+    VOLUME_MAX = 20.
+    VOLUME_MIN = 0.
 
     # Specify the maximum flow of turbines:
-    CONTROL_MAX = 10
-    CONTROL_MIN = 0
+    CONTROL_MAX = 5.
+    CONTROL_MIN = 0.
 
     # Some statistics about aleas (water inflow):
-    W_MAX = 5
-    W_MIN = 0
-    DW = 1
+    W_MAX = 5.
+    W_MIN = 0.
+    DW = 1.
 
     T0 = 1
 
@@ -305,10 +305,14 @@ function benchmark_sdp(display=false)
     function dynamic(t, x, u, w)
         return [x[1] + u[1] + w[1] - u[2], x[2] - u[1]]
     end
+    function dynamic2(xf, t, x, u, w)
+        xf[1] = x[1] + u[1] + w[1] - u[2]
+        xf[2] = x[2] - u[1]
+    end
 
     # Define cost corresponding to each timestep:
     function cost_t(t, x, u, w)
-        return COST[t] * (u[1])
+        return COST[t] * u[1]
     end
 
     function constraints(t, x, u, w)
@@ -360,33 +364,39 @@ function benchmark_sdp(display=false)
                         N_STATES, N_NOISES,
                         x_bounds, u_bounds,
                         x0, cost_t,
-                        finalCostFunction, dynamic,
+                        finalCostFunction, dynamic2,
                         constraints, aleas);
 
-    stateSteps = [1,1];
-    controlSteps = [1,1];
-    monteCarloSize = 10;
+    stateSteps = [1.,1.];
+    controlSteps = [1.,1.];
+    monteCarloSize = 10.;
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
                                                      controlSteps,
                                                      monteCarloSize,
                                                      infoStruct);
 
-
+    # pre-compilation:
+    # modelSDP.stageNumber = 3
+    # V_sdp = sdp_optimize(modelSDP, paramsSDP,false);
 	print("T*X*U*W :")
 	println(paramsSDP.totalStateSpaceSize*paramsSDP.totalControlSpaceSize)
-	tic()
-	V_sdp = sdp_optimize(modelSDP, paramsSDP,false);
-	time = toq()
-	println("SDP execution time: ", time, " s")
+    # modelSDP.stageNumber = N_STAGES - 1
+    n_benchmark = 20
+    timing = zeros(n_benchmark)
+    for n in 1:n_benchmark
+        tic()
+        V_sdp = sdp_optimize(modelSDP, paramsSDP,false);
+        timing[n] = toq()
+    end
+    @show timing
+	println("SDP execution time: ", mean(timing[2:end]), " s +/-", 3.std(timing[2:end]))
 
 end
 
-# SDDP benchmark: 
+# SDDP benchmark:
 if ARGS[1] == "SDDP"
 	benchmark_sddp()
 elseif ARGS[1] == "DP"
 	benchmark_sdp()
 end
-
-
