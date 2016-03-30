@@ -189,7 +189,7 @@ function sdp_optimize(model::SPModel,
                 #Loop over controls
                 for u = product_controls
 
-                    expected_V_u = 0
+                    expected_V_u = 0.
                     count_admissible_w = 0
 
                     if (param.expectation_computation=="MonteCarlo")
@@ -205,7 +205,7 @@ function sdp_optimize(model::SPModel,
                     for w = 1:sampling_size
 
                             w_sample = samples[w]
-			    proba = probas[w]
+			                proba = probas[w]
                             next_state = model.dynamics(t, x, u, w_sample)
 
                             if model.constraints(t, next_state, u, w_sample)
@@ -242,6 +242,7 @@ function sdp_optimize(model::SPModel,
             println("Starting stochastic dynamic programming hazard decision computation")
         end
 
+        next_state = zeros(model.dimStates)
         #Loop over time
         for t = (TF-1):-1:1
             Vitp = value_function_interpolation(model, V, t+1)
@@ -253,9 +254,9 @@ function sdp_optimize(model::SPModel,
                     next!(p)
                 end
 
-                expected_V = 0
-                current_cost = 0
-                count_admissible_w = 0
+                expected_V = 0.
+                current_cost = 0.
+                count_admissible_w = 0.
 
                 #Tuning expectation computation parameters
                 if (param.expectation_computation=="MonteCarlo")
@@ -264,31 +265,26 @@ function sdp_optimize(model::SPModel,
                     probas = (1/sampling_size)
                 else
                     sampling_size = law[t].supportSize
-                    samples = law[t].support[:]
+                    samples = law[t].support
                     probas = law[t].proba
                 end
 
                 #Compute expectation
                 for w in 1:sampling_size
-
-                    admissible_u_w_count = 0
-                    best_V_x_w = 0
+                    admissible_u_w_count = 1
+                    best_V_x_w = 0.
                     next_V_x_w = Inf
-                    w_sample = samples[w]
+                    w_sample = samples[:, w]
                     proba = probas[w]
 
                     #Loop over controls to find best next value function
                     for u in product_controls
 
-                        next_state = model.dynamics(t, x, u, w_sample)
+                        model.dynamics(next_state, t, x, u, w_sample)
 
                         if model.constraints(t, next_state, u, w_sample)
 
-                            if (admissible_u_w_count == 0)
-                                admissible_u_w_count = 1
-                            end
-
-                            current_cost = model.costFunctions(t, x, u, wsample)
+                            current_cost = model.costFunctions(t, x, u, w_sample)
                             ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                             next_V_x_w_u = Vitp[ind_next_state...]
                             next_V_x_w = current_cost + next_V_x_w_u
@@ -297,6 +293,8 @@ function sdp_optimize(model::SPModel,
                                 best_V_x_w = next_V_x_w
                             end
 
+                        else
+                            admissible_u_w_count = 0
                         end
                     end
 
@@ -304,7 +302,7 @@ function sdp_optimize(model::SPModel,
                     count_admissible_w += admissible_u_w_count*proba
                 end
 
-                if (count_admissible_w>0)
+                if (count_admissible_w>0.)
                     expected_V = expected_V / count_admissible_w
                 end
                 ind_x = index_from_variable(x, x_bounds, x_steps)
