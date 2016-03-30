@@ -288,7 +288,7 @@ function sdp_optimize(model::SPModel,
                                 admissible_u_w_count = 1
                             end
 
-                            current_cost = model.costFunctions(t, x, u, wsample)
+                            current_cost = model.costFunctions(t, x, u, w_sample)
                             ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                             next_V_x_w_u = Vitp[ind_next_state...]
                             next_V_x_w = current_cost + next_V_x_w_u
