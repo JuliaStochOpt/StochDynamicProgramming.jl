@@ -242,7 +242,6 @@ function sdp_optimize(model::SPModel,
             println("Starting stochastic dynamic programming hazard decision computation")
         end
 
-        next_state = zeros(model.dimStates)
         #Loop over time
         for t = (TF-1):-1:1
             Vitp = value_function_interpolation(model, V, t+1)
@@ -280,7 +279,7 @@ function sdp_optimize(model::SPModel,
                     #Loop over controls to find best next value function
                     for u in product_controls
 
-                        model.dynamics(next_state, t, x, u, w_sample)
+                        next_state = model.dynamics(t, x, u, w_sample)
 
                         if model.constraints(t, next_state, u, w_sample)
 
