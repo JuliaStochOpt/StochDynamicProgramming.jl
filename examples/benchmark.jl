@@ -3,10 +3,16 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-# Benchmark SDDP algorithm upon damsvalley example
+# Benchmark SDDP and DP algorithms upon damsvalley example
 # This benchmark includes:
 # - comparison of execution time
-# - gap between the SDDP solution and the deterministic solution
+# - gap between the stochastic solution and the anticipative solution
+#
+# Usage:
+# ```
+# $ julia benchmark.jl {DP|SDDP}
+#
+# ```
 #############################################################################
 
 srand(2713)
@@ -38,15 +44,6 @@ function final_cost(x)
 end
 
 
-function constraints(t, x1, u, w)
-
-    Bu = (x1[1]<=VOLUME_MAX)
-    Bl = (x1[1]>=VOLUME_MIN)
-
-    return Bu&Bl
-
-end
-
 
 """Solve the problem with a solver, supposing the aleas are known
 in advance."""
@@ -74,7 +71,11 @@ function solve_determinist_problem(model, scenario)
 end
 
 
-"""Build aleas probabilities for each month."""
+"""Build aleas probabilities for each week.
+
+Return an array with size (N_ALEAS, N_STAGES)
+
+"""
 function build_aleas()
     W_MAX = round(Int, .5/7. * 100)
     W_MIN = 0
@@ -97,8 +98,19 @@ function build_aleas()
 end
 
 
-"""Build an admissible scenario for water inflow."""
-function build_scenarios(n_scenarios::Int64, probabilities)
+"""Build an admissible scenario for water inflow.
+
+Parameters:
+- n_scenarios (Int64)
+    Number of scenarios to generate
+
+- probabilities (Array{Float64, 2})
+    Probabilities of occurence of water inflow for each week
+
+Return an array with size (n_scenarios, N_STAGES)
+
+"""
+function build_scenarios(n_scenarios::Int64, probabilities::Array{Float64})
     scenarios = zeros(n_scenarios, N_STAGES)
 
     for scen in 1:n_scenarios
@@ -114,7 +126,7 @@ function build_scenarios(n_scenarios::Int64, probabilities)
 end
 
 
-"""Build probability distribution at each timestep.
+"""Build n_scenarios according to a given distribution.
 
 Return a Vector{NoiseLaw}"""
 function generate_probability_laws(n_scenarios)
@@ -133,56 +145,11 @@ function generate_probability_laws(n_scenarios)
 end
 
 
-function init_problem_sdp_HD(model)
+"""Instantiate the problem.
 
-    x0 = model.initialState
-    aleas = generate_probability_laws(10)
+Return a tuple (SPModel, SDDPparameters)
 
-    x_bounds = model.xlim
-    u_bounds = model.ulim
-
-    # Constants:
-    VOLUME_MAX = 100
-    VOLUME_MIN = 0
-    CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
-    CONTROL_MIN = 0
-
-
-    N_CONTROLS = 4
-    N_STATES = 2
-    N_NOISES = 1
-    infoStruct = "HD"
-
-    stateSteps = [1, 1]
-    controlSteps = [1, 1, 1, 1]
-    stateVariablesSizes = [(VOLUME_MAX-VOLUME_MIN)+1]
-    controlVariablesSizes = [(CONTROL_MAX-CONTROL_MIN)+1, (VOLUME_MAX)+1]
-    totalStateSpaceSize = stateVariablesSizes[1]
-    totalControlSpaceSize = controlVariablesSizes[1]*controlVariablesSizes[2]
-    monteCarloSize = 10
-
-    model = StochDynProgModel(N_STAGES-1,
-                    N_CONTROLS,
-                    N_STATES,
-                    N_NOISES,
-                    x_bounds,
-                    u_bounds,
-                    x0,
-                    cost_t,
-                    final_cost,
-                    dynamic,
-                    constraints,
-                    aleas)
-
-    params = SDPparameters(model, stateSteps, controlSteps,
-                            monteCarloSize, infoStruct)
-
-
-    return model, params
-end
-
-
-"""Instantiate the problem."""
+"""
 function init_problem()
 
     N_SCENARIOS = 10
@@ -221,7 +188,7 @@ end
 
 
 """Benchmark SDDP."""
-function benchmark_sddp(display=false)
+function benchmark_sddp()
     model, params = init_problem()
 
 	# Launch a first start to compile solve_SDDP
@@ -242,15 +209,13 @@ function benchmark_sddp(display=false)
                                n_assessments,
                                model.dimNoises))
 
-    params.forwardPassNumber = n_assessments
-
     tic()
     costs_sddp, stocks = forward_simulations(model, params, V, pbs, aleas)
     texec = toq()
     println("Time to perform simulation: ", texec, "s")
 
     # Get costs with deterministic solution:
-    println("Compute deterministic solution ...")
+    println("Compute anticipative solution ...")
     costs_det = zeros(n_assessments)
     for n in 1:n_assessments
         costs_det[n] = solve_determinist_problem(model, aleas[:, n, :])
@@ -264,22 +229,22 @@ end
 
 
 """Benchmark SDP."""
-function benchmark_sdp(display=false)
+function benchmark_sdp()
 
-	N_STAGES = 5
+	N_STAGES::Int64 = 5
 	TF = N_STAGES
     # Capacity of dams:
-    VOLUME_MAX = 20.
-    VOLUME_MIN = 0.
+    VOLUME_MAX::Float64 = 20.
+    VOLUME_MIN::Float64 = 0.
 
     # Specify the maximum flow of turbines:
-    CONTROL_MAX = 5.
-    CONTROL_MIN = 0.
+    CONTROL_MAX::Float64 = 5.
+    CONTROL_MIN::Float64 = 0.
 
     # Some statistics about aleas (water inflow):
-    W_MAX = 5.
-    W_MIN = 0.
-    DW = 1.
+    W_MAX::Float64 = 5.
+    W_MIN::Float64 = 0.
+    DW::Float64 = 1.
 
     T0 = 1
 
@@ -295,19 +260,9 @@ function benchmark_sdp(display=false)
 
     COST = 66*2.7*(1 + .5*(rand(TF) - .5));
 
-    #= # Define dynamic of the dam: =#
-    #= function dynamic(t, x, u, w, xf) =#
-		#= xf[1] = x[1] + u[1] + w[1] - u[2] =#
-		#= xf[2] =  x[2] - u[1] =#
-    #= end =#
-
     # Define dynamic of the dam:
     function dynamic(t, x, u, w)
         return [x[1] + u[1] + w[1] - u[2], x[2] - u[1]]
-    end
-    function dynamic2(xf, t, x, u, w)
-        xf[1] = x[1] + u[1] + w[1] - u[2]
-        xf[2] = x[2] - u[1]
     end
 
     # Define cost corresponding to each timestep:
@@ -316,7 +271,7 @@ function benchmark_sdp(display=false)
     end
 
     function constraints(t, x, u, w)
-        return (x[1]<=VOLUME_MAX)&(x[1]>=VOLUME_MIN)&(x[2]<=VOLUME_MAX)&(x[2]>=VOLUME_MIN)
+        return (VOLUME_MIN<=x[1]<=VOLUME_MAX)&(VOLUME_MIN<=x[2]<=VOLUME_MAX)
     end
 
     function finalCostFunction(x)
@@ -364,7 +319,7 @@ function benchmark_sdp(display=false)
                         N_STATES, N_NOISES,
                         x_bounds, u_bounds,
                         x0, cost_t,
-                        finalCostFunction, dynamic2,
+                        finalCostFunction, dynamic,
                         constraints, aleas);
 
     stateSteps = [1.,1.];
@@ -376,13 +331,10 @@ function benchmark_sdp(display=false)
                                                      monteCarloSize,
                                                      infoStruct);
 
-    # pre-compilation:
-    # modelSDP.stageNumber = 3
-    # V_sdp = sdp_optimize(modelSDP, paramsSDP,false);
-	print("T*X*U*W :")
+	print("Problem size (T*X*U*W): ")
 	println(paramsSDP.totalStateSpaceSize*paramsSDP.totalControlSpaceSize)
-    # modelSDP.stageNumber = N_STAGES - 1
-    n_benchmark = 20
+
+    n_benchmark = 10
     timing = zeros(n_benchmark)
     for n in 1:n_benchmark
         tic()
