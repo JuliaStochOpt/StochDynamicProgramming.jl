@@ -47,7 +47,7 @@ end
 
 """Solve the problem with a solver, supposing the aleas are known
 in advance."""
-function solve_determinist_problem(model, scenario)
+function solve_anticipative_problem(model, scenario)
     m = Model(solver=SOLVER)
 
 
