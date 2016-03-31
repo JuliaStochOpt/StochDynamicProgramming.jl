@@ -12,7 +12,7 @@ using StochDynamicProgramming
 using Distributions, Clp, FactCheck, JuMP
 
 
-# Test simulate.jl
+# Test probability functions
 facts("Probability functions") do
     support = [1, 2, 3]
     proba = [.2 .5 .3]
@@ -28,15 +28,27 @@ facts("Probability functions") do
 
     scenarios2 = simulate_scenarios(Normal(), dims)
     @fact typeof(scenarios2) --> Array{Float64, 3}
+
+    # test product of noiselaws:
+    support2 = [4, 5, 6]
+    proba2 = [.3 .3 .4]
+    law2 = NoiseLaw(support2, proba2)
+    law3 = StochDynamicProgramming.noiselaw_product(law, law2)
+    @fact law3.supportSize --> law.supportSize*law2.supportSize
+    @fact law3.proba --> vec(proba' * proba2)
+    @fact size(law3.support)[1] --> size(law.support)[1] + size(law2.support)[1]
+    @fact law3.support[:, 1] --> [1., 4.]
 end
+
 
 
 facts("Utils functions") do
     # Test extraction of vector in array:
     arr = rand(4, 4, 2)
-    vec = StochDynamicProgramming.extract_vector_from_3Dmatrix(arr, 2, 1)
-    @fact typeof(vec) --> Vector{Float64}
-    @fact size(vec) --> (2,)
+    v = StochDynamicProgramming.extract_vector_from_3Dmatrix(arr, 2, 1)
+    @fact typeof(v) --> Vector{Float64}
+    @fact size(v) --> (2,)
+    @fact v --> vec(arr[2, 1,:])
 
     # Test upper bound calculation:
     cost = rand(10)
@@ -97,7 +109,7 @@ facts("SDDP algorithm: 1D case") do
                                                 cost,
                                                 dynamic, laws)
     # Generate scenarios for forward simulations:
-    aleas = simulate_scenarios(model.noises,
+    noise_scenarios = simulate_scenarios(model.noises,
                           (model.stageNumber,
                            params.forwardPassNumber,
                            model.dimNoises))
@@ -124,7 +136,7 @@ facts("SDDP algorithm: 1D case") do
                                                            n_simulations)[1]
         @fact typeof(upb) --> Float64
 
-        sddp_costs, stocks = forward_simulations(model, params, V, pbs, aleas)
+        sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
         ef_cost = StochDynamicProgramming.extensive_formulation(model,params)
@@ -137,7 +149,7 @@ facts("SDDP algorithm: 1D case") do
         # Test hot start with previously computed value functions:
         V, pbs = solve_SDDP(model, params, 0, V)
         # Test if costs are roughly the same:
-        sddp_costs2, stocks = forward_simulations(model, params, V, pbs, aleas)
+        sddp_costs2, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
         @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
     end
 
@@ -233,13 +245,12 @@ facts("SDDP algorithm: 2D case") do
 
 
          # Test a simulation upon given scenarios:
-         params.forwardPassNumber = n_simulations
-        aleas = simulate_scenarios(model.noises,
+        noise_scenarios = simulate_scenarios(model.noises,
                               (model.stageNumber,
-                               params.forwardPassNumber,
+                               n_simulations,
                                model.dimNoises))
 
-        sddp_costs, stocks = forward_simulations(model, params, V, pbs, aleas)
+        sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
         ef_cost = StochDynamicProgramming.extensive_formulation(model,params)

@@ -96,7 +96,7 @@ function extract_vector_from_3Dmatrix(input_array::Array{Float64, 3},
                                       ny::Int64)
 
     state_dimension = size(input_array)[3]
-    return reshape(input_array[ny, nx, :], state_dimension)
+    return reshape(input_array[nx, ny, :], state_dimension)
 end
 
 

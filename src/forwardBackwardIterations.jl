@@ -27,8 +27,8 @@ Parameters:
     Linear model used to approximate each value function
 
 - xi (Array{float})
-    the noise scenarios on which we simulate, each line being one scenario.
-    Generated if not given.
+    the noise scenarios on which we simulate, each column being one scenario :
+    xi[t,k,:] is the alea at time t of scenario k.
 
 - returnCosts (Bool)
     return the cost of each simulated scenario if true
@@ -47,12 +47,12 @@ Returns (according to the last parameters):
     If returnCosts=false, return nothing
 
 - stocks (Array{float})
-    the simulated stock trajectories. stocks(k,t,:) is the stock for
+    the simulated stock trajectories. stocks(t,k,:) is the stock for
     scenario k at time t.
 
 - controls (Array{Float64, 3})
-
-
+    the simulated controls trajectories. controls(t,k,:) is the control for
+    scenario k at time t.
 """
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
@@ -65,26 +65,28 @@ function forward_simulations(model::SPModel,
 
     # TODO: verify that loops are in the same order
     T = model.stageNumber
-    stocks = zeros(T, param.forwardPassNumber, model.dimStates)
+    nb_forward = size(xi)[2] 
+    
+    stocks = zeros(T, nb_forward, model.dimStates)
     # We got T - 1 control, as terminal state is included into the total number
     # of stages.
-    controls = zeros(T - 1, param.forwardPassNumber, model.dimControls)
+    controls = zeros(T - 1, nb_forward, model.dimControls)
 
     # Set first value of stocks equal to x0:
-    for i in 1:param.forwardPassNumber
-        stocks[1, i, :] = model.initialState
+    for k in 1:nb_forward
+        stocks[1, k, :] = model.initialState
     end
 
     costs = nothing
     if returnCosts
-        costs = zeros(param.forwardPassNumber)
+        costs = zeros(nb_forward)
     end
 
     for t=1:T-1
-        for k = 1:param.forwardPassNumber
+        for k = 1:nb_forward
 
-            state_t = extract_vector_from_3Dmatrix(stocks, k, t)
-            alea_t = extract_vector_from_3Dmatrix(xi, k, t)
+            state_t = extract_vector_from_3Dmatrix(stocks, t, k)
+            alea_t = extract_vector_from_3Dmatrix(xi, t, k)
 
             status, nextstep = solve_one_step_one_alea(
                                             model,
@@ -190,7 +192,7 @@ Parameters:
     Linear model used to approximate each value function
 
 - stockTrajectories (Array{Float64,3})
-    stockTrajectories[k,t,:] is the vector of stock where the cut is computed
+    stockTrajectories[t,k,:] is the vector of stock where the cut is computed
     for scenario k and time t.
 
 - law (Array{NoiseLaw})
@@ -218,21 +220,22 @@ function backward_pass!(model::SPModel,
                       updateV=false)
 
     T = model.stageNumber
-
+    nb_forward = size(stockTrajectories)[2]
+    
     # Estimation of initial cost:
     V0 = 0.
 
     costs::Vector{Float64} = zeros(1)
-    costs_npass = zeros(Float64, param.forwardPassNumber)
+    costs_npass = zeros(Float64, nb_forward)
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
         costs = zeros(law[t].supportSize)
 
-        for k = 1:param.forwardPassNumber
+        for k = 1:nb_forward
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
-            state_t = extract_vector_from_3Dmatrix(stockTrajectories, k, t)
+            state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
             for w in 1:law[t].supportSize
 
