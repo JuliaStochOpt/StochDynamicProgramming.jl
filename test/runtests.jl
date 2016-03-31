@@ -45,10 +45,10 @@ end
 facts("Utils functions") do
     # Test extraction of vector in array:
     arr = rand(4, 4, 2)
-    vec = StochDynamicProgramming.extract_vector_from_3Dmatrix(arr, 2, 1)
-    @fact typeof(vec) --> Vector{Float64}
-    @fact size(vec) --> (2,)
-    @fact vec --> arr[2,1,:]
+    v = StochDynamicProgramming.extract_vector_from_3Dmatrix(arr, 2, 1)
+    @fact typeof(v) --> Vector{Float64}
+    @fact size(v) --> (2,)
+    @fact v --> vec(arr[2, 1,:])
 
     # Test upper bound calculation:
     cost = rand(10)
