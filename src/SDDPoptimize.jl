@@ -92,7 +92,7 @@ function run_SDDP(model::SPModel,
 
         # Build given number of scenarios according to distribution
         # law specified in model.noises:
-        aleas = simulate_scenarios(model.noises ,
+        noise_scenarios = simulate_scenarios(model.noises ,
                                     (model.stageNumber-1,
                                      param.forwardPassNumber,
                                      model.dimNoises))
@@ -102,7 +102,7 @@ function run_SDDP(model::SPModel,
                             param,
                             V,
                             problems,
-                            aleas)
+                            noise_scenarios)
 
         # Backward pass
         backward_pass!(model,
@@ -115,23 +115,25 @@ function run_SDDP(model::SPModel,
                       returnValueFunctions)
 
         iteration_count += 1
-        upb = upper_bound(costs)
 
-        V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
 
-        time = toq()
+        
 
         if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
-                    "\tEstimation of upper-bound: ", upb,
-                    "\tLower-bound: ", V0,
-                    "\tTime: ", time)
+                    "\tEstimation of upper-bound: ", upper_bound(costs),
+                    "\tLower-bound: ", get_bellman_value(model, param, 1, V[1], model.initialState),
+                    "\tTime: ", toq())
         end
 
     end
 
     # Estimate upper bound with a great number of simulations:
     if (display>0)
+        upb = upper_bound(costs)
+        V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
+        time = toq()
+        
         println("Estimate upper-bound with Monte-Carlo ...")
         upb, costs = estimate_upper_bound(model, param, V, problems)
         println("Estimation of upper-bound: ", upb,
@@ -172,12 +174,9 @@ Float64 (estimation of the upper bound)
 """
 function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
 
-    n_fpn = param.forwardPassNumber
-    param.forwardPassNumber = n_simulation
-
     aleas = simulate_scenarios(model.noises ,
                                     (model.stageNumber-1,
-                                     param.forwardPassNumber,
+                                     n_simulation,
                                      model.dimNoises))
 
     costs, stockTrajectories, _ = forward_simulations(model,
@@ -185,9 +184,6 @@ function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
                                                         V,
                                                         problems,
                                                         aleas)
-
-
-    param.forwardPassNumber = n_fpn
 
     return upper_bound(costs), costs
 end
