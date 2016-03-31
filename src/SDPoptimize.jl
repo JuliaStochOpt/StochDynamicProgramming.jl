@@ -198,25 +198,25 @@ function sdp_optimize(model::SPModel,
                         probas = (1/sampling_size)
                     else
                         sampling_size = law[t].supportSize
-                        samples = law[t].support[:]
+                        samples = law[t].support
                         probas = law[t].proba
                     end
 
                     for w = 1:sampling_size
 
-                            w_sample = samples[w]
-			                proba = probas[w]
-                            next_state = model.dynamics(t, x, u, w_sample)
+                        w_sample = samples[:, w]
+		                proba = probas[w]
+                        next_state = model.dynamics(t, x, u, w_sample)
 
-                            if model.constraints(t, next_state, u, w_sample)
+                        if model.constraints(t, next_state, u, w_sample)
 
-                                count_admissible_w = count_admissible_w + proba
-                                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                                next_V = Vitp[ind_next_state...]
-                                current_cost = model.costFunctions(t, x, u, w_sample)
-                                expected_V_u += proba*(current_cost + next_V)
+                            count_admissible_w = count_admissible_w + proba
+                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                            next_V = Vitp[ind_next_state...]
+                            current_cost = model.costFunctions(t, x, u, w_sample)
+                            expected_V_u += proba*(current_cost + next_V)
 
-                            end
+                        end
                     end
 
                     if (count_admissible_w>0)
@@ -270,7 +270,7 @@ function sdp_optimize(model::SPModel,
 
                 #Compute expectation
                 for w in 1:sampling_size
-                    admissible_u_w_count = 1
+                    admissible_u_w_count = 0
                     best_V_x_w = 0.
                     next_V_x_w = Inf
                     w_sample = samples[:, w]
@@ -282,7 +282,7 @@ function sdp_optimize(model::SPModel,
                         next_state = model.dynamics(t, x, u, w_sample)
 
                         if model.constraints(t, next_state, u, w_sample)
-
+                            admissible_u_w_count += 1
                             current_cost = model.costFunctions(t, x, u, w_sample)
                             ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                             next_V_x_w_u = Vitp[ind_next_state...]
@@ -292,13 +292,11 @@ function sdp_optimize(model::SPModel,
                                 best_V_x_w = next_V_x_w
                             end
 
-                        else
-                            admissible_u_w_count = 0
                         end
                     end
 
                     expected_V += proba*best_V_x_w
-                    count_admissible_w += admissible_u_w_count*proba
+                    count_admissible_w += (admissible_u_w_count>0)*proba
                 end
 
                 if (count_admissible_w>0.)
