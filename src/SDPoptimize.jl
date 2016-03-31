@@ -36,7 +36,7 @@ function index_from_variable( variable,
                     bounds::Array,
                     variable_steps::Array)
 
-    return tuple([floor(Int64, 1 + fld(1e-10+( variable[i] - bounds[i][1] ), variable_steps[i] )) for i in 1:length(variable)]...)
+    return tuple([ 1 + floor(Int64,(1e-10+( variable[i] - bounds[i][1] )/ variable_steps[i] )) for i in 1:length(variable)]...)
 end
 
 """
@@ -118,7 +118,7 @@ end
 
 """
 Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+the Decision Hazard (DH) case
 
 Parameters:
 - model (SPmodel)
@@ -137,7 +137,7 @@ Returns :
     of the system at each time step
 
 """
-function sdp_optimize(model::SPModel,
+function sdp_solve_DH(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
@@ -166,98 +166,31 @@ function sdp_optimize(model::SPModel,
     end
 
     #Display start of the algorithm in DH and HD cases
-    if (param.infoStructure == "DH")
-        if display
-            println("Starting stochastic dynamic programming decision hazard computation")
-        end
+    if display
+        println("Starting stochastic dynamic programming decision hazard computation")
+    end
 
         #Loop over time
-        for t = (TF-1):-1:1
-            Vitp = value_function_interpolation(model, V, t+1)
+    for t = (TF-1):-1:1
+        Vitp = value_function_interpolation(model, V, t+1)
 
             #Loop over states
-            for x in product_states
+        for x in product_states
 
-                if display
-                    next!(p)
-                end
-
-                expected_V = Inf
-                optimal_u = tuple()
-                current_cost = 0
-
-                #Loop over controls
-                for u = product_controls
-
-                    expected_V_u = 0.
-                    count_admissible_w = 0
-
-                    if (param.expectation_computation=="MonteCarlo")
-                        sampling_size = param.monteCarloSize
-                        samples = [sampling(law,t) for i in 1:sampling_size]
-                        probas = (1/sampling_size)
-                    else
-                        sampling_size = law[t].supportSize
-                        samples = law[t].support
-                        probas = law[t].proba
-                    end
-
-                    for w = 1:sampling_size
-
-                        w_sample = samples[:, w]
-		                proba = probas[w]
-                        next_state = model.dynamics(t, x, u, w_sample)
-
-                        if model.constraints(t, next_state, u, w_sample)
-
-                            count_admissible_w = count_admissible_w + proba
-                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                            next_V = Vitp[ind_next_state...]
-                            current_cost = model.costFunctions(t, x, u, w_sample)
-                            expected_V_u += proba*(current_cost + next_V)
-
-                        end
-                    end
-
-                    if (count_admissible_w>0)
-
-                        next_V = next_V / count_admissible_w
-
-                        if (expected_V_u < expected_V)
-
-                            expected_V = expected_V_u
-                            optimal_u = u
-
-                        end
-                    end
-                end
-                ind_x = index_from_variable(x, x_bounds, x_steps)
-
-                V[ind_x..., t] = expected_V
+            if display
+                next!(p)
             end
-        end
 
-    else
-        if display
-            println("Starting stochastic dynamic programming hazard decision computation")
-        end
+            expected_V = Inf
+            optimal_u = tuple()
+            current_cost = 0
 
-        #Loop over time
-        for t = (TF-1):-1:1
-            Vitp = value_function_interpolation(model, V, t+1)
+            #Loop over controls
+            for u = product_controls
 
-            #Loop over states
-            for x in product_states
+                expected_V_u = 0.
+                count_admissible_w = 0
 
-                if display
-                    next!(p)
-                end
-
-                expected_V = 0.
-                current_cost = 0.
-                count_admissible_w = 0.
-
-                #Tuning expectation computation parameters
                 if (param.expectation_computation=="MonteCarlo")
                     sampling_size = param.monteCarloSize
                     samples = [sampling(law,t) for i in 1:sampling_size]
@@ -268,44 +201,193 @@ function sdp_optimize(model::SPModel,
                     probas = law[t].proba
                 end
 
-                #Compute expectation
-                for w in 1:sampling_size
-                    admissible_u_w_count = 0
-                    best_V_x_w = 0.
-                    next_V_x_w = Inf
+                for w = 1:sampling_size
+
                     w_sample = samples[:, w]
                     proba = probas[w]
+                    next_state = model.dynamics(t, x, u, w_sample)
 
-                    #Loop over controls to find best next value function
-                    for u in product_controls
+                    if model.constraints(t, next_state, u, w_sample)
 
-                        next_state = model.dynamics(t, x, u, w_sample)
+                        count_admissible_w = count_admissible_w + proba
+                        ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                        next_V = Vitp[ind_next_state...]
+                        current_cost = model.costFunctions(t, x, u, w_sample)
+                        expected_V_u += proba*(current_cost + next_V)
 
-                        if model.constraints(t, next_state, u, w_sample)
-                            admissible_u_w_count += 1
-                            current_cost = model.costFunctions(t, x, u, w_sample)
-                            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                            next_V_x_w_u = Vitp[ind_next_state...]
-                            next_V_x_w = current_cost + next_V_x_w_u
-
-                            if (next_V_x_w < best_V_x_w)
-                                best_V_x_w = next_V_x_w
-                            end
-
-                        end
                     end
-
-                    expected_V += proba*best_V_x_w
-                    count_admissible_w += (admissible_u_w_count>0)*proba
                 end
 
-                if (count_admissible_w>0.)
-                    expected_V = expected_V / count_admissible_w
-                end
-                ind_x = index_from_variable(x, x_bounds, x_steps)
-                V[ind_x..., t] = expected_V
+                if (count_admissible_w>0)
+
+                    next_V = next_V / count_admissible_w
+
+                    if (expected_V_u < expected_V)
+
+                        expected_V = expected_V_u
+                        optimal_u = u
+
+                    end
+                 end
             end
+            ind_x = index_from_variable(x, x_bounds, x_steps)
+
+            V[ind_x..., t] = expected_V
         end
+    end
+    return V
+end
+
+"""
+Value iteration algorithm to compute optimal value functions in
+the Hazard Decision (HD) case
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- display (Bool)
+    the output display or verbosity parameter
+
+
+Returns :
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+"""
+function sdp_solve_HD(model::SPModel,
+                  param::SDPparameters,
+                  display=true::Bool)
+
+    TF = model.stageNumber
+    next_state = zeros(Float64, model.dimStates)
+    law = model.noises
+
+    u_bounds = model.ulim
+    x_bounds = model.xlim
+    x_steps = param.stateSteps
+
+    #Compute cartesian product spaces
+    product_states, product_controls = generate_grid(model, param)
+
+    V = zeros(Float64, param.stateVariablesSizes..., TF)
+
+    #Compute final value functions
+    for x in product_states
+        ind_x = index_from_variable(x, x_bounds, x_steps)
+        V[ind_x..., TF] = model.finalCostFunction(x)
+    end
+
+    #Construct a progress meter
+    if display
+        p = Progress((TF-1)*param.totalStateSpaceSize, 1)
+    end
+
+    if display
+            println("Starting stochastic dynamic programming hazard decision computation")
+        end
+
+    #Loop over time
+    for t = (TF-1):-1:1
+        Vitp = value_function_interpolation(model, V, t+1)
+
+        #Loop over states
+        for x in product_states
+
+            if display
+                next!(p)
+            end
+
+            expected_V = 0.
+            current_cost = 0.
+            count_admissible_w = 0.
+
+                #Tuning expectation computation parameters
+            if (param.expectation_computation=="MonteCarlo")
+                sampling_size = param.monteCarloSize
+                samples = [sampling(law,t) for i in 1:sampling_size]
+                probas = (1/sampling_size)
+            else
+                sampling_size = law[t].supportSize
+                samples = law[t].support
+                probas = law[t].proba
+            end
+
+            #Compute expectation
+            for w in 1:sampling_size
+                admissible_u_w_count = 0
+                best_V_x_w = 0.
+                next_V_x_w = Inf
+                w_sample = samples[:, w]
+                proba = probas[w]
+
+                #Loop over controls to find best next value function
+                for u in product_controls
+
+                    next_state = model.dynamics(t, x, u, w_sample)
+
+                    if model.constraints(t, next_state, u, w_sample)
+                        admissible_u_w_count += 1
+                        current_cost = model.costFunctions(t, x, u, w_sample)
+                        ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                        next_V_x_w_u = Vitp[ind_next_state...]
+                        next_V_x_w = current_cost + next_V_x_w_u
+
+                        if (next_V_x_w < best_V_x_w)
+                            best_V_x_w = next_V_x_w
+                        end
+
+                    end
+                end
+
+                expected_V += proba*best_V_x_w
+                count_admissible_w += (admissible_u_w_count>0)*proba
+            end
+
+            if (count_admissible_w>0.)
+                expected_V = expected_V / count_admissible_w
+            end
+            ind_x = index_from_variable(x, x_bounds, x_steps)
+            V[ind_x..., t] = expected_V
+        end
+    end
+    return V
+end
+
+"""
+Value iteration algorithm to compute optimal value functions in
+the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- display (Bool)
+    the output display or verbosity parameter
+
+
+Returns :
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+"""
+function sdp_optimize(model::SPModel,
+                  param::SDPparameters,
+                  display=true::Bool)
+
+    #Display start of the algorithm in DH and HD cases
+    if (param.infoStructure == "DH")
+        V = sdp_solve_DH(model, param, display)
+    else
+        V = sdp_solve_HD(model, param, display)
     end
 
     return V
