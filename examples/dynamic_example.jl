@@ -60,17 +60,17 @@ Cw=[]
 
 function generate_random_dynamic()
     for i=1:N_STAGES
-            push!(Ax, rand(DIM_STATES,DIM_STATES))
-            push!(Au, rand(DIM_STATES,DIM_CONTROLS))
-            push!(Aw, rand(DIM_STATES,DIM_ALEAS))
+        push!(Ax, rand(DIM_STATES,DIM_STATES))
+        push!(Au, rand(DIM_STATES,DIM_CONTROLS))
+        push!(Aw, rand(DIM_STATES,DIM_ALEAS))
     end
 end
 
 function generate_random_costs()
     for i=1:N_STAGES
-            push!(Cx, rand(1,DIM_STATES))
-            push!(Cu, -1*rand(1,DIM_CONTROLS))
-            push!(Cw, rand(1,DIM_ALEAS))
+        push!(Cx, rand(1,DIM_STATES))
+        push!(Cu, -1*rand(1,DIM_CONTROLS))
+        push!(Cw, rand(1,DIM_ALEAS))
     end
 end
 
@@ -84,9 +84,7 @@ end
 
 # Define cost corresponding to each timestep:
 function cost_t(t, x, u, w)
-    #if you want to compare the value, take the cost with only control
-    return (Cu[t]*u)[1,1]
-    #return (Cx[t]*x)[1,1]+(Cu[t]*u)[1,1]+(Cw[t]*w)[1,1]
+    return (Cx[t]*x)[1,1]+(Cu[t]*u)[1,1]+(Cw[t]*w)[1,1]
 end
 
 
@@ -170,14 +168,12 @@ function init_problem()
 end
 
 model, params = init_problem()
-modelbis = model
-paramsbis = params
+modelbis = deepcopy(model)
+paramsbis = deepcopy(params)
 
 
 """Solve the problem."""
 function solve_dams(model,params,display=false)
-
-    #model, params = init_problem()
 
     V, pbs = solve_SDDP(model, params, display)
 
@@ -222,6 +218,6 @@ if (unsolve)
     println("Change your parameters")
 else
     a,b = solve_dams(modelbis,paramsbis)
-    println("solution =",sol)    
+    println("solution =",sol)
 end
 
