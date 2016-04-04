@@ -9,6 +9,15 @@
 # WARNING: Matplotlib and PyCall must be installed!
 using PyPlot
 
+"""
+Display evolution of stocks. 
+
+Parameters:
+- model (SPModel)
+
+- stocks (Array{Float64, 3})
+
+"""
 function display_stocks(model, stocks)
 
     ndims = size(stocks)[3]
@@ -26,6 +35,15 @@ function display_stocks(model, stocks)
 end
 
 
+"""
+Display evolution of controls. 
+
+Parameters:
+- model (SPModel)
+
+- controls (Array{Float64, 3})
+
+"""
 function display_controls(model, controls)
 
     ndims = size(controls)[3]
@@ -43,6 +61,13 @@ function display_controls(model, controls)
 end
 
 
+"""
+Display costs distribution along scenarios. 
+
+Parameters:
+- costs (Vector{Float64})
+
+"""
 function display_costs_distribution(costs)
     figure()
     boxplot(costs, boxprops=Dict(:linewidth=>3, :color=>"k"))
@@ -51,6 +76,13 @@ function display_costs_distribution(costs)
 end
 
 
+"""
+Display distributions of aleas along time. 
+
+Parameters:
+- aleas (Array{Float64, 3})
+
+"""
 function display_aleas(aleas)
     ndims = size(aleas)[3]
     nsteps = size(aleas)[1]
@@ -69,6 +101,13 @@ function display_aleas(aleas)
 end
 
 
+"""
+Display evolution of execution time along SDDP iterations.
+
+Parameters:
+- exectime (Vector{Float64})
+
+"""
 function display_execution_time(exectime)
     nit = size(exectime)[1]
 
@@ -81,6 +120,13 @@ function display_execution_time(exectime)
 end
 
 
+"""
+Display evolution of upper and lower bounds along SDDP iterations.
+
+Parameters:
+- model (SPModel)
+
+"""
 function display_bounds(model)
     nit = size(model.upperbounds)[1]
 
@@ -94,10 +140,11 @@ function display_bounds(model)
 end
 
 
-function display_all(model, costs, stocks, controls, aleas)
+"""
+Display results of SDDP simulation. 
 
-    #= display_bounds(model) =#
-    #= display_execution_time(model.texec) =#
+"""
+function display_all(model, costs, stocks, controls, aleas)
     display_aleas(aleas)
     display_controls(model, controls)
     display_stocks(model, stocks)
