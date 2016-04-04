@@ -55,7 +55,7 @@ Pkg.clone("https://github.com/leclere/StochDynamicProgramming.jl.git")
 ## Usage
 
 IJulia Notebooks will be provided to explain how this package work.
-A first example on a two dams valley [here.] (http://nbviewer.jupyter.org/github/leclere/StochDynamicProgramming.jl/blob/master/notebooks/damsvalley.ipynb)
+A first example on a two dams valley [here.] (https://github.com/leclere/StochDP-notebooks/blob/master/notebooks/damsvalley.ipynb)
 
 
 ## Documentation
