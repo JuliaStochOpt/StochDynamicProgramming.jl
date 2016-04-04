@@ -88,7 +88,9 @@ function run_SDDP(model::SPModel,
 
     while (iteration_count < param.maxItNumber) & (~stopping_test)
         # Time execution of current pass:
-        tic()
+		if display > 0
+			tic()
+		end
 
         # Build given number of scenarios according to distribution
         # law specified in model.noises:
@@ -132,7 +134,6 @@ function run_SDDP(model::SPModel,
     if (display>0)
         upb = upper_bound(costs)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
-        time = toq()
         
         println("Estimate upper-bound with Monte-Carlo ...")
         upb, costs = estimate_upper_bound(model, param, V, problems)
