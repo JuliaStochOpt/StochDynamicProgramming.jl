@@ -139,7 +139,7 @@ facts("SDDP algorithm: 1D case") do
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
-        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)
+        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
@@ -253,7 +253,7 @@ facts("SDDP algorithm: 2D case") do
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
-        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)
+        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
