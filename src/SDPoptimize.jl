@@ -267,7 +267,7 @@ function sdp_solve_DH(model::StochDynProgModel,
                     
                     
                     if model.constraints(t, next_state, u, w_sample)
-
+                    
                         count_admissible_w = count_admissible_w + proba
                         ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                         next_V = Vitp[ind_next_state...]

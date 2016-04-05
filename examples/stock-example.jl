@@ -21,7 +21,6 @@ const SOLVER = ClpSolver()
 # const SOLVER = GurobiSolver()
 
 # convergence test
-const EPSILON = 1e-3 #
 const MAX_ITER = 100 # maximum iteration of SDDP
 
 ######## Stochastic Model  Parameters  ########
