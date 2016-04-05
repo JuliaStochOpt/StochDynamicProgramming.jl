@@ -37,6 +37,7 @@ type LinearDynamicLinearCostSPmodel <: SPModel
         for i = 1:dimStates
             push!(xbounds, (-Inf, Inf))
         end
+       
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds, x0, cost, dynamic, aleas)
     end
 end
@@ -109,7 +110,6 @@ type StochDynProgModel <: SPModel
     end
 
     function StochDynProgModel(model::PiecewiseLinearCostSPmodel, final, cons)
-
         function cost(t,x,u,w)
             saved_cost = -Inf
             current_cost = 0

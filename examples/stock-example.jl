@@ -72,7 +72,7 @@ paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward path, stop at M
 
 ######### Solving the problem via SDDP
 #V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
-#lb = StochDynamicProgramming.get_lower_bound(spmodel, params, V)
+#lb = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
 #println("Lower bound obtained by SDDP: "*string(lb))
 
 ######### Solving the problem via Dynamic Programming
@@ -80,8 +80,8 @@ paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward path, stop at M
 stateSteps = [0.1]
 controlSteps = [0.1]
 infoStruct = "HD" # noise at time t is known before taking the decision at time t
-monteCarloSize = 1000
-paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, monteCarloSize, infoStruct)
+
+paramSDP = SDPparameters(spmodel, stateSteps, controlSteps,  infoStruct)
 V = sdp_optimize(spmodel,paramSDP)
 
 

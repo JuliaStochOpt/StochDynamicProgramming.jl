@@ -288,8 +288,8 @@ function sdp_solve_HD(model::SPModel,
     end
 
     if display
-            println("Starting stochastic dynamic programming hazard decision computation")
-        end
+        println("Starting stochastic dynamic programming hazard decision computation")
+    end
 
     #Loop over time
     for t = (TF-1):-1:1
