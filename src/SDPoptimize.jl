@@ -118,7 +118,7 @@ end
 
 """
 Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) case
+the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 
 Parameters:
 - model (SPmodel)
@@ -137,10 +137,68 @@ Returns :
     of the system at each time step
 
 """
-function sdp_solve_DH(model::SPModel,
+function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
+    
+    function true_fun(x...)
+        return true
+    end
+    function zero_fun(x...)
+        return 0
+    end
+    
+    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+        if in(:finalCostFunction,fieldnames(model))
+            SDPmodel = StochDynProgModel(model, model.finalCostFunction, true_fun)
+        else
+            SDPmodel = StochDynProgModel(model, zero_fun, true_fun)
+        end
+    elseif isa(model,StochDynProgModel)
+        SDPmodel = model
+    else
+        error("cannot build StochDynProgModel from current SPmodel. Implement new
+        StochDynProgModel constructor.")
+    end
+    
+    #Display start of the algorithm in DH and HD cases
+    if (param.infoStructure == "DH")
+        V = sdp_solve_DH(SDPmodel, param, display)
+    elseif (param.infoStructure == "HD")
+        V = sdp_solve_HD(SDPmodel, param, display)
+    else
+        error("param.infoStructure is neither 'DH' nor 'HD'") 
+    end
 
+    return V
+end
+
+
+"""
+Value iteration algorithm to compute optimal value functions in
+the Decision Hazard (DH) case
+
+Parameters:
+- model (StochDynProgModel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- display (Bool)
+    the output display or verbosity parameter
+
+
+Returns :
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+"""
+function sdp_solve_DH(model::StochDynProgModel,
+                  param::SDPparameters,
+                  display=true::Bool)
+    
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
     law = model.noises
@@ -206,7 +264,8 @@ function sdp_solve_DH(model::SPModel,
                     w_sample = samples[:, w]
                     proba = probas[w]
                     next_state = model.dynamics(t, x, u, w_sample)
-
+                    
+                    
                     if model.constraints(t, next_state, u, w_sample)
 
                         count_admissible_w = count_admissible_w + proba
@@ -243,7 +302,7 @@ Value iteration algorithm to compute optimal value functions in
 the Hazard Decision (HD) case
 
 Parameters:
-- model (SPmodel)
+- model (StochDynProgModel)
     the DPSPmodel of our problem
 
 - param (SDPparameters)
@@ -259,7 +318,7 @@ Returns :
     of the system at each time step
 
 """
-function sdp_solve_HD(model::SPModel,
+function sdp_solve_HD(model::StochDynProgModel,
                   param::SDPparameters,
                   display=true::Bool)
 
@@ -307,6 +366,10 @@ function sdp_solve_HD(model::SPModel,
             count_admissible_w = 0.
 
                 #Tuning expectation computation parameters
+            if param.expectation_computation!="MonteCarlo" && param.expectation_computation!="Exact"
+                warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'. Defaulted to 'exact'")
+                param.expectation_computation="Exact"
+            end
             if (param.expectation_computation=="MonteCarlo")
                 sampling_size = param.monteCarloSize
                 samples = [sampling(law,t) for i in 1:sampling_size]
@@ -358,40 +421,7 @@ function sdp_solve_HD(model::SPModel,
     return V
 end
 
-"""
-Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 
-Parameters:
-- model (SPmodel)
-    the DPSPmodel of our problem
-
-- param (SDPparameters)
-    the parameters for the SDP algorithm
-
-- display (Bool)
-    the output display or verbosity parameter
-
-
-Returns :
-- value_functions (Array)
-    the vector representing the value functions as functions of the state
-    of the system at each time step
-
-"""
-function sdp_optimize(model::SPModel,
-                  param::SDPparameters,
-                  display=true::Bool)
-
-    #Display start of the algorithm in DH and HD cases
-    if (param.infoStructure == "DH")
-        V = sdp_solve_DH(model, param, display)
-    else
-        V = sdp_solve_HD(model, param, display)
-    end
-
-    return V
-end
 
 
 """
