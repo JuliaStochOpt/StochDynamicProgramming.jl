@@ -41,7 +41,7 @@ const S0 = 0.5
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
 xi_support = collect(linspace(XI_MIN,XI_MAX,N_XI))
 xi_law = NoiseLaw(xi_support, proba)
-xi_laws = Vector{NoiseLaw}(N_STAGES)
+xi_laws = Vector{NoiseLaw}(N_STAGES-1)
 for t=1:N_STAGES-1
    xi_laws[t] = xi_law
 end
@@ -71,9 +71,9 @@ set_state_bounds(spmodel, s_bounds)
 paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward path, stop at MAX_ITER 
 
 ######### Solving the problem via SDDP
-#V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
-#lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
-#println("Lower bound obtained by SDDP: "*string(lb_sddp))
+V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
+lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
+println("Lower bound obtained by SDDP: "*string(lb_sddp))
 
 ######### Solving the problem via Dynamic Programming
 
@@ -83,10 +83,11 @@ infoStruct = "HD" # noise at time t is known before taking the decision at time 
 
 paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
 V = sdp_optimize(spmodel,paramSDP)
-
+lb_sdp = StochDynamicProgramming.get_value(spmodel,paramSDP,V)
+println("Lower bound obtained by SDP: "*string(lb_sdp))
 
 
 ######### Comparing the solution
-#scenarios = generate_scenarios(xi_laws,1000) 
+#scenarios = StochDynamicProgramming.generate_scenarios(xi_laws,1) 
 #costs, stocks = forward_simulations(spmodel, params, V, pbs, scenarios)
 

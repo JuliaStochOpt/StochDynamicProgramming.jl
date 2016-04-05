@@ -157,8 +157,8 @@ function sdp_optimize(model::SPModel,
     elseif isa(model,StochDynProgModel)
         SDPmodel = model
     else
-        error("cannot build StochDynProgModel from current SPmodel. Implement new
-        StochDynProgModel constructor.")
+        error("cannot build StochDynProgModel from current SPmodel. You need to implement 
+        a new StochDynProgModel constructor.")
     end
     
     #Display start of the algorithm in DH and HD cases
@@ -421,7 +421,26 @@ function sdp_solve_HD(model::StochDynProgModel,
     return V
 end
 
+"""
+Get the optimal value of the problem from the optimal Bellman Function
 
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- V (Array{Float64})
+    the Bellman Functions
+
+Returns :
+- V(x0) (Float64)
+"""
+function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
+    ind_x0 = index_from_variable(model.initialState, model.xlim, param.stateSteps)
+    return V[ind_x0...,1]
+end
 
 
 """
