@@ -463,7 +463,7 @@ Simulation of optimal trajectories given model and Bellman functions
 
 Parameters:
 - model (SPmodel)
-    the DPSPmodel of our problem
+    the SPmodel of our problem
 
 - param (SDPparameters)
     the parameters for the SDP algorithm
@@ -501,13 +501,16 @@ function sdp_forward_simulation(model::SPModel,
     nb_scenarios = size(scenarios)[2] 
              
     costs = zeros(nb_scenarios)
-    controls = zeros(TF,nb_scenarios)
-    states = zeros(TF-1,nb_scenarios)
+    states = zeros(TF,nb_scenarios)
+    controls = zeros(TF-1,nb_scenarios)
+    
     
     for k = 1:nb_scenarios
-        costs[k],states[:,k], controls[:,k]= sdp_forward_simulation(SDPmodel,
+        #println(k)
+        costs[k],states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
                   param,scenarios[:,k],model.initialState,value,display)
     end
+
     return costs, controls, states
 end
 
@@ -546,7 +549,7 @@ Returns :
     the controls applied to the system at each time step
 
 """
-function sdp_forward_simulation(model::StochDynProgModel,
+function sdp_forward_single_simulation(model::StochDynProgModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,
