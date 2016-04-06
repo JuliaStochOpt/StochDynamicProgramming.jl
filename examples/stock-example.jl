@@ -33,7 +33,7 @@ const CONTROL_MIN = 0
 const XI_MAX = 0.3
 const XI_MIN = 0
 const N_XI = 10
-
+# initial stock
 const S0 = 0.5
 
 # create law of noises
