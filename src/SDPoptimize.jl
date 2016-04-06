@@ -117,6 +117,40 @@ function generate_grid(model::SPModel, param::SDPparameters)
 end
 
 """
+Try to construct a StochDynProgModel from an SPModel
+"""
+function build_sdpmodel_from_spmodel(model::SPModel)
+    function true_fun(t,x,u,w)
+        return true
+    end
+    function zero_fun(x)
+        return 0
+    end
+
+    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+        function cons_fun(t,x,u,w)
+            for i in 1:model.dimStates
+                if (x[i]<=model.xlim[i][1]) || (x[i]>=model.xlim[i][2])
+                    return false
+                end
+            end
+            return true
+        end
+        if in(:finalCostFunction,fieldnames(model))
+            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
+        else
+            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
+        end
+    elseif isa(model,StochDynProgModel)
+        SDPmodel = model
+    else
+        error("cannot build StochDynProgModel from current SPmodel. You need to implement
+        a new StochDynProgModel constructor.")
+    end
+    return SDPmodel
+end
+
+"""
 Value iteration algorithm to compute optimal value functions in
 the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 
@@ -141,32 +175,7 @@ function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
-    function true_fun(t,x,u,w)
-        return true
-    end
-    function zero_fun(x)
-        return 0
-    end
-
-    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
-        function cons_fun(t,x,u,w)
-            test = true
-            for i in 1:model.dimStates
-                test &= (x[i]>=model.xlim[i][1])&(x[i]<=model.xlim[i][2])
-            end
-            return test
-        end
-        if in(:finalCostFunction,fieldnames(model))
-            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
-        else
-            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
-        end
-    elseif isa(model,StochDynProgModel)
-        SDPmodel = model
-    else
-        error("cannot build StochDynProgModel from current SPmodel. You need to implement
-        a new StochDynProgModel constructor.")
-    end
+    SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
 
     #Display start of the algorithm in DH and HD cases
     if (param.infoStructure == "DH")
@@ -449,6 +458,58 @@ function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
     return Vi[ind_x0...,1]
 end
 
+"""
+Simulation of optimal trajectories given model and Bellman functions
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- scenarios (Array)
+    the scenarios of uncertainties realizations we want to simulate on
+    scenarios[t,k,:] is the alea at time t for scenario k
+
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+- display (Bool)
+    the output display or verbosity parameter
+
+Returns :
+
+- costs (Vector{Float64})
+    the cost of the optimal control over the scenario provided
+
+- stocks (Array{Float64})
+    the state of the controlled system at each time step
+
+- controls (Array{Float64})
+    the controls applied to the system at each time step
+"""
+function sdp_forward_simulation(model::SPModel,
+                  param::SDPparameters,
+                  scenarios::Array{Float64,3},
+                  value::Array,
+                  display=true::Bool)
+                  
+    SDPmodel = build_sdpmodel_from_spmodel(model)              
+    TF = SDPmodel.stageNumber 
+    nb_scenarios = size(scenarios)[2] 
+             
+    costs = zeros(nb_scenarios)
+    controls = zeros(TF,nb_scenarios)
+    states = zeros(TF-1,nb_scenarios)
+    
+    for k = 1:nb_scenarios
+        costs[k],states[:,k], controls[:,k]= sdp_forward_simulation(SDPmodel,
+                  param,scenarios[:,k],model.initialState,value,display)
+    end
+    return costs, controls, states
+end
 
 """
 Simulation of optimal control given an initial state and an alea scenario
@@ -485,7 +546,7 @@ Returns :
     the controls applied to the system at each time step
 
 """
-function sdp_forward_simulation(model::SPModel,
+function sdp_forward_simulation(model::StochDynProgModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,

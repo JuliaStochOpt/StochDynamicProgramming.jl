@@ -58,15 +58,23 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
                             solverProblems::Vector{JuMP.Model},
-                            xi::Array{Float64, 3},
+                            xi::Array{Float64},
                             returnCosts=true::Bool,
                             init=false::Bool,
                             display=false::Bool)
-
-    # TODO: verify that loops are in the same order
+    
     T = model.stageNumber
     nb_forward = size(xi)[2] 
     
+    if ndims(xi)!=3
+        if ndims(xi)==2
+            warn("noise scenario are not given in the right shape. Assumed to be real valued noise.")
+            xi = reshape(xi,(T,nb_forward,1)) 
+        else
+            error("wrong dimension of noise scenarios")
+        end
+     end
+
     stocks = zeros(T, nb_forward, model.dimStates)
     # We got T - 1 control, as terminal state is included into the total number
     # of stages.

@@ -94,10 +94,7 @@ function run_SDDP(model::SPModel,
 
         # Build given number of scenarios according to distribution
         # law specified in model.noises:
-        noise_scenarios = simulate_scenarios(model.noises ,
-                                    (model.stageNumber-1,
-                                     param.forwardPassNumber,
-                                     model.dimNoises))
+        noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
         # Forward pass
         costs, stockTrajectories, _ = forward_simulations(model,
