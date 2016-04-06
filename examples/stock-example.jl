@@ -84,8 +84,6 @@ paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
 Vs = sdp_optimize(spmodel,paramSDP)
 lb_sdp = StochDynamicProgramming.get_value(spmodel,paramSDP,Vs)
 println("Lower bound obtained by SDP: "*string(lb_sdp))
-controlu = get_control(spmodel, paramSDP, Vs, 3, [S0])
-controluhd = get_control(spmodel, paramSDP, Vs, 3, [0], [0.3])
 
 ######### Comparing the solution
 #scenarios = StochDynamicProgramming.generate_scenarios(xi_laws,1)
