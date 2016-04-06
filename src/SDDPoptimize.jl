@@ -124,7 +124,7 @@ function run_SDDP(model::SPModel,
         if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
                     "\tLower-bound: ", round(get_bellman_value(model, param, 1, V[1], model.initialState),4),
-                    "\tTime: ", round(toq(),2))
+                    "\tTime: ", round(toq(),2),"s")
         end
 
     end
