@@ -140,34 +140,41 @@ Returns :
 function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
-    
+
     function true_fun(x...)
         return true
     end
     function zero_fun(x...)
         return 0
     end
-    
+
     if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+        function cons_fun(t,x,u,w)
+            test = true
+            for i in 1:model.dimStates
+                test &= (x[i]>=model.xlim[i][1])&(x[i]<=model.xlim[i][2])
+            end
+            return test
+        end
         if in(:finalCostFunction,fieldnames(model))
-            SDPmodel = StochDynProgModel(model, model.finalCostFunction, true_fun)
+            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
         else
-            SDPmodel = StochDynProgModel(model, zero_fun, true_fun)
+            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
         end
     elseif isa(model,StochDynProgModel)
         SDPmodel = model
     else
-        error("cannot build StochDynProgModel from current SPmodel. You need to implement 
+        error("cannot build StochDynProgModel from current SPmodel. You need to implement
         a new StochDynProgModel constructor.")
     end
-    
+
     #Display start of the algorithm in DH and HD cases
     if (param.infoStructure == "DH")
         V = sdp_solve_DH(SDPmodel, param, display)
     elseif (param.infoStructure == "HD")
         V = sdp_solve_HD(SDPmodel, param, display)
     else
-        error("param.infoStructure is neither 'DH' nor 'HD'") 
+        error("param.infoStructure is neither 'DH' nor 'HD'")
     end
 
     return V
@@ -198,7 +205,7 @@ Returns :
 function sdp_solve_DH(model::StochDynProgModel,
                   param::SDPparameters,
                   display=true::Bool)
-    
+
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
     law = model.noises
@@ -264,10 +271,10 @@ function sdp_solve_DH(model::StochDynProgModel,
                     w_sample = samples[:, w]
                     proba = probas[w]
                     next_state = model.dynamics(t, x, u, w_sample)
-                    
-                    
+
+
                     if model.constraints(t, next_state, u, w_sample)
-                    
+
                         count_admissible_w = count_admissible_w + proba
                         ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                         next_V = Vitp[ind_next_state...]
@@ -438,8 +445,9 @@ Returns :
 - V(x0) (Float64)
 """
 function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
-    ind_x0 = index_from_variable(model.initialState, model.xlim, param.stateSteps)
-    return V[ind_x0...,1]
+    ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
+    Vi = value_function_interpolation(model, V, 1)
+    return Vi[ind_x0...,1]
 end
 
 

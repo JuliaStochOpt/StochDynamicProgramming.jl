@@ -6,16 +6,16 @@
 # Compare different ways of solving a stock problem :
 # Min   E [\sum_{t=1}^TF c_t u_t]
 # s.t.    s_{t+1} = s_t + u_t - xi_t, s_0 given
-#         0 <= s_t <= 1    
+#         0 <= s_t <= 1
 #         u_min <= u_t <= u_max
-#         u_t choosen knowing xi_1 .. xi_t 
+#         u_t choosen knowing xi_1 .. xi_t
 #############################################################################
 
 push!(LOAD_PATH, "../src")
 using StochDynamicProgramming, JuMP, Clp, Distributions
 
 ######## Optimization parameters  ########
-# choose the LP solver used. 
+# choose the LP solver used.
 const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 # const SOLVER = GurobiSolver()
@@ -67,7 +67,7 @@ spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 xi_laws)
 
 set_state_bounds(spmodel, s_bounds)
-paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward path, stop at MAX_ITER 
+paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward path, stop at MAX_ITER
 
 ######### Solving the problem via SDDP
 V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
@@ -81,12 +81,12 @@ controlSteps = [0.1]
 infoStruct = "HD" # noise at time t is known before taking the decision at time t
 
 paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
-V = sdp_optimize(spmodel,paramSDP)
-lb_sdp = StochDynamicProgramming.get_value(spmodel,paramSDP,V)
+Vs = sdp_optimize(spmodel,paramSDP)
+lb_sdp = StochDynamicProgramming.get_value(spmodel,paramSDP,Vs)
 println("Lower bound obtained by SDP: "*string(lb_sdp))
 
 
 ######### Comparing the solution
-#scenarios = StochDynamicProgramming.generate_scenarios(xi_laws,1) 
+#scenarios = StochDynamicProgramming.generate_scenarios(xi_laws,1)
 #costs, stocks = forward_simulations(spmodel, params, V, pbs, scenarios)
 
