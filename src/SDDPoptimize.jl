@@ -116,7 +116,7 @@ function run_SDDP(model::SPModel,
         iteration_count += 1
 
 
-        
+
 
         if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
@@ -130,7 +130,7 @@ function run_SDDP(model::SPModel,
     if (display>0)
         upb = upper_bound(costs)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
-        
+
         println("Estimate upper-bound with Monte-Carlo ...")
         upb, costs = estimate_upper_bound(model, param, V, problems)
         println("Estimation of upper-bound: ", round(upb,4),
@@ -447,6 +447,37 @@ current lower bound of the problem (Float64)
 function get_lower_bound(model::SPModel, param::SDDPparameters,
                             V::Vector{PolyhedralFunction})
     return get_bellman_value(model, param, 1, V[1], model.initialState)
+end
+
+
+"""
+Compute optimal control at point xt and time t.
+
+Parameters:
+- model (SPModel)
+    Parametrization of the problem
+
+- param (SDDPparameters)
+    Parameters of SDDP
+
+- lpproblem (Vector{JuMP.Model})
+    Linear problems used to approximate the value functions
+
+- t (Int64)
+	Time
+
+- xt (Vector{Float64})
+	Position where to compute optimal control
+
+- xi (Vector{Float64})
+	Alea at time t
+
+Return:
+	Vector{Float64}: optimal control at time t
+
+"""
+function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model}, t, xt, xi)
+	return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
 end
 
 
