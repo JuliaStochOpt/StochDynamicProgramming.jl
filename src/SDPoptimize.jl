@@ -267,7 +267,6 @@ function sdp_solve_DH(model::StochDynProgModel,
                 end
 
                 for w = 1:sampling_size
-
                     w_sample = samples[:, w]
                     proba = probas[w]
                     next_state = model.dynamics(t, x, u, w_sample)
@@ -449,6 +448,187 @@ function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
     return Vi[ind_x0...,1]
 end
 
+"""
+Get the optimal control at time t knowing the state of the system in the decision hazard case
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- V (Array{Float64})
+    the Bellman Functions
+
+- t (int)
+    the time step
+
+- x (Array)
+    the state variable
+
+Returns :
+- V(x0) (Float64)
+"""
+function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
+
+    function zero_fun(x)
+        return 0
+    end
+
+    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+        function cons_fun(t,x,u,w)
+            test = true
+            for i in 1:model.dimStates
+                test &= (x[i]>=model.xlim[i][1])&(x[i]<=model.xlim[i][2])
+            end
+            return test
+        end
+        if in(:finalCostFunction,fieldnames(model))
+            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
+        else
+            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
+        end
+    elseif isa(model,StochDynProgModel)
+        SDPmodel = model
+    else
+        error("cannot build StochDynProgModel from current SPmodel. You need to implement
+        a new StochDynProgModel constructor.")
+    end
+
+    product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
+
+    law = SDPmodel.noises
+    best_control = tuple()
+    Vitp = value_function_interpolation(SDPmodel, V, t+1)
+
+    u_bounds = SDPmodel.ulim
+    x_bounds = SDPmodel.xlim
+    x_steps = param.stateSteps
+
+    best_V = Inf
+
+    for u in product_controls
+
+        count_admissible_w = 0.
+        current_V = 0.
+
+        if (param.expectation_computation=="MonteCarlo")
+            sampling_size = param.monteCarloSize
+            samples = [sampling(law,t) for i in 1:sampling_size]
+            probas = (1/sampling_size)
+        else
+            sampling_size = law[t].supportSize
+            samples = law[t].support[:]
+            probas = law[t].proba
+        end
+
+        for w = 1:sampling_size
+
+            w_sample = samples[w]
+            proba = probas[w]
+
+            next_state = SDPmodel.dynamics(t, x, u, w_sample)
+
+            if SDPmodel.constraints(t, next_state, u, w_sample)
+                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                next_V = Vitp[ind_next_state...]
+                current_V += proba *(SDPmodel.costFunctions(t, x, u, w_sample) + next_V)
+                count_admissible_w = count_admissible_w + proba
+            end
+        end
+        current_V = current_V/count_admissible_w
+        if (current_V < best_V)&(count_admissible_w>0)
+            best_control = u
+            best_V = current_V
+        end
+    end
+
+    return best_control
+end
+
+"""
+Get the optimal control at time t knowing the state of the system in the hazard decision case
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- V (Array{Float64})
+    the Bellman Functions
+
+- t (int)
+    the time step
+
+- x (Array)
+    the state variable
+
+- w (Array)
+the alea realization
+
+Returns :
+- V(x0) (Float64)
+"""
+function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
+
+    function zero_fun(x)
+        return 0
+    end
+
+    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+        function cons_fun(t,x,u,w)
+            test = true
+            for i in 1:model.dimStates
+                test &= (x[i]>=model.xlim[i][1])&(x[i]<=model.xlim[i][2])
+            end
+            return test
+        end
+        if in(:finalCostFunction,fieldnames(model))
+            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
+        else
+            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
+        end
+    elseif isa(model,StochDynProgModel)
+        SDPmodel = model
+    else
+        error("cannot build StochDynProgModel from current SPmodel. You need to implement
+        a new StochDynProgModel constructor.")
+    end
+
+    product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
+
+    law = SDPmodel.noises
+    best_control = tuple()
+    Vitp = value_function_interpolation(SDPmodel, V, t+1)
+
+    u_bounds = SDPmodel.ulim
+    x_bounds = SDPmodel.xlim
+    x_steps = param.stateSteps
+
+    best_V = Inf
+
+    for u = product_controls
+
+        next_state = SDPmodel.dynamics(t, x, u, w)
+
+        if SDPmodel.constraints(t, next_state, u, w)
+            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+            next_V = Vitp[ind_next_state...]
+            current_V = SDPmodel.costFunctions(t, x, u, w) + next_V
+            if (current_V < best_V)
+                best_control = u
+                best_state = SDPmodel.dynamics(t, x, u, w)
+                best_V = current_V
+            end
+        end
+
+    end
+
+    return best_control
+end
 
 """
 Simulation of optimal control given an initial state and an alea scenario
@@ -546,10 +726,10 @@ function sdp_forward_simulation(model::SPModel,
 
                     next_state = model.dynamics(t, x, u, w_sample)
 
-                    if model.constraints(t, next_state, u, scenario[t])
+                    if model.constraints(t, next_state, u, w_sample)
                         ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                         next_V = Vitp[ind_next_state...]
-                        current_V += proba *(model.costFunctions(t, x, u, scenario[t]) + next_V)
+                        current_V += proba *(model.costFunctions(t, x, u, w_sample) + next_V)
                         count_admissible_w = count_admissible_w + proba
                     end
                 end
