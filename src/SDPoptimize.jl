@@ -117,29 +117,21 @@ function generate_grid(model::SPModel, param::SDPparameters)
 end
 
 """
-Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+Transform a general SPmondel into a StochDynProgModel
 
 Parameters:
 - model (SPmodel)
-    the DPSPmodel of our problem
+    the model of the problem
 
 - param (SDPparameters)
-    the parameters for the SDP algorithm
-
-- display (Bool)
-    the output display or verbosity parameter
+    the parameters of the problem
 
 
 Returns :
-- value_functions (Array)
-    the vector representing the value functions as functions of the state
-    of the system at each time step
-
+- sdpmodel : (StochDynProgModel)
+    the corresponding StochDynProgModel
 """
-function sdp_optimize(model::SPModel,
-                  param::SDPparameters,
-                  display=true::Bool)
+function SPmodel_to_SDPmodel(model::SPModel, param::SDPparameters)
 
     function zero_fun(x)
         return 0
@@ -164,6 +156,35 @@ function sdp_optimize(model::SPModel,
         error("cannot build StochDynProgModel from current SPmodel. You need to implement
         a new StochDynProgModel constructor.")
     end
+    return(SDPmodel)
+end
+
+"""
+Value iteration algorithm to compute optimal value functions in
+the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+
+Parameters:
+- model (SPmodel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- display (Bool)
+    the output display or verbosity parameter
+
+
+Returns :
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+"""
+function sdp_optimize(model::SPModel,
+                  param::SDPparameters,
+                  display=true::Bool)
+
+    SDPmodel = SPmodel_to_SDPmodel(model, param)
 
     #Display start of the algorithm in DH and HD cases
     if (param.infoStructure == "DH")
@@ -469,29 +490,7 @@ Returns :
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
 
-    function zero_fun(x)
-        return 0
-    end
-
-    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
-        function cons_fun(t,x,u,w)
-            test = true
-            for i in 1:model.dimStates
-                test &= (x[i]>=model.xlim[i][1])&(x[i]<=model.xlim[i][2])
-            end
-            return test
-        end
-        if in(:finalCostFunction,fieldnames(model))
-            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
-        else
-            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
-        end
-    elseif isa(model,StochDynProgModel)
-        SDPmodel = model
-    else
-        error("cannot build StochDynProgModel from current SPmodel. You need to implement
-        a new StochDynProgModel constructor.")
-    end
+    SDPmodel = SPmodel_to_SDPmodel(model, param)
 
     product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
 
@@ -571,29 +570,7 @@ Returns :
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
 
-    function zero_fun(x)
-        return 0
-    end
-
-    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
-        function cons_fun(t,x,u,w)
-            test = true
-            for i in 1:model.dimStates
-                test &= (x[i]>=model.xlim[i][1])&(x[i]<=model.xlim[i][2])
-            end
-            return test
-        end
-        if in(:finalCostFunction,fieldnames(model))
-            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
-        else
-            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
-        end
-    elseif isa(model,StochDynProgModel)
-        SDPmodel = model
-    else
-        error("cannot build StochDynProgModel from current SPmodel. You need to implement
-        a new StochDynProgModel constructor.")
-    end
+    SDPmodel = SPmodel_to_SDPmodel(model, param)
 
     product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
 
