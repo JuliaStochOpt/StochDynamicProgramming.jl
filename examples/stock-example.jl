@@ -76,8 +76,8 @@ println("Lower bound obtained by SDDP: "*string(lb_sddp))
 
 ######### Solving the problem via Dynamic Programming
 
-stateSteps = [0.1]
-controlSteps = [0.1]
+stateSteps = [0.01]
+controlSteps = [0.01]
 infoStruct = "HD" # noise at time t is known before taking the decision at time t
 
 paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)

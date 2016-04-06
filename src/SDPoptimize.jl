@@ -141,10 +141,10 @@ function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
-    function true_fun(x...)
+    function true_fun(t,x,u,w)
         return true
     end
-    function zero_fun(x...)
+    function zero_fun(x)
         return 0
     end
 
@@ -390,7 +390,7 @@ function sdp_solve_HD(model::StochDynProgModel,
             #Compute expectation
             for w in 1:sampling_size
                 admissible_u_w_count = 0
-                best_V_x_w = 0.
+                best_V_x_w = Inf
                 next_V_x_w = Inf
                 w_sample = samples[:, w]
                 proba = probas[w]
@@ -417,7 +417,6 @@ function sdp_solve_HD(model::StochDynProgModel,
                 expected_V += proba*best_V_x_w
                 count_admissible_w += (admissible_u_w_count>0)*proba
             end
-
             if (count_admissible_w>0.)
                 expected_V = expected_V / count_admissible_w
             end
