@@ -103,7 +103,7 @@ type StochDynProgModel <: SPModel
     noises::Vector{NoiseLaw}
 
     function StochDynProgModel(model::LinearDynamicLinearCostSPmodel, final, cons)
-        return new(model.stageNumber, model.xlim, model.ulim, model.initialState,
+        return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
                  model.costFunctions, final, model.dynamics, cons,
                  model.noises)
     end
@@ -121,7 +121,7 @@ type StochDynProgModel <: SPModel
             return saved_cost
         end
 
-        return new(model.stageNumber, model.xlim, model.ulim, model.initialState,
+        return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
                  cost, final, model.dynamics, cons, model.noises)
     end
 

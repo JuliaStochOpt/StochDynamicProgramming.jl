@@ -141,9 +141,6 @@ function sdp_optimize(model::SPModel,
                   param::SDPparameters,
                   display=true::Bool)
 
-    function true_fun(t,x,u,w)
-        return true
-    end
     function zero_fun(x)
         return 0
     end
