@@ -117,7 +117,6 @@ function generate_grid(model::SPModel, param::SDPparameters)
 end
 
 """
-<<<<<<< HEAD
 Transform a general SPmodel into a StochDynProgModel
 
 Parameters:
@@ -577,13 +576,13 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
             probas = (1/sampling_size)
         else
             sampling_size = law[t].supportSize
-            samples = law[t].support[:]
+            samples = law[t].support
             probas = law[t].proba
         end
 
         for w = 1:sampling_size
 
-            w_sample = samples[w]
+            w_sample = samples[:, w]
             proba = probas[w]
 
             next_state = SDPmodel.dynamics(t, x, u, w_sample)
@@ -752,13 +751,13 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                     probas = (1/sampling_size)
                 else
                     sampling_size = law[t].supportSize
-                    samples = law[t].support[:]
+                    samples = law[t].support
                     probas = law[t].proba
                 end
 
                 for w = 1:sampling_size
 
-                    w_sample = samples[w]
+                    w_sample = samples[:, w]
                     proba = probas[w]
 
                     next_state = model.dynamics(t, x, u, w_sample)
