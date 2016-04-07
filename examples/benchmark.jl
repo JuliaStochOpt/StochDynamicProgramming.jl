@@ -214,16 +214,7 @@ function benchmark_sddp()
     texec = toq()
     println("Time to perform simulation: ", texec, "s")
 
-    # Get costs with deterministic solution:
-    println("Compute anticipative solution ...")
-    costs_det = zeros(n_assessments)
-    for n in 1:n_assessments
-        costs_det[n] = solve_determinist_problem(model, aleas[:, n, :])
-    end
-
-    println("SDDP cost: \t", mean(costs_sddp))
-    println("Deterministic cost: \t", mean(costs_det))
-    println("Gap: \t", mean(costs_det)/mean(costs_sddp))
+	println("SDDP cost: \t", mean(costs_sddp))
     return stocks, V
 end
 

@@ -22,12 +22,9 @@ facts("Probability functions") do
     @fact law.supportSize --> 3
 
     dims = (2, 2, 1)
-    scenarios = simulate_scenarios([law, law], dims)
+    scenarios = simulate_scenarios([law, law], 2)
     @fact typeof(scenarios) --> Array{Float64, 3}
     @fact size(scenarios) --> (2, 2, 1)
-
-    scenarios2 = simulate_scenarios(Normal(), dims)
-    @fact typeof(scenarios2) --> Array{Float64, 3}
 
     # test product of noiselaws:
     support2 = [4, 5, 6]
@@ -109,10 +106,7 @@ facts("SDDP algorithm: 1D case") do
     cost,
     dynamic, laws)
     # Generate scenarios for forward simulations:
-    noise_scenarios = simulate_scenarios(model.noises,
-    (model.stageNumber,
-    params.forwardPassNumber,
-    model.dimNoises))
+    noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
     context("Linear cost") do
@@ -139,7 +133,7 @@ facts("SDDP algorithm: 1D case") do
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
-        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)
+        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
@@ -250,15 +244,12 @@ facts("SDDP algorithm: 2D case") do
 
 
         # Test a simulation upon given scenarios:
-        noise_scenarios = simulate_scenarios(model.noises,
-        (model.stageNumber,
-        n_simulations,
-        model.dimNoises))
+        noise_scenarios = simulate_scenarios(model.noises,n_simulations)
 
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
-        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)
+        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
