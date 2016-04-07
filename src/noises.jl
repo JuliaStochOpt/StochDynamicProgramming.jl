@@ -242,7 +242,7 @@ Return:
 
 """
 function simulate_scenarios(laws, dims::Tuple)
-    warn("decrecated call to simulate_scenarios")
+    warn("deprecated call to simulate_scenarios")
     if typeof(laws) == Distributions.Normal
         scenarios = rand(laws, dims)
     else
