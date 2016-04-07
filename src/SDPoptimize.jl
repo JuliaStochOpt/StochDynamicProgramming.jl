@@ -117,8 +117,42 @@ function generate_grid(model::SPModel, param::SDPparameters)
 end
 
 """
+Try to construct a StochDynProgModel from an SPModel
+"""
+function build_sdpmodel_from_spmodel(model::SPModel)
+    function true_fun(t,x,u,w)
+        return true
+    end
+    function zero_fun(x)
+        return 0
+    end
+
+    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+        function cons_fun(t,x,u,w)
+            for i in 1:model.dimStates
+                if (x[i]<=model.xlim[i][1]) || (x[i]>=model.xlim[i][2])
+                    return false
+                end
+            end
+            return true
+        end
+        if in(:finalCostFunction,fieldnames(model))
+            SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
+        else
+            SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
+        end
+    elseif isa(model,StochDynProgModel)
+        SDPmodel = model
+    else
+        error("cannot build StochDynProgModel from current SPmodel. You need to implement
+        a new StochDynProgModel constructor.")
+    end
+    return SDPmodel
+end
+
+"""
 Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) case
+the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 
 Parameters:
 - model (SPmodel)
@@ -137,7 +171,47 @@ Returns :
     of the system at each time step
 
 """
-function sdp_solve_DH(model::SPModel,
+function sdp_optimize(model::SPModel,
+                  param::SDPparameters,
+                  display=true::Bool)
+
+    SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
+
+    #Display start of the algorithm in DH and HD cases
+    if (param.infoStructure == "DH")
+        V = sdp_solve_DH(SDPmodel, param, display)
+    elseif (param.infoStructure == "HD")
+        V = sdp_solve_HD(SDPmodel, param, display)
+    else
+        error("param.infoStructure is neither 'DH' nor 'HD'")
+    end
+
+    return V
+end
+
+
+"""
+Value iteration algorithm to compute optimal value functions in
+the Decision Hazard (DH) case
+
+Parameters:
+- model (StochDynProgModel)
+    the DPSPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- display (Bool)
+    the output display or verbosity parameter
+
+
+Returns :
+- value_functions (Array)
+    the vector representing the value functions as functions of the state
+    of the system at each time step
+
+"""
+function sdp_solve_DH(model::StochDynProgModel,
                   param::SDPparameters,
                   display=true::Bool)
 
@@ -207,6 +281,7 @@ function sdp_solve_DH(model::SPModel,
                     proba = probas[w]
                     next_state = model.dynamics(t, x, u, w_sample)
 
+
                     if model.constraints(t, next_state, u, w_sample)
 
                         count_admissible_w = count_admissible_w + proba
@@ -243,7 +318,7 @@ Value iteration algorithm to compute optimal value functions in
 the Hazard Decision (HD) case
 
 Parameters:
-- model (SPmodel)
+- model (StochDynProgModel)
     the DPSPmodel of our problem
 
 - param (SDPparameters)
@@ -259,7 +334,7 @@ Returns :
     of the system at each time step
 
 """
-function sdp_solve_HD(model::SPModel,
+function sdp_solve_HD(model::StochDynProgModel,
                   param::SDPparameters,
                   display=true::Bool)
 
@@ -288,8 +363,8 @@ function sdp_solve_HD(model::SPModel,
     end
 
     if display
-            println("Starting stochastic dynamic programming hazard decision computation")
-        end
+        println("Starting stochastic dynamic programming hazard decision computation")
+    end
 
     #Loop over time
     for t = (TF-1):-1:1
@@ -307,6 +382,10 @@ function sdp_solve_HD(model::SPModel,
             count_admissible_w = 0.
 
                 #Tuning expectation computation parameters
+            if param.expectation_computation!="MonteCarlo" && param.expectation_computation!="Exact"
+                warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'. Defaulted to 'exact'")
+                param.expectation_computation="Exact"
+            end
             if (param.expectation_computation=="MonteCarlo")
                 sampling_size = param.monteCarloSize
                 samples = [sampling(law,t) for i in 1:sampling_size]
@@ -320,7 +399,7 @@ function sdp_solve_HD(model::SPModel,
             #Compute expectation
             for w in 1:sampling_size
                 admissible_u_w_count = 0
-                best_V_x_w = 0.
+                best_V_x_w = Inf
                 next_V_x_w = Inf
                 w_sample = samples[:, w]
                 proba = probas[w]
@@ -347,7 +426,6 @@ function sdp_solve_HD(model::SPModel,
                 expected_V += proba*best_V_x_w
                 count_admissible_w += (admissible_u_w_count>0)*proba
             end
-
             if (count_admissible_w>0.)
                 expected_V = expected_V / count_admissible_w
             end
@@ -359,8 +437,7 @@ function sdp_solve_HD(model::SPModel,
 end
 
 """
-Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+Get the optimal value of the problem from the optimal Bellman Function
 
 Parameters:
 - model (SPmodel)
@@ -369,30 +446,73 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- display (Bool)
-    the output display or verbosity parameter
-
+- V (Array{Float64})
+    the Bellman Functions
 
 Returns :
+- V(x0) (Float64)
+"""
+function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
+    ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
+    Vi = value_function_interpolation(model, V, 1)
+    return Vi[ind_x0...,1]
+end
+
+"""
+Simulation of optimal trajectories given model and Bellman functions
+
+Parameters:
+- model (SPmodel)
+    the SPmodel of our problem
+
+- param (SDPparameters)
+    the parameters for the SDP algorithm
+
+- scenarios (Array)
+    the scenarios of uncertainties realizations we want to simulate on
+    scenarios[t,k,:] is the alea at time t for scenario k
+
 - value_functions (Array)
     the vector representing the value functions as functions of the state
     of the system at each time step
 
-"""
-function sdp_optimize(model::SPModel,
-                  param::SDPparameters,
-                  display=true::Bool)
+- display (Bool)
+    the output display or verbosity parameter
 
-    #Display start of the algorithm in DH and HD cases
-    if (param.infoStructure == "DH")
-        V = sdp_solve_DH(model, param, display)
-    else
-        V = sdp_solve_HD(model, param, display)
+Returns :
+
+- costs (Vector{Float64})
+    the cost of the optimal control over the scenario provided
+
+- stocks (Array{Float64})
+    the state of the controlled system at each time step
+
+- controls (Array{Float64})
+    the controls applied to the system at each time step
+"""
+function sdp_forward_simulation(model::SPModel,
+                  param::SDPparameters,
+                  scenarios::Array{Float64,3},
+                  value::Array,
+                  display=true::Bool)
+                  
+    SDPmodel = build_sdpmodel_from_spmodel(model)              
+    TF = SDPmodel.stageNumber 
+    nb_scenarios = size(scenarios)[2] 
+             
+    costs = zeros(nb_scenarios)
+    states = zeros(TF,nb_scenarios)
+    controls = zeros(TF-1,nb_scenarios)
+    
+    
+    for k = 1:nb_scenarios
+        #println(k)
+        costs[k],states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
+                  param,scenarios[:,k],model.initialState,value,display)
     end
 
-    return V
+    return costs, controls, states
 end
-
 
 """
 Simulation of optimal control given an initial state and an alea scenario
@@ -429,7 +549,7 @@ Returns :
     the controls applied to the system at each time step
 
 """
-function sdp_forward_simulation(model::SPModel,
+function sdp_forward_single_simulation(model::StochDynProgModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,

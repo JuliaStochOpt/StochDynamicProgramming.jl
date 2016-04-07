@@ -155,6 +155,7 @@ end
 
 
 """
+DEPRECATED
 Simulate n scenarios according to a given NoiseLaw
 
 Parameters:
@@ -170,15 +171,16 @@ Returns :
     an Array of scenarios, scenarios[i,:] being the ith noise scenario
 """
 function generate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
+    warn("deprecated generate_scenarios use simulate_scenarios")
     if n <= 0
         error("negative number of simulations")
     end
-    Tf = length(law)
+    Tf = length(laws)
     scenarios = Array{Vector{Float64}}(n,Tf)
     for i = 1:n#TODO can be parallelized
         scenario = []
         for t=1:Tf
-            new_val = laws[t].support[:, rand(Categorical(law[t].proba))]
+            new_val = laws[t].support[:, rand(Categorical(laws[t].proba))]
             push!(scenario, new_val)
         end
         scenarios[i,:]=scenario
@@ -187,8 +189,43 @@ function generate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
     return scenarios
 end
 
+"""
+Simulate n scenarios and return a 3D array
+
+Parameters:
+- laws (Vector{NoiseLaw})
+    Distribution laws corresponding to each timestep
+
+- n (Int64)
+    number of scenarios to simulate
+
+Return:
+- scenarios Array{Float64, 3}
+    scenarios[t,k,:] is the noise at time t for scenario k
+"""
+function simulate_scenarios(laws, n::Int64)
+    T = length(laws)
+    dimAlea = size(laws[1].support)[1]
+    dims =(T,n,dimAlea)
+    if typeof(laws) == Distributions.Normal
+        scenarios = rand(laws, dims)
+    else
+        scenarios = zeros(dims)
+
+        for k=1:dims[2]
+            for t=1:dims[1]
+                gen = Categorical(laws[t].proba)
+                scenarios[t, k, :] = laws[t].support[:, rand(gen)]
+            end
+
+        end
+    end
+
+    return scenarios
+end
 
 """
+DEPRECATED
 Simulate n scenarios and return a 3D array
 
 
@@ -205,7 +242,7 @@ Return:
 
 """
 function simulate_scenarios(laws, dims::Tuple)
-
+    warn("decrecated call to simulate_scenarios")
     if typeof(laws) == Distributions.Normal
         scenarios = rand(laws, dims)
     else

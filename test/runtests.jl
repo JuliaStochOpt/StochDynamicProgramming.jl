@@ -101,18 +101,18 @@ facts("SDDP algorithm: 1D case") do
 
     # Instantiate parameters of SDDP:
     params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
-                                                    epsilon, max_iterations)
+    epsilon, max_iterations)
 
     V = nothing
     model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
-                                                u_bounds, x0,
-                                                cost,
-                                                dynamic, laws)
+    u_bounds, x0,
+    cost,
+    dynamic, laws)
     # Generate scenarios for forward simulations:
     noise_scenarios = simulate_scenarios(model.noises,
-                          (model.stageNumber,
-                           params.forwardPassNumber,
-                           model.dimNoises))
+    (model.stageNumber,
+    params.forwardPassNumber,
+    model.dimNoises))
 
     sddp_costs = 0
     context("Linear cost") do
@@ -133,7 +133,7 @@ facts("SDDP algorithm: 1D case") do
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
         upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
-                                                           n_simulations)[1]
+        n_simulations)[1]
         @fact typeof(upb) --> Float64
 
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
@@ -143,6 +143,11 @@ facts("SDDP algorithm: 1D case") do
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)
+
+        # Test computation of optimal control:
+        aleas = StochDynamicProgramming.extract_vector_from_3Dmatrix(noise_scenarios, 1, 1)
+        opt = StochDynamicProgramming.get_control(model, params, pbs, 1, model.initialState, aleas)
+        @fact typeof(opt) --> Vector{Float64}
     end
 
     context("Hotstart") do
@@ -157,9 +162,9 @@ facts("SDDP algorithm: 1D case") do
     context("Piecewise linear cost") do
         # Test Piecewise linear costs:
         model = StochDynamicProgramming.PiecewiseLinearCostSPmodel(n_stages,
-                                                    u_bounds, x0,
-                                                    [cost],
-                                                    dynamic, laws)
+        u_bounds, x0,
+        [cost],
+        dynamic, laws)
         set_state_bounds(model, x_bounds)
         V, pbs = solve_SDDP(model, params, false)
     end
@@ -218,14 +223,14 @@ facts("SDDP algorithm: 2D case") do
 
     # Instantiate parameters of SDDP:
     params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
-                                                    epsilon, max_iterations)
+    epsilon, max_iterations)
     V = nothing
     context("Linear cost") do
         # Instantiate a SDDP linear model:
         model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
-                                                    u_bounds, x0,
-                                                    cost,
-                                                    dynamic, laws)
+        u_bounds, x0,
+        cost,
+        dynamic, laws)
         set_state_bounds(model, x_bounds)
 
 
@@ -240,15 +245,15 @@ facts("SDDP algorithm: 2D case") do
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
         upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
-                                                           n_simulations)[1]
+        n_simulations)[1]
         @fact typeof(upb) --> Float64
 
 
-         # Test a simulation upon given scenarios:
+        # Test a simulation upon given scenarios:
         noise_scenarios = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               n_simulations,
-                               model.dimNoises))
+        (model.stageNumber,
+        n_simulations,
+        model.dimNoises))
 
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
 
@@ -345,111 +350,111 @@ facts("SDP algorithm") do
     end
 
     """Build admissible scenarios for water inflow over the time horizon."""
-    function build_scenarios(n_scenarios::Int64, N_STAGES)
-        scenarios = zeros(n_scenarios, N_STAGES)
+        function build_scenarios(n_scenarios::Int64, N_STAGES)
+            scenarios = zeros(n_scenarios, N_STAGES)
 
-        for scen in 1:n_scenarios
-            scenarios[scen, :] = (W_MAX-W_MIN)*rand(N_STAGES)+W_MIN
+            for scen in 1:n_scenarios
+                scenarios[scen, :] = (W_MAX-W_MIN)*rand(N_STAGES)+W_MIN
+            end
+            return scenarios
         end
-        return scenarios
-    end
 
         """Build probability distribution at each timestep based on N scenarios.
-    Return a Vector{NoiseLaw}"""
-    function generate_probability_laws(N_STAGES, N_SCENARIOS)
-        aleas = zeros(N_SCENARIOS, N_STAGES, 1)
-        aleas[:, :, 1] = build_scenarios(N_SCENARIOS, N_STAGES)
+        Return a Vector{NoiseLaw}"""
+        function generate_probability_laws(N_STAGES, N_SCENARIOS)
+            aleas = zeros(N_SCENARIOS, N_STAGES, 1)
+            aleas[:, :, 1] = build_scenarios(N_SCENARIOS, N_STAGES)
 
-        laws = Vector{NoiseLaw}(N_STAGES)
+            laws = Vector{NoiseLaw}(N_STAGES)
 
-        # uniform probabilities:
-        proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
+            # uniform probabilities:
+            proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
 
-        for t=1:N_STAGES
-            aleas_t = reshape(aleas[:, t, :], N_SCENARIOS, 1)'
-            laws[t] = NoiseLaw(aleas_t, proba)
+            for t=1:N_STAGES
+                aleas_t = reshape(aleas[:, t, :], N_SCENARIOS, 1)'
+                laws[t] = NoiseLaw(aleas_t, proba)
+            end
+
+            return laws
         end
 
-        return laws
-    end
+        N_SCENARIO = 10
+        aleas = generate_probability_laws(TF-1, N_SCENARIO)
 
-    N_SCENARIO = 10
-    aleas = generate_probability_laws(TF-1, N_SCENARIO)
+        x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)];
+        u_bounds = [(CONTROL_MIN, CONTROL_MAX), (VOLUME_MIN, VOLUME_MAX)];
 
-    x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)];
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX), (VOLUME_MIN, VOLUME_MAX)];
+        x0 = [5, 0]
 
-    x0 = [5, 0]
+        alea_year = Array([7.0 7.0])
 
-    alea_year = Array([7.0 7.0])
+        aleas_scen = zeros(2, 1, 1)
+        aleas_scen[:, 1, 1] = alea_year;
 
-    aleas_scen = zeros(2, 1, 1)
-    aleas_scen[:, 1, 1] = alea_year;
+        modelSDP = StochDynProgModel(TF, N_CONTROLS,
+        N_STATES, N_NOISES,
+        x_bounds, u_bounds,
+        x0, cost_t,
+        finalCostFunction, dynamic,
+        constraints, aleas);
 
-    modelSDP = StochDynProgModel(TF, N_CONTROLS,
-                        N_STATES, N_NOISES,
-                        x_bounds, u_bounds,
-                        x0, cost_t,
-                        finalCostFunction, dynamic,
-                        constraints, aleas);
+        stateSteps = [1,1];
+        controlSteps = [1,1];
+        monteCarloSize = 2;
 
-    stateSteps = [1,1];
-    controlSteps = [1,1];
-    monteCarloSize = 2;
+        paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
+        controlSteps,
+        infoStruct,
+        "Exact",
+        monteCarloSize);
 
-    paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
-                                                     controlSteps,
-                                                     infoStruct,
-                                                     "Exact",
-                                                     monteCarloSize);
+        context("Compare StochDynProgModel constructors") do
 
-    context("Compare StochDynProgModel constructors") do
+            modelSDPPiecewise = StochDynamicProgramming.PiecewiseLinearCostSPmodel(TF,
+            u_bounds, x0,
+            [cost_t],
+            dynamic, aleas)
+            set_state_bounds(modelSDPPiecewise, x_bounds)
 
-        modelSDPPiecewise = StochDynamicProgramming.PiecewiseLinearCostSPmodel(TF,
-                                                                        u_bounds, x0,
-                                                                        [cost_t],
-                                                                        dynamic, aleas)
-        set_state_bounds(modelSDPPiecewise, x_bounds)
+            modelSDPLinear = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(TF,
+            u_bounds, x0,
+            cost_t,
+            dynamic, aleas)
 
-        modelSDPLinear = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(TF,
-                                                                        u_bounds, x0,
-                                                                        cost_t,
-                                                                        dynamic, aleas)
+            set_state_bounds(modelSDPLinear, x_bounds)
 
-        set_state_bounds(modelSDPLinear, x_bounds)
+            test_costs = true
+            x = x0
+            u = [1, 1]
+            w = [4]
 
-        test_costs = true
-        x = x0
-        u = [1, 1]
-        w = [4]
+            for t in 1:TF-1
+                test_costs &= (modelSDPLinear.costFunctions(t,x,u,w)==modelSDP.costFunctions(t,x,u,w))
+                test_costs &= (modelSDPPiecewise.costFunctions[1](t,x,u,w)==modelSDP.costFunctions(t,x,u,w))
+            end
 
-        for t in 1:TF-1
-            test_costs &= (modelSDPLinear.costFunctions(t,x,u,w)==modelSDP.costFunctions(t,x,u,w))
-            test_costs &= (modelSDPPiecewise.costFunctions[1](t,x,u,w)==modelSDP.costFunctions(t,x,u,w))
+            @fact test_costs --> true
         end
 
-        @fact test_costs --> true
+
+        context("Solve and simulate using SDP") do
+
+            V_sdp = sdp_optimize(modelSDP, paramsSDP, false);
+
+            @fact size(V_sdp) --> (paramsSDP.stateVariablesSizes..., TF)
+
+            costs_sdp, stocks_sdp, controls_sdp = sdp_forward_simulation(modelSDP,
+            paramsSDP,
+            aleas_scen, x0,
+            V_sdp, true )
+
+            @fact size(stocks_sdp) --> (3,1,2)
+            @fact size(controls_sdp) --> (2,1,2)
+
+            state_ref = zeros(2)
+            state_ref[1] = stocks_sdp[2,1,1]
+            state_ref[2] = stocks_sdp[2,1,2]
+
+        end
+
     end
-
-
-    context("Solve and simulate using SDP") do
-
-        V_sdp = sdp_optimize(modelSDP, paramsSDP, false);
-
-        @fact size(V_sdp) --> (paramsSDP.stateVariablesSizes..., TF)
-
-        costs_sdp, stocks_sdp, controls_sdp = sdp_forward_simulation(modelSDP,
-                                                                paramsSDP,
-                                                                aleas_scen, x0,
-                                                                V_sdp, true )
-
-        @fact size(stocks_sdp) --> (3,1,2)
-        @fact size(controls_sdp) --> (2,1,2)
-
-        state_ref = zeros(2)
-        state_ref[1] = stocks_sdp[2,1,1]
-        state_ref[2] = stocks_sdp[2,1,2]
-
-    end
-
-end
