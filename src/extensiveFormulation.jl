@@ -13,18 +13,15 @@ Contruct the scenario tree and solve the problem with measurability constraints
 function extensive_formulation(model,
                                params)
 
-
     #Recover all the constant in the model or in param
     laws = model.noises
-    #laws[t].supportSize = laws[1].supportSize
 
     DIM_STATE = model.dimStates
     DIM_CONTROL = model.dimControls
 
     X_init = model.initialState
 
-
-    T = model.stageNumber
+    T = model.stageNumber-1
 
     mod = Model(solver=params.solver)
 
@@ -46,10 +43,10 @@ function extensive_formulation(model,
 
 
     #Computes the total probability of each node from the conditional probabilities
-    proba = []
-    push!(proba, laws[1].proba)
+    proba    = Vector{typeof(laws[1].proba)}(T)
+    proba[1] = laws[1].proba
     for t = 2 : T
-        push!(proba, zeros(N[t+1]))
+        proba[t] = zeros(N[t+1])
         for j = 1 : N[t]
             for k = 1 : laws[t].supportSize
                 proba[t][laws[t].supportSize*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]

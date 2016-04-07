@@ -176,11 +176,8 @@ paramsbis = deepcopy(params)
 function solve_dams(model,params,display=false)
 
     V, pbs = solve_SDDP(model, params, display)
-
-    aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               params.forwardPassNumber,
-                               model.dimNoises))
+                               
+    aleas = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     params.forwardPassNumber = 1
 
@@ -219,5 +216,6 @@ if (unsolve)
 else
     a,b = solve_dams(modelbis,paramsbis)
     println("solution =",sol)
+    println("V0 = ", b[1].lambdas[1,:]*X0+b[1].betas[1])
 end
 
