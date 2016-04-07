@@ -88,9 +88,9 @@ function run_SDDP(model::SPModel,
 
     while (iteration_count < param.maxItNumber) & (~stopping_test)
         # Time execution of current pass:
-		if display > 0
-			tic()
-		end
+        if display > 0
+            tic()
+        end
 
         # Build given number of scenarios according to distribution
         # law specified in model.noises:
@@ -171,10 +171,7 @@ Float64 (estimation of the upper bound)
 """
 function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
 
-    aleas = simulate_scenarios(model.noises ,
-                                    (model.stageNumber-1,
-                                     n_simulation,
-                                     model.dimNoises))
+    aleas = simulate_scenarios(model.noises, n_simulation)
 
     costs, stockTrajectories, _ = forward_simulations(model,
                                                         param,
@@ -332,10 +329,7 @@ function initialize_value_functions( model::SPModel,
     V = Array{PolyhedralFunction}(model.stageNumber)
 
     # Build scenarios according to distribution laws:
-    aleas = simulate_scenarios(model.noises,
-                               (model.stageNumber-1,
-                                param.forwardPassNumber,
-                                model.dimNoises))
+    aleas = simulate_scenarios(model.noises, param.forwardPassNumber)
 
     V[end] = V_final
 
@@ -464,20 +458,20 @@ Parameters:
     Linear problems used to approximate the value functions
 
 - t (Int64)
-	Time
+    Time
 
 - xt (Vector{Float64})
-	Position where to compute optimal control
+    Position where to compute optimal control
 
 - xi (Vector{Float64})
-	Alea at time t
+    Alea at time t
 
 Return:
-	Vector{Float64}: optimal control at time t
+    Vector{Float64}: optimal control at time t
 
 """
 function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model}, t, xt, xi)
-	return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
+    return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
 end
 
 
