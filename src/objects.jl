@@ -103,8 +103,7 @@ type StochDynProgModel <: SPModel
     noises::Vector{NoiseLaw}
 
     function StochDynProgModel(model::LinearDynamicLinearCostSPmodel, final, cons)
-        return new(model.stageNumber, model.dimControls, model.dimStates,
-                 model.dimNoises, model.xlim, model.ulim, model.initialState,
+        return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
                  model.costFunctions, final, model.dynamics, cons,
                  model.noises)
     end
@@ -122,16 +121,13 @@ type StochDynProgModel <: SPModel
             return saved_cost
         end
 
-        return new(model.stageNumber, model.dimControls, model.dimStates,
-                 model.dimNoises, model.xlim, model.ulim, model.initialState,
-                 cost, final, model.dynamics, cons,
-                 model.noises)
+        return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
+                 cost, final, model.dynamics, cons, model.noises)
     end
 
-    function StochDynProgModel(TF, N_CONTROLS, N_STATES, N_NOISES,
-                    x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
-                    constraints, aleas)
-        return new(TF, N_CONTROLS, N_STATES, N_NOISES,
+    function StochDynProgModel(TF, x_bounds, u_bounds, x0, cost_t,
+                                finalCostFunction, dynamic, constraints, aleas)
+        return new(TF, length(u_bounds), length(x_bounds), length(aleas[1].support[:, 1]),
                     x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
                     constraints, aleas)
     end
