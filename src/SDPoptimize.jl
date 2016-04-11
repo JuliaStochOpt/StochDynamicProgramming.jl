@@ -237,6 +237,8 @@ function sdp_solve_DH(model::StochDynProgModel,
     #Compute cartesian product spaces
     product_states, product_controls = generate_grid(model, param)
 
+    product_controls = collect(product_controls)
+
     V = zeros(Float64, param.stateVariablesSizes..., TF)
 
     #Compute final value functions
@@ -358,6 +360,8 @@ function sdp_solve_HD(model::StochDynProgModel,
 
     #Compute cartesian product spaces
     product_states, product_controls = generate_grid(model, param)
+
+    product_controls = collect(product_controls)
 
     V = zeros(Float64, param.stateVariablesSizes..., TF)
 

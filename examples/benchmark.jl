@@ -306,8 +306,7 @@ function benchmark_sdp()
 
     x0 = [20., 22.]
 
-    modelSDP = StochDynProgModel(N_STAGES-1, N_CONTROLS,
-                        N_STATES, N_NOISES,
+    modelSDP = StochDynProgModel(N_STAGES-1,
                         x_bounds, u_bounds,
                         x0, cost_t,
                         finalCostFunction, dynamic,
@@ -319,8 +318,8 @@ function benchmark_sdp()
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
                                                      controlSteps,
-                                                     monteCarloSize,
-                                                     infoStruct);
+                                                     infoStruct,
+                                                     "Exact");
 
 	print("Problem size (T*X*U*W): ")
 	println(paramsSDP.totalStateSpaceSize*paramsSDP.totalControlSpaceSize)

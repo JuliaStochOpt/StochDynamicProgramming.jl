@@ -42,7 +42,7 @@ const S0 = 0.5
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
 xi_support = collect(linspace(XI_MIN,XI_MAX,N_XI))
 xi_law = NoiseLaw(xi_support, proba)
-xi_laws = NoiseLaw[xi_law for t in 1:N_STAGES-1] 
+xi_laws = NoiseLaw[xi_law for t in 1:N_STAGES-1]
 
 # Define dynamic of the stock:
 function dynamic(t, x, u, xi)
@@ -59,7 +59,7 @@ end
     u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
     spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
     set_state_bounds(spmodel, s_bounds)
-    
+
 
 ######### Solving the problem via SDDP
 if run_sddp
