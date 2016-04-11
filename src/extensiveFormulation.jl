@@ -54,7 +54,6 @@ function extensive_formulation(model,
         end
     end
 
-
     #Instantiate the problem creating dynamic constraint at each node
     for t = 1 : (T)
         for n = 1 : N[t]
@@ -90,7 +89,7 @@ function extensive_formulation(model,
 
     #Define the objective of the function
     @setObjective(mod, Min, sum{ sum{proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k],k = 1:laws[t].supportSize} , t = 1:T, n=1:div(N[t+1],laws[t].supportSize)})
-
+    
     status = solve(mod)
 
     solved = (status == :Optimal)

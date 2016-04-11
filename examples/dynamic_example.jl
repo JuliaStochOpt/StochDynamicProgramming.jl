@@ -17,10 +17,11 @@ const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
 const N_STAGES = 5
-const N_SCENARIOS = 3
+const N_SCENARIOS = 1
 
-const DIM_STATES = 2
-const DIM_CONTROLS = 2
+const DIM_STATES = 1
+const DIM_CONTROLS = 1
+#TODO integrate DIM_ALEAS in build_aleas
 const DIM_ALEAS = 1
 
 
@@ -29,8 +30,8 @@ const DIM_ALEAS = 1
 const T0 = 1
 
 # Constants:
-const VOLUME_MAX = 100
-const VOLUME_MIN = 0
+const VOLUME_MAX = 1000
+const VOLUME_MIN = -1000
 
 const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
 const CONTROL_MIN = 0
@@ -46,9 +47,7 @@ const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 const EPSILON = .05
 const MAX_ITER = 20
 
-alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
-
-const X0 = [50, 50]
+const X0 = 50*ones(DIM_STATES)
 
 Ax=[]
 Au=[]
@@ -146,7 +145,12 @@ function init_problem()
     x0 = X0
     aleas = generate_probability_laws()
 
-    x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
+    #Define bounds for the state and the control
+    x_bounds  = []
+    for u = 1:DIM_STATES
+        x_bounds = push!(x_bounds, (VOLUME_MIN, VOLUME_MAX))
+    end
+    
     u_bounds  = []
     for u = 1:DIM_CONTROLS
         u_bounds = push!(u_bounds, (CONTROL_MIN, CONTROL_MAX))
@@ -158,8 +162,6 @@ function init_problem()
                                                 cost_t,
                                                 dynamic,
                                                 aleas)
-
-    #set_state_bounds(model, x_bounds)
 
     solver = SOLVER
     params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
@@ -186,7 +188,7 @@ function solve_dams(model,params,display=false)
     return stocks, V
 end
 
-#Solve the problem and try nb_iter times to generate radom data in case of infeasibility
+#Solve the problem and try nb_iter times to generate random data in case of infeasibility
 unsolve = true
 sol = 0
 i = 0
