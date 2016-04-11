@@ -12,6 +12,7 @@ using ProgressMeter
 using Iterators
 using Interpolations
 
+
 """
 Convert the state and control float tuples (stored as arrays or tuples) of the
 problem into integer tuples that can be used as indexes for the value function
@@ -38,6 +39,7 @@ function index_from_variable( variable,
 
     return tuple([ 1 + floor(Int64,(1e-10+( variable[i] - bounds[i][1] )/ variable_steps[i] )) for i in 1:length(variable)]...)
 end
+
 
 """
 Convert the state and control float tuples (stored as arrays or tuples) of the
@@ -67,6 +69,7 @@ function real_index_from_variable( variable,
     return tuple([1 + ( variable[i] - bounds[i][1] )/variable_steps[i] for i in 1:length(variable)]...)
 end
 
+
 """
 Compute interpolation of the value function at time t
 
@@ -91,6 +94,7 @@ function value_function_interpolation( model::SPModel,
     return interpolate(V[[Colon() for i in 1:model.dimStates]...,time], BSpline(Linear()), OnGrid())
 end
 
+
 """
 Compute interpolation of the value function at time t
 
@@ -113,8 +117,8 @@ function generate_grid(model::SPModel, param::SDPparameters)
     product_controls = product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
 
     return product_states, product_controls
-
 end
+
 
 """
 Transform a general SPmodel into a StochDynProgModel
@@ -160,6 +164,7 @@ function build_sdpmodel_from_spmodel(model::SPModel)
 
     return SDPmodel
 end
+
 
 """
 Value iteration algorithm to compute optimal value functions in
@@ -325,6 +330,7 @@ function sdp_solve_DH(model::StochDynProgModel,
     return V
 end
 
+
 """
 Value iteration algorithm to compute optimal value functions in
 the Hazard Decision (HD) case
@@ -450,6 +456,7 @@ function sdp_solve_HD(model::StochDynProgModel,
     return V
 end
 
+
 """
 Get the optimal value of the problem from the optimal Bellman Function
 
@@ -465,12 +472,14 @@ Parameters:
 
 Returns :
 - V(x0) (Float64)
+
 """
 function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
     ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
     Vi = value_function_interpolation(model, V, 1)
     return Vi[ind_x0...,1]
 end
+
 
 """
 Simulation of optimal trajectories given model and Bellman functions
@@ -503,6 +512,7 @@ Returns :
 
 - controls (Array{Float64})
     the controls applied to the system at each time step
+
 """
 function sdp_forward_simulation(model::SPModel,
                   param::SDPparameters,
@@ -521,12 +531,13 @@ function sdp_forward_simulation(model::SPModel,
 
     for k = 1:nb_scenarios
         #println(k)
-        costs[k],states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
+        costs[k], states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
                   param,scenarios[:,k],model.initialState,value,display)
     end
 
-    return costs, controls, states
+    return costs, states, controls
 end
+
 
 """
 Get the optimal control at time t knowing the state of the system in the decision hazard case
@@ -552,6 +563,7 @@ the alea realization
 
 Returns :
 - V(x0) (Float64)
+
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
 
@@ -608,6 +620,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
     return best_control
 end
 
+
 """
 Get the optimal control at time t knowing the state of the system and the alea in the hazard decision case
 
@@ -632,6 +645,7 @@ the alea realization
 
 Returns :
 - V(x0) (Float64)
+
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
 
@@ -669,6 +683,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
     return best_control
 
 end
+
 
 """
 Simulation of optimal control given an initial state and an alea scenario

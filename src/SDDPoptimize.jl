@@ -41,8 +41,7 @@ function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
                     display=0::Int64,
                     V=nothing,
-                    V_final=nothing,
-                    returnValueFunctions=true::Bool)
+                    V_final=nothing)
 
     # First step: process terminal costs.
     # If not specified, default value is null functions
@@ -55,13 +54,13 @@ function solve_SDDP(model::SPModel,
     # Second step: process value functions if hotstart is called
     if isa(V, Vector{PolyhedralFunction})
         # If V is already specified, then call hotstart:
-        problems = hotstart(model, param, V)
+        problems = SDDP_hotstart(model, param, V)
     else
         # Otherwise, initialize value functions:
         V, problems = initialize_value_functions(model, param, Vf)
     end
 
-    return run_SDDP(model, param, V, problems, display, returnValueFunctions)
+    return run_SDDP(model, param, V, problems, display)
 end
 
 
@@ -70,10 +69,9 @@ end
 """
 function run_SDDP(model::SPModel,
                     param::SDDPparameters,
-                    V::Array{PolyhedralFunction, 1},
+                    V::Vector{PolyhedralFunction},
                     problems::Vector{JuMP.Model},
-                    display=0::Int64,
-                    returnValueFunctions=true::Bool)
+                    display=0::Int64)
 
     # Evaluation of initial cost:
     V0::Float64 = 0
@@ -110,12 +108,9 @@ function run_SDDP(model::SPModel,
                       problems,
                       stockTrajectories,
                       model.noises,
-                      false,
-                      returnValueFunctions)
+                      false)
 
         iteration_count += 1
-
-
 
 
         if (display > 0) && (iteration_count%display==0)
@@ -169,14 +164,14 @@ Return:
 Float64 (estimation of the upper bound)
 
 """
-function estimate_upper_bound(model, param, V, problems, n_simulation=1000)
+function estimate_upper_bound(model::SPmodel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
 
     aleas = simulate_scenarios(model.noises, n_simulation)
 
     costs, stockTrajectories, _ = forward_simulations(model,
                                                         param,
                                                         V,
-                                                        problems,
+                                                        problem,
                                                         aleas)
 
     return upper_bound(costs), costs
@@ -210,7 +205,7 @@ Parameter:
     Else, terminal cost is null
 
 """
-function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt)
+function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::PolyhedralFunction)
     alpha = getVar(problem, :alpha)
 
     # if shape is PolyhedralFunction, build terminal cost with it:
@@ -370,7 +365,7 @@ Parameters:
     Estimation of bellman functions as Polyhedral functions
 
 """
-function hotstart(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
+function SDDP_hotstart(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
 
     solverProblems = build_models(model, param)
 
@@ -470,7 +465,7 @@ Return:
     Vector{Float64}: optimal control at time t
 
 """
-function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model}, t, xt, xi)
+function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model}, t::Int, xt::Vector{Float64}, xi::Vector{Float64})
     return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
 end
 
@@ -504,3 +499,4 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         @addConstraint(problem, V.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
     end
 end
+

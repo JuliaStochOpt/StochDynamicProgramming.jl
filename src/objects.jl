@@ -10,6 +10,7 @@ include("noises.jl")
 
 abstract SPModel
 
+
 type LinearDynamicLinearCostSPmodel <: SPModel
     # problem dimension
     stageNumber::Int64
@@ -73,6 +74,7 @@ type PiecewiseLinearCostSPmodel <: SPModel
     end
 end
 
+
 """Set bounds on state."""
 function set_state_bounds(model::SPModel, xbounds)
     if length(xbounds) != model.dimStates
@@ -132,10 +134,8 @@ type StochDynProgModel <: SPModel
                     constraints, aleas)
     end
 
-    # TODO: add this attributes to model
-    # lowerbounds#::Tuple{Vector{Float64}}
-    # upperbounds#::Tuple{Vector{Float64}}
 end
+
 
 type SDDPparameters
     # Solver used to solve LP
@@ -205,7 +205,6 @@ type PolyhedralFunction
 end
 
 
-
 type NextStep
     next_state::Array{Float64, 1}
     optimal_control::Array{Float64, 1}
@@ -213,3 +212,4 @@ type NextStep
     cost::Float64
     cost_to_go::Float64
 end
+

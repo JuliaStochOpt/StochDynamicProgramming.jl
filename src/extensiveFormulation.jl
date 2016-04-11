@@ -10,7 +10,7 @@
 Contruct the scenario tree and solve the problem with measurability constraints
 """
 function extensive_formulation(model,
-                               params)
+                               param)
 
 
     #Recover all the constant in the model or in param
