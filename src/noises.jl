@@ -17,41 +17,21 @@ type NoiseLaw
     support::Array{Float64,2}
     # Probabilities of points:
     proba::Vector{Float64}
-end
+	function NoiseLaw(supportSize, support, proba)
+		supportSize = convert(Int64,supportSize)
+		if ndims(support)==1
+			support = reshape(support,1,length(support))
+		end
 
+		if ndims(proba) == 2
+			proba = vec(proba)
+		elseif  ndims(proba) >= 2
+			proba = squeeze(proba,1)
+		end
 
-"""
-Instantiate an element of NoiseLaw
+		return new(supportSize,support,proba)
+	end
 
-
-Parameters:
-- supportSize (Int64)
-    Number of points in discrete distribution
-
-- support
-    Position of each point
-
-- proba
-    Probabilities of each point
-
-
-Return:
-- NoiseLaw
-
-"""
-function NoiseLaw(supportSize, support, proba)
-    supportSize = convert(Int64,supportSize)
-    if ndims(support)==1
-        support = reshape(support,1,length(support))
-    end
-
-    if ndims(proba) == 2
-        proba = vec(proba)
-    elseif  ndims(proba) >= 2
-        proba = squeeze(proba,1)
-    end
-
-    return NoiseLaw(supportSize,support,proba)
 end
 
 

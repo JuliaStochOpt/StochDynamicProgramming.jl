@@ -164,7 +164,7 @@ Return:
 Float64 (estimation of the upper bound)
 
 """
-function estimate_upper_bound(model::SPmodel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
+function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
 
     aleas = simulate_scenarios(model.noises, n_simulation)
 
@@ -343,7 +343,6 @@ function initialize_value_functions( model::SPModel,
                   solverProblems,
                   stockTrajectories,
                   model.noises,
-                  true,
                   true)
 
     return V, solverProblems
@@ -432,6 +431,7 @@ Parameters:
 
 Return:
 current lower bound of the problem (Float64)
+
 """
 function get_lower_bound(model::SPModel, param::SDDPparameters,
                             V::Vector{PolyhedralFunction})

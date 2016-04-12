@@ -25,7 +25,7 @@ function extensive_formulation(model,
 
     T = model.stageNumber-1
 
-    mod = Model(solver=params.solver)
+    mod = Model(solver=param.solver)
 
 
     #Calculate the number of nodes n at each step on the scenario tree
@@ -68,14 +68,14 @@ function extensive_formulation(model,
                 #Add bounds constraint on the control
                 @addConstraint(mod,[u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL] .>= [model.ulim[k][1] for k = 1:DIM_CONTROL])
                 @addConstraint(mod,[u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL] .<= [model.ulim[k][2] for k = 1:DIM_CONTROL])
-    
+
                 #Add dynamic constraints
                 @addConstraint(mod,
                 [x[t+1,DIM_STATE*(m-1)+k] for k = 1:DIM_STATE] .== model.dynamics(t,
                                                                                     [x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE],
                                                                                     [u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL],
                                                                                     laws[t].support[xi]))
-                                                                                   
+
                 #Add constraints to define the cost at each node
                 @addConstraint(mod,
                 c[t,m] == model.costFunctions(t,
