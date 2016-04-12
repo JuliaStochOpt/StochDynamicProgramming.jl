@@ -17,43 +17,22 @@ type NoiseLaw
     support::Array{Float64,2}
     # Probabilities of points:
     proba::Vector{Float64}
+	function NoiseLaw(supportSize, support, proba)
+		supportSize = convert(Int64,supportSize)
+		if ndims(support)==1
+			support = reshape(support,1,length(support))
+		end
+
+		if ndims(proba) == 2
+			proba = vec(proba)
+		elseif  ndims(proba) >= 2
+			proba = squeeze(proba,1)
+		end
+
+		return new(supportSize,support,proba)
+	end
+
 end
-
-
-"""
-Instantiate an element of NoiseLaw
-
-
-Parameters:
-- supportSize (Int64)
-    Number of points in discrete distribution
-
-- support
-    Position of each point
-
-- proba
-    Probabilities of each point
-
-
-Return:
-- NoiseLaw
-
-"""
-function NoiseLaw_const(supportSize, support, proba)
-    supportSize = convert(Int64,supportSize)
-    if ndims(support)==1
-        support = reshape(support,1,length(support))
-    end
-
-    if ndims(proba) == 2
-        proba = vec(proba)
-    elseif  ndims(proba) >= 2
-        proba = squeeze(proba,1)
-    end
-
-    return NoiseLaw(supportSize,support,proba)
-end
-
 
 
 """
@@ -73,8 +52,9 @@ Return:
 
 """
 function NoiseLaw(support, proba)
-    return NoiseLaw_const(length(proba), support, proba)
+    return NoiseLaw(length(proba), support, proba)
 end
+
 
 """
 Generate one sample of the aleas of the problem at time t
@@ -142,6 +122,7 @@ function noiselaw_product(law, laws...)
     end
 end
 
+
 """
 
 Returns :
@@ -189,6 +170,7 @@ function generate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
     return scenarios
 end
 
+
 """
 Simulate n scenarios and return a 3D array
 
@@ -203,7 +185,7 @@ Return:
 - scenarios Array{Float64, 3}
     scenarios[t,k,:] is the noise at time t for scenario k
 """
-function simulate_scenarios(laws, n::Int64)
+function simulate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
     T = length(laws)
     dimAlea = size(laws[1].support)[1]
     dims =(T,n,dimAlea)
@@ -223,6 +205,7 @@ function simulate_scenarios(laws, n::Int64)
 
     return scenarios
 end
+
 
 """
 DEPRECATED
@@ -259,3 +242,4 @@ function simulate_scenarios(laws, dims::Tuple)
 
     return scenarios
 end
+

@@ -62,14 +62,14 @@ function forward_simulations(model::SPModel,
                             returnCosts=true::Bool,
                             init=false::Bool,
                             display=false::Bool)
-    
+
     T = model.stageNumber
-    nb_forward = size(xi)[2] 
-    
+    nb_forward = size(xi)[2]
+
     if ndims(xi)!=3
         if ndims(xi)==2
             warn("noise scenario are not given in the right shape. Assumed to be real valued noise.")
-            xi = reshape(xi,(T,nb_forward,1)) 
+            xi = reshape(xi,(T,nb_forward,1))
         else
             error("wrong dimension of noise scenarios")
         end
@@ -124,24 +124,24 @@ Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 
 Parameters:
 - model (SPModel)
-    Store the problem definition
+Store the problem definition
 
 - t (Int64)
-    Current time
+Current time
 
 - Vt (PolyhedralFunction)
-    Current lower approximation of the Bellman function at time t
+Current lower approximation of the Bellman function at time t
 
 - beta (Float)
-    affine part of the cut to add
+affine part of the cut to add
 
 - lambda (Array{float,1})
-    subgradient of the cut to add
+subgradient of the cut to add
 
 """
 function add_cut!(model::SPModel,
-                  t::Int64, Vt::PolyhedralFunction,
-                  beta::Float64, lambda::Array{Float64,1})
+    t::Int64, Vt::PolyhedralFunction,
+    beta::Float64, lambda::Vector{Float64})
     Vt.lambdas = vcat(Vt.lambdas, reshape(lambda, 1, model.dimStates))
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -153,23 +153,23 @@ Add a cut to the JuMP linear problem.
 
 Parameters:
 - model (SPModel)
-    Store the problem definition
+Store the problem definition
 
 - problem (JuMP.Model)
-    Linear problem used to approximate the value functions
+Linear problem used to approximate the value functions
 
 - t (Int)
-    Time index
+Time index
 
 - beta (Float)
-    affine part of the cut to add
+affine part of the cut to add
 
 - lambda (Array{float,1})
-    subgradient of the cut to add
+subgradient of the cut to add
 
 """
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
-                              t::Int64, beta::Float64, lambda::Array{Float64,1})
+    t::Int64, beta::Float64, lambda::Vector{Float64})
     alpha = getVar(problem, :alpha)
     x = getVar(problem, :x)
     u = getVar(problem, :u)
@@ -188,48 +188,47 @@ the current estimation of Vt.
 
 Parameters:
 - model (SPmodel)
-    the stochastic problem we want to optimize
+the stochastic problem we want to optimize
 
 - param (SDDPparameters)
-    the parameters of the SDDP algorithm
+the parameters of the SDDP algorithm
 
 - V (Array{PolyhedralFunction})
-    the current estimation of Bellman's functions
+the current estimation of Bellman's functions
 
 - solverProblems (Array{JuMP.Model})
-    Linear model used to approximate each value function
+Linear model used to approximate each value function
 
 - stockTrajectories (Array{Float64,3})
-    stockTrajectories[t,k,:] is the vector of stock where the cut is computed
-    for scenario k and time t.
+stockTrajectories[t,k,:] is the vector of stock where the cut is computed
+for scenario k and time t.
 
 - law (Array{NoiseLaw})
-    Conditionnal distributions of perturbation, for each timestep
+Conditionnal distributions of perturbation, for each timestep
 
 - init (Bool)
-    If specified, then init PolyhedralFunction
+If specified, then init PolyhedralFunction
 
 - updateV (Bool)
-    Store new cuts in given Polyhedral functions if specified
+Store new cuts in given Polyhedral functions if specified
 
 
 Return:
 - V0 (Float64)
-    Approximation of initial cost
+Approximation of initial cost
 
 """
 function backward_pass!(model::SPModel,
-                      param::SDDPparameters,
-                      V::Array{PolyhedralFunction, 1},
-                      solverProblems::Vector{JuMP.Model},
-                      stockTrajectories::Array{Float64, 3},
-                      law, #::NoiseLaw,
-                      init=false,
-                      updateV=false)
+    param::SDDPparameters,
+    V::Vector{PolyhedralFunction},
+    solverProblems::Vector{JuMP.Model},
+    stockTrajectories::Array{Float64, 3},
+    law,
+    init=false::Bool)
 
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
-    
+
     # Estimation of initial cost:
     V0 = 0.
 
@@ -250,16 +249,16 @@ function backward_pass!(model::SPModel,
                 alea_t  = collect(law[t].support[:, w])
 
                 nextstep = solve_one_step_one_alea(model,
-                                                   param,
-                                                   solverProblems[t],
-                                                   t,
-                                                   state_t,
-                                                   alea_t)[2]
+                param,
+                solverProblems[t],
+                t,
+                state_t,
+                alea_t)[2]
                 subgradient_array[:, w] = nextstep.sub_gradient
                 costs[w] = nextstep.cost
             end
 
-            # Compute esperancy of subgradient:
+            # Compute expectation of subgradient:
             subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
             # ... and esperancy of cost:
             costs_npass[k] = dot(law[t].proba, costs)
@@ -268,20 +267,16 @@ function backward_pass!(model::SPModel,
 
             # Add cut to polyhedral function and JuMP model:
             if init
-                if updateV
-                    V[t] = PolyhedralFunction([beta],
-                                               reshape(subgradient,
-                                                       1,
-                                                       model.dimStates), 1)
-                end
+                V[t] = PolyhedralFunction([beta],
+                reshape(subgradient,
+                1,
+                model.dimStates), 1)
                 if t > 1
                     add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
                 end
 
             else
-                if updateV
-                    add_cut!(model, t, V[t], beta, subgradient)
-                end
+                add_cut!(model, t, V[t], beta, subgradient)
                 if t > 1
                     add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
                 end

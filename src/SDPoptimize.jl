@@ -12,6 +12,7 @@ using ProgressMeter
 using Iterators
 using Interpolations
 
+
 """
 Convert the state and control float tuples (stored as arrays or tuples) of the
 problem into integer tuples that can be used as indexes for the value function
@@ -38,6 +39,7 @@ function index_from_variable( variable,
 
     return tuple([ 1 + floor(Int64,(1e-10+( variable[i] - bounds[i][1] )/ variable_steps[i] )) for i in 1:length(variable)]...)
 end
+
 
 """
 Convert the state and control float tuples (stored as arrays or tuples) of the
@@ -67,6 +69,7 @@ function real_index_from_variable( variable,
     return tuple([1 + ( variable[i] - bounds[i][1] )/variable_steps[i] for i in 1:length(variable)]...)
 end
 
+
 """
 Compute interpolation of the value function at time t
 
@@ -91,6 +94,7 @@ function value_function_interpolation( model::SPModel,
     return interpolate(V[[Colon() for i in 1:model.dimStates]...,time], BSpline(Linear()), OnGrid())
 end
 
+
 """
 Compute interpolation of the value function at time t
 
@@ -113,8 +117,8 @@ function generate_grid(model::SPModel, param::SDPparameters)
     product_controls = product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
 
     return product_states, product_controls
-
 end
+
 
 """
 Transform a general SPmodel into a StochDynProgModel
@@ -161,6 +165,7 @@ function build_sdpmodel_from_spmodel(model::SPModel)
     return SDPmodel
 end
 
+
 """
 Value iteration algorithm to compute optimal value functions in
 the Decision Hazard (DH) as well as the Hazard Decision (HD) case
@@ -172,7 +177,7 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- display (Bool)
+- display (Int)
     the output display or verbosity parameter
 
 
@@ -182,9 +187,9 @@ Returns :
     of the system at each time step
 
 """
-function sdp_optimize(model::SPModel,
+function solve_DP(model::SPModel,
                   param::SDPparameters,
-                  display=true::Bool)
+                  display=0::Int64)
 
     SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
 
@@ -212,7 +217,7 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- display (Bool)
+- display (Int)
     the output display or verbosity parameter
 
 
@@ -224,7 +229,7 @@ Returns :
 """
 function sdp_solve_DH(model::StochDynProgModel,
                   param::SDPparameters,
-                  display=true::Bool)
+                  display=0::Int64)
 
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
@@ -248,23 +253,19 @@ function sdp_solve_DH(model::StochDynProgModel,
     end
 
     #Construct a progress meter
-    if display
+    if display > 0
         p = Progress((TF-1)*param.totalStateSpaceSize, 1)
-    end
-
-    #Display start of the algorithm in DH and HD cases
-    if display
         println("Starting stochastic dynamic programming decision hazard computation")
     end
 
-        #Loop over time
+	# Loop over time:
     for t = (TF-1):-1:1
         Vitp = value_function_interpolation(model, V, t+1)
 
             #Loop over states
         for x in product_states
 
-            if display
+            if display > 0
                 next!(p)
             end
 
@@ -325,6 +326,7 @@ function sdp_solve_DH(model::StochDynProgModel,
     return V
 end
 
+
 """
 Value iteration algorithm to compute optimal value functions in
 the Hazard Decision (HD) case
@@ -336,7 +338,7 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- display (Bool)
+- display (Int)
     the output display or verbosity parameter
 
 
@@ -348,7 +350,7 @@ Returns :
 """
 function sdp_solve_HD(model::StochDynProgModel,
                   param::SDPparameters,
-                  display=true::Bool)
+                  display=0::Int64)
 
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
@@ -372,11 +374,8 @@ function sdp_solve_HD(model::StochDynProgModel,
     end
 
     #Construct a progress meter
-    if display
+    if display > 0
         p = Progress((TF-1)*param.totalStateSpaceSize, 1)
-    end
-
-    if display
         println("Starting stochastic dynamic programming hazard decision computation")
     end
 
@@ -387,7 +386,7 @@ function sdp_solve_HD(model::StochDynProgModel,
         #Loop over states
         for x in product_states
 
-            if display
+            if display > 0
                 next!(p)
             end
 
@@ -450,6 +449,7 @@ function sdp_solve_HD(model::StochDynProgModel,
     return V
 end
 
+
 """
 Get the optimal value of the problem from the optimal Bellman Function
 
@@ -465,12 +465,14 @@ Parameters:
 
 Returns :
 - V(x0) (Float64)
+
 """
-function get_value(model::SPModel,param::SDPparameters,V::Array{Float64})
+function get_bellman_value(model::SPModel, param::SDPparameters, V::Array{Float64})
     ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
     Vi = value_function_interpolation(model, V, 1)
     return Vi[ind_x0...,1]
 end
+
 
 """
 Simulation of optimal trajectories given model and Bellman functions
@@ -486,7 +488,7 @@ Parameters:
     the scenarios of uncertainties realizations we want to simulate on
     scenarios[t,k,:] is the alea at time t for scenario k
 
-- value_functions (Array)
+- V (Array)
     the vector representing the value functions as functions of the state
     of the system at each time step
 
@@ -498,17 +500,18 @@ Returns :
 - costs (Vector{Float64})
     the cost of the optimal control over the scenario provided
 
-- stocks (Array{Float64})
+- states (Array{Float64})
     the state of the controlled system at each time step
 
 - controls (Array{Float64})
     the controls applied to the system at each time step
+
 """
 function sdp_forward_simulation(model::SPModel,
                   param::SDPparameters,
                   scenarios::Array{Float64,3},
-                  value::Array,
-                  display=true::Bool)
+                  V::Array,
+                  display=false::Bool)
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
     TF = SDPmodel.stageNumber
@@ -520,13 +523,13 @@ function sdp_forward_simulation(model::SPModel,
 
 
     for k = 1:nb_scenarios
-        #println(k)
-        costs[k],states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
+        costs[k], states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
                   param,scenarios[:,k],model.initialState,value,display)
     end
 
-    return costs, controls, states
+    return costs, states, controls
 end
+
 
 """
 Get the optimal control at time t knowing the state of the system in the decision hazard case
@@ -552,9 +555,13 @@ the alea realization
 
 Returns :
 - V(x0) (Float64)
+
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
 
+	if(param.infoStructure != "DH")
+		error("Infostructure must be decision-hazard.")
+	end
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
     product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
@@ -608,6 +615,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
     return best_control
 end
 
+
 """
 Get the optimal control at time t knowing the state of the system and the alea in the hazard decision case
 
@@ -631,9 +639,14 @@ Parameters:
 the alea realization
 
 Returns :
-- V(x0) (Float64)
+- optimal control (tuple(Float64))
+
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
+
+	if(param.infoStructure != "HD")
+		error("Infostructure must be hazard-decision.")
+	end
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
@@ -670,6 +683,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
 
 end
 
+
 """
 Simulation of optimal control given an initial state and an alea scenario
 
@@ -686,7 +700,7 @@ Parameters:
 - X0 (SDPparameters)
     the initial state of the system
 
-- value_functions (Array)
+- V (Array)
     the vector representing the value functions as functions of the state
     of the system at each time step
 
@@ -709,7 +723,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,
-                  value::Array,
+                  V::Array,
                   display=true::Bool)
 
     TF = model.stageNumber
@@ -742,7 +756,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
             x = states[t,1,:]
 
             best_V = Inf
-            Vitp = value_function_interpolation(model, value, t+1)
+            Vitp = value_function_interpolation(model, V, t+1)
 
             for u in product_controls
 
@@ -801,7 +815,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
             x = states[t,1,:]
 
-            Vitp = value_function_interpolation(model, value, t+1)
+            Vitp = value_function_interpolation(model, V, t+1)
 
             best_V = Inf
 
