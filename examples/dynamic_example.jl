@@ -21,17 +21,12 @@ const N_SCENARIOS = 1
 
 const DIM_STATES = 1
 const DIM_CONTROLS = 1
-#TODO integrate DIM_ALEAS in build_aleas
 const DIM_ALEAS = 1
 
 
 
 #Constants that the user does not have to define
 const T0 = 1
-
-# Constants:
-const VOLUME_MAX = 1000
-const VOLUME_MIN = -1000
 
 const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
 const CONTROL_MIN = 0
@@ -145,17 +140,9 @@ function init_problem()
     x0 = X0
     aleas = generate_probability_laws()
 
-    #Define bounds for the state and the control
-    x_bounds  = []
-    for u = 1:DIM_STATES
-        x_bounds = push!(x_bounds, (VOLUME_MIN, VOLUME_MAX))
-    end
-    
-    u_bounds  = []
-    for u = 1:DIM_CONTROLS
-        u_bounds = push!(u_bounds, (CONTROL_MIN, CONTROL_MAX))
-    end
- 
+    #Define bounds for the control
+    u_bounds  = [(CONTROL_MIN, CONTROL_MAX) for i in 1:DIM_CONTROLS]
+
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 u_bounds,
                                                 x0,
@@ -163,8 +150,7 @@ function init_problem()
                                                 dynamic,
                                                 aleas)
 
-    solver = SOLVER
-    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    params = SDDPparameters(SOLVER, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
@@ -178,7 +164,7 @@ paramsbis = deepcopy(params)
 function solve_dams(model,params,display=false)
 
     V, pbs = solve_SDDP(model, params, display)
-                               
+
     aleas = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     params.forwardPassNumber = 1
