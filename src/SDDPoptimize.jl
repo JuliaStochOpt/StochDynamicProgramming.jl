@@ -54,7 +54,7 @@ function solve_SDDP(model::SPModel,
     # Second step: process value functions if hotstart is called
     if isa(V, Vector{PolyhedralFunction})
         # If V is already specified, then call hotstart:
-        problems = SDDP_hotstart(model, param, V)
+        problems = hotstart_SDDP(model, param, V)
     else
         # Otherwise, initialize value functions:
         V, problems = initialize_value_functions(model, param, Vf)
@@ -368,7 +368,7 @@ Parameters:
     Estimation of bellman functions as Polyhedral functions
 
 """
-function SDDP_hotstart(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
+function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
 
     solverProblems = build_models(model, param)
 
