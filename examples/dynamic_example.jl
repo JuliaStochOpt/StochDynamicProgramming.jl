@@ -28,10 +28,10 @@ const DIM_ALEAS = 1
 #Constants that the user does not have to define
 const T0 = 1
 
-const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
+const CONTROL_MAX = round(Int, .4/7. * 100) + 1
 const CONTROL_MIN = 0
 
-const W_MAX = round(Int, .5/7. * VOLUME_MAX)
+const W_MAX = round(Int, .5/7. * 100)
 const W_MIN = 0
 const DW = 1
 
