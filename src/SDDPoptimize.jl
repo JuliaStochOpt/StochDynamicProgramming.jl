@@ -161,7 +161,11 @@ Parameters:
 
 
 Return:
-Float64 (estimation of the upper bound)
+- upb (Float64)
+	estimation of upper bound
+
+- costs (Vector{Float64})
+	Costs along different trajectories
 
 """
 function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
@@ -179,7 +183,7 @@ end
 
 
 
-"""Build a collection of cuts initialize at 0"""
+"""Build a collection of cuts initialized at 0"""
 function get_null_value_functions_array(model::SPModel)
 
     V = Vector{PolyhedralFunction}(model.stageNumber)

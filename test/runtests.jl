@@ -485,6 +485,8 @@ facts("SDP algorithm") do
             state_ref[1] = stocks_sdp[2,1,1]
             state_ref[2] = stocks_sdp[2,1,2]
 
+            @fact_throws get_control(modelSDP,paramsSDP,V_sdp3, 1, x)
+            paramsSDP.infoStructure = "DH"
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] >= CONTROL_MIN) --> true
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] >= CONTROL_MIN) --> true
 

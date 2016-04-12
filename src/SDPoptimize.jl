@@ -189,7 +189,7 @@ Returns :
 """
 function solve_DP(model::SPModel,
                   param::SDPparameters,
-                  display=true::Int64)
+                  display=0::Int64)
 
     SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
 
@@ -500,7 +500,7 @@ Returns :
 - costs (Vector{Float64})
     the cost of the optimal control over the scenario provided
 
-- stocks (Array{Float64})
+- states (Array{Float64})
     the state of the controlled system at each time step
 
 - controls (Array{Float64})
@@ -559,6 +559,9 @@ Returns :
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
 
+	if(param.infoStructure != "DH")
+		error("Infostructure must be decision-hazard.")
+	end
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
     product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
@@ -636,10 +639,14 @@ Parameters:
 the alea realization
 
 Returns :
-- V(x0) (Float64)
+- optimal control (tuple(Float64))
 
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
+
+	if(param.infoStructure != "HD")
+		error("Infostructure must be hazard-decision.")
+	end
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
 

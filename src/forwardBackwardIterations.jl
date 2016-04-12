@@ -62,14 +62,14 @@ function forward_simulations(model::SPModel,
                             returnCosts=true::Bool,
                             init=false::Bool,
                             display=false::Bool)
-    
+
     T = model.stageNumber
-    nb_forward = size(xi)[2] 
-    
+    nb_forward = size(xi)[2]
+
     if ndims(xi)!=3
         if ndims(xi)==2
             warn("noise scenario are not given in the right shape. Assumed to be real valued noise.")
-            xi = reshape(xi,(T,nb_forward,1)) 
+            xi = reshape(xi,(T,nb_forward,1))
         else
             error("wrong dimension of noise scenarios")
         end
@@ -223,7 +223,7 @@ Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 								V::Vector{PolyhedralFunction},
 								solverProblems::Vector{JuMP.Model},
 								stockTrajectories::Array{Float64, 3},
-								law, 
+								law,
 								init=false::Bool)
 
 								T = model.stageNumber
@@ -258,7 +258,7 @@ Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 											costs[w] = nextstep.cost
 										end
 
-										# Compute esperancy of subgradient:
+										# Compute expectation of subgradient:
 										subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
 										# ... and esperancy of cost:
 										costs_npass[k] = dot(law[t].proba, costs)
