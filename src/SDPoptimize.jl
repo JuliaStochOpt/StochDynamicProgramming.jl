@@ -518,12 +518,12 @@ function sdp_forward_simulation(model::SPModel,
     nb_scenarios = size(scenarios)[2]
 
     costs = zeros(nb_scenarios)
-    states = zeros(TF,nb_scenarios)
-    controls = zeros(TF-1,nb_scenarios)
+    states = zeros(TF,nb_scenarios,model.dimStates)
+    controls = zeros(TF-1,nb_scenarios,model.dimControls)
 
 
     for k = 1:nb_scenarios
-        costs[k], states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
+        costs[k], states[:,k,:], controls[:,k,:] = sdp_forward_single_simulation(SDPmodel,
                   param,scenarios[:,k],model.initialState,V,display)
     end
 

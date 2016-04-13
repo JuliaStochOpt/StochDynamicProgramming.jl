@@ -445,6 +445,16 @@ facts("SDP algorithm") do
                                                                                                         aleas_scen, x0,
                                                                                                         V_sdp, true )
 
+            println(size(stocks_sdp))
+            println(size(controls_sdp))
+
+            costs_sdp2, stocks_sdp2, controls_sdp2 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
+                                                                                                    paramsSDP,
+                                                                                                    aleas_scen,
+                                                                                                    V_sdp, true )
+
+            @fact costs_sdp2[1] --> costs_sdp
+
             x = x0
             V_sdp = solve_DP(modelSDP, paramsSDP, false);
             V_sdp2 = StochDynamicProgramming.sdp_solve_HD(modelSDP, paramsSDP, false);
