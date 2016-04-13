@@ -76,8 +76,8 @@ if run_sdp
     infoStruct = "HD" # noise at time t is known before taking the decision at time t
 
     paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
-    Vs = sdp_optimize(spmodel,paramSDP)
-    lb_sdp = StochDynamicProgramming.get_value(spmodel,paramSDP,Vs)
+    Vs = solve_DP(spmodel,paramSDP, 1)
+    lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
     println("Value obtained by SDP: "*string(lb_sdp))
 end
 
