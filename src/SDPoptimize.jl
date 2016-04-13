@@ -144,7 +144,7 @@ function build_sdpmodel_from_spmodel(model::SPModel)
     if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
         function cons_fun(t,x,u,w)
             for i in 1:model.dimStates
-                if (x[i]<=model.xlim[i][1]) || (x[i]>=model.xlim[i][2])
+                if (x[i]<model.xlim[i][1]) || (x[i]>model.xlim[i][2])
                     return false
                 end
             end

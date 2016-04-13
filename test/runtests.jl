@@ -432,6 +432,8 @@ facts("SDP algorithm") do
 
             @fact test_costs --> true
 
+            @fact convertedSDPmodel.constraints(1,x,u,w) --> true
+
         end
 
         context("Solve and simulate using SDP") do
@@ -445,8 +447,6 @@ facts("SDP algorithm") do
                                                                                                         aleas_scen, x0,
                                                                                                         V_sdp, true )
 
-            println(size(stocks_sdp))
-            println(size(controls_sdp))
 
             costs_sdp2, stocks_sdp2, controls_sdp2 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
                                                                                                     paramsSDP,
@@ -471,6 +471,15 @@ facts("SDP algorithm") do
             @fact v1 --> v2
             @fact (v1<=v3) --> true
 
+            paramsSDP.infoStructure = "DH"
+            costs_sdp3, stocks_sdp3, controls_sdp3 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
+                                                                                                    paramsSDP,
+                                                                                                    aleas_scen,
+                                                                                                    V_sdp3, true )
+            paramsSDP.infoStructure = "HD"
+
+            @fact costs_sdp3[1]>=costs_sdp2[1] --> true
+
             a,b = StochDynamicProgramming.generate_grid(modelSDP, paramsSDP)
 
             x_bounds = modelSDP.xlim
@@ -494,11 +503,15 @@ facts("SDP algorithm") do
             state_ref = zeros(2)
             state_ref[1] = stocks_sdp[2,1,1]
             state_ref[2] = stocks_sdp[2,1,2]
+            w = [4]
 
             @fact_throws get_control(modelSDP,paramsSDP,V_sdp3, 1, x)
+            @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] >= CONTROL_MIN) --> true
+            @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] <= CONTROL_MAX) --> true
+
             paramsSDP.infoStructure = "DH"
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] >= CONTROL_MIN) --> true
-            @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] >= CONTROL_MIN) --> true
+            @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] <= CONTROL_MAX) --> true
 
             @fact size(stocks_sdp) --> (3,1,2)
             @fact size(controls_sdp) --> (2,1,2)
