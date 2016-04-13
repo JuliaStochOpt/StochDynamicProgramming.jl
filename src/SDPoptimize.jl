@@ -144,7 +144,7 @@ function build_sdpmodel_from_spmodel(model::SPModel)
     if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
         function cons_fun(t,x,u,w)
             for i in 1:model.dimStates
-                if (x[i]<=model.xlim[i][1]) || (x[i]>=model.xlim[i][2])
+                if (x[i]<model.xlim[i][1]) || (x[i]>model.xlim[i][2])
                     return false
                 end
             end
@@ -518,13 +518,13 @@ function sdp_forward_simulation(model::SPModel,
     nb_scenarios = size(scenarios)[2]
 
     costs = zeros(nb_scenarios)
-    states = zeros(TF,nb_scenarios)
-    controls = zeros(TF-1,nb_scenarios)
+    states = zeros(TF,nb_scenarios,model.dimStates)
+    controls = zeros(TF-1,nb_scenarios,model.dimControls)
 
 
     for k = 1:nb_scenarios
-        costs[k], states[:,k], controls[:,k] = sdp_forward_single_simulation(SDPmodel,
-                  param,scenarios[:,k],model.initialState,value,display)
+        costs[k], states[:,k,:], controls[:,k,:] = sdp_forward_single_simulation(SDPmodel,
+                  param,scenarios[:,k],model.initialState,V,display)
     end
 
     return costs, states, controls
