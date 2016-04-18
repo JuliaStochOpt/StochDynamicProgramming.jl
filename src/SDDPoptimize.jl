@@ -162,10 +162,10 @@ Parameters:
 
 Return:
 - upb (Float64)
-	estimation of upper bound
+    estimation of upper bound
 
 - costs (Vector{Float64})
-	Costs along different trajectories
+    Costs along different trajectories
 
 """
 function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)

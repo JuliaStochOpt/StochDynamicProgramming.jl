@@ -17,20 +17,20 @@ type NoiseLaw
     support::Array{Float64,2}
     # Probabilities of points:
     proba::Vector{Float64}
-	function NoiseLaw(supportSize, support, proba)
-		supportSize = convert(Int64,supportSize)
-		if ndims(support)==1
-			support = reshape(support,1,length(support))
-		end
+    function NoiseLaw(supportSize, support, proba)
+        supportSize = convert(Int64,supportSize)
+        if ndims(support)==1
+            support = reshape(support,1,length(support))
+        end
 
-		if ndims(proba) == 2
-			proba = vec(proba)
-		elseif  ndims(proba) >= 2
-			proba = squeeze(proba,1)
-		end
+        if ndims(proba) == 2
+            proba = vec(proba)
+        elseif  ndims(proba) >= 2
+            proba = squeeze(proba,1)
+        end
 
-		return new(supportSize,support,proba)
-	end
+        return new(supportSize,support,proba)
+    end
 
 end
 

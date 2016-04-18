@@ -258,7 +258,7 @@ function sdp_solve_DH(model::StochDynProgModel,
         println("Starting stochastic dynamic programming decision hazard computation")
     end
 
-	# Loop over time:
+    # Loop over time:
     for t = (TF-1):-1:1
         Vitp = value_function_interpolation(model, V, t+1)
 
@@ -559,9 +559,9 @@ Returns :
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
 
-	if(param.infoStructure != "DH")
-		error("Infostructure must be decision-hazard.")
-	end
+    if(param.infoStructure != "DH")
+        error("Infostructure must be decision-hazard.")
+    end
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
     product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
@@ -644,9 +644,9 @@ Returns :
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
 
-	if(param.infoStructure != "HD")
-		error("Infostructure must be hazard-decision.")
-	end
+    if(param.infoStructure != "HD")
+        error("Infostructure must be hazard-decision.")
+    end
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
