@@ -105,15 +105,12 @@ facts("SDDP algorithm: 1D case") do
     u_bounds, x0,
     cost,
     dynamic, laws)
+    set_state_bounds(model, x_bounds)
     # Generate scenarios for forward simulations:
     noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
     context("Linear cost") do
-        # Instantiate a SDDP linear model:
-        set_state_bounds(model, x_bounds)
-
-
         # Compute bellman functions with SDDP:
         V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
@@ -152,6 +149,15 @@ facts("SDDP algorithm: 1D case") do
         @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
     end
 
+    context("Cuts pruning") do
+        v = V[1]
+        vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
+        StochDynamicProgramming.prune_cuts!(model, params, V)
+        isactive1 = StochDynamicProgramming.is_cut_active(model, 1, vt, params.solver)
+        isactive2 = StochDynamicProgramming.is_cut_active(model, 2, vt, params.solver)
+        @fact isactive1 --> true
+        @fact isactive2 --> false
+    end
 
     context("Piecewise linear cost") do
         # Test Piecewise linear costs:

@@ -504,3 +504,77 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
     end
 end
 
+
+"""
+Prune all polyhedral functions in input array.
+
+Parameters:
+- model (SPModel)
+- params (SDDPparameters)
+- V Vector{PolyhedralFunction}
+    Polyhedral functions where cuts will be removed
+
+"""
+function prune_cuts!(model::SPModel, params::SDDPparameters, V::Vector{PolyhedralFunction})
+    for i in 1:length(V)
+        V[i] = prune_cuts(model, params, V[i])
+    end
+end
+
+
+"""
+Remove useless cuts in PolyhedralFunction.
+
+Parameters:
+- model (SPModel)
+- params (SDDPparameters)
+- V (PolyhedralFunction)
+    Polyhedral function where cuts will be removed
+
+Return:
+- PolyhedralFunction: pruned polyhedral function
+
+"""
+function prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
+    ncuts = V.numCuts
+    # Find all active cuts:
+    active_cuts = Bool[is_cut_active(model, i, V, params.solver) for i=1:ncuts]
+    return PolyhedralFunction(V.betas[active_cuts], V.lambdas[active_cuts, :], sum(active_cuts))
+end
+
+
+"""
+Test whether the cut number k is active in polyhedral function Vt.
+
+Parameters:
+- model (SPModel)
+- k (Int)
+    Position of cut to test in PolyhedralFunction object
+- Vt (PolyhedralFunction)
+    Object storing all cuts
+- solver
+    Solver to use to solve linear problem
+
+Return:
+- Bool: true if the cut is active, false otherwise
+
+"""
+function is_cut_active(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
+
+    m = Model(solver=solver)
+    @defVar(m, alpha)
+    @defVar(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])
+
+    for i in 1:Vt.numCuts
+        if i!=k
+            lambda = vec(Vt.lambdas[i, :])
+            @addConstraint(m, Vt.betas[i] + dot(lambda, x) <= alpha)
+        end
+    end
+
+    λ_k = vec(Vt.lambdas[k, :])
+    @setObjective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
+    solve(m)
+    return getObjectiveValue(m) < 0.
+end
+

@@ -78,7 +78,7 @@ Remove redundant cuts in Polyhedral Value functions
 
 """
 function remove_cuts(V::PolyhedralFunction)
-    Vf = hcat(V.lambdas, V.be   tas)
+    Vf = hcat(V.lambdas, V.betas)
     Vf = unique(Vf, 1)
     return PolyhedralFunction(Vf[:, end], Vf[:, 1:end-1], size(Vf)[1])
 end
@@ -89,7 +89,7 @@ Remove redundant cuts in a vector of Polyhedral Functions.
 
 """
 function remove_redundant_cuts!(Vts::Vector{PolyhedralFunction})
-    n_funct ions = length(Vts)
+    n_functions = length(Vts)
     for i in 1:n_functions
         Vts[i] = remove_cuts(Vts[i])
     end
