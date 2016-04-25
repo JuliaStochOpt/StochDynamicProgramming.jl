@@ -535,7 +535,7 @@ Return:
 - PolyhedralFunction: pruned polyhedral function
 
 """
-function prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
+function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
     ncuts = V.numCuts
     # Find all active cuts:
     if ncuts > 1
@@ -563,7 +563,7 @@ Return:
 - Bool: true if the cut is active, false otherwise
 
 """
-function is_cut_active(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
+function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
 
     m = Model(solver=solver)
     @defVar(m, alpha)
