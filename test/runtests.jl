@@ -153,8 +153,8 @@ facts("SDDP algorithm: 1D case") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
         StochDynamicProgramming.prune_cuts!(model, params, V)
-        isactive1 = StochDynamicProgramming.is_cut_active(model, 1, vt, params.solver)
-        isactive2 = StochDynamicProgramming.is_cut_active(model, 2, vt, params.solver)
+        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.solver)
+        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.solver)
         @fact isactive1 --> true
         @fact isactive2 --> false
     end
