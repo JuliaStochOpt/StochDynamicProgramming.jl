@@ -126,7 +126,7 @@ Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
     aleas = build_scenarios(N_SCENARIOS, build_aleas())
 
-    laws = Vector{NoiseLaw}(N_STAGES)
+    laws = Vector{NoiseLaw}(N_STAGES-1)
 
     # uniform probabilities:
     proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
@@ -165,21 +165,12 @@ end
 
 
 """Solve the problem."""
-function solve_dams(display=false)
-
+function solve_dams(display=0)
     model, params = init_problem()
 
     V, pbs = solve_SDDP(model, params, display)
-
-    aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber-1,
-                               params.forwardPassNumber,
-                               model.dimNoises))
-
-    params.forwardPassNumber = 1
-
-    costs, stocks = forward_simulations(model, params, V, pbs, aleas)
-
+    aleas = simulate_scenarios(model.noises, params.forwardPassNumber)
+    costs, stocks, controls = forward_simulations(model, params, V, pbs, aleas)
 
     println("SDDP cost: ", costs)
     return stocks, V, controls
