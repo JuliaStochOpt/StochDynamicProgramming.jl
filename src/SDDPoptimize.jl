@@ -60,14 +60,13 @@ function solve_SDDP(model::SPModel,
         V, problems = initialize_value_functions(model, param, Vf)
     end
 
-    return run_SDDP(model, param, V, problems, display)
+    run_SDDP!(model, param, V, problems, display)
+    return V, problems
 end
 
 
-"""
-
-"""
-function run_SDDP(model::SPModel,
+"""Run SDDP iterations."""
+function run_SDDP!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     problems::Vector{JuMP.Model},
@@ -134,8 +133,6 @@ function run_SDDP(model::SPModel,
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
-
-    return V, problems
 end
 
 
