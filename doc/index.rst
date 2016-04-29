@@ -3,8 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-StochDynamicProgramming Index
-=============================
+=======================
+StochDynamicProgramming
+=======================
 
 This package implements the Stochastic Dual Dynamic Programming (SDDP) algorithm with Julia. It relies upon MathProgBase_ and JuMP_.
 
@@ -43,18 +44,14 @@ We have a lot of ideas to implement further :
 
 
 Contents:
+=========
 
 .. toctree::
-   :maxdepth: 2
+   install
+   quickstart
+   tutorial
 
 .. _MathProgBase: http://mathprogbasejl.readthedocs.org/en/latest/
 .. _here: http://www2.isye.gatech.edu/people/faculty/Alex_Shapiro/ONS-FR.pdf
 .. _JuMP: http://jump.readthedocs.org/en/latest/
-
-Indices and tables
-==================
-
-* :ref:`genindex`
-* :ref:`modindex`
-* :ref:`search`
 
