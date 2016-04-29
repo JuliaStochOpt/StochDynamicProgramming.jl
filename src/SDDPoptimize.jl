@@ -250,7 +250,6 @@ function build_models(model::SPModel, param::SDDPparameters)
 
     models = Vector{JuMP.Model}(model.stageNumber-1)
 
-
     for t = 1:model.stageNumber-1
         m = Model(solver=param.solver)
 
@@ -278,9 +277,6 @@ function build_models(model::SPModel, param::SDDPparameters)
                 @addConstraint(m, cost >= model.costFunctions[i](t, x, u, w))
             end
             @setObjective(m, Min, cost + alpha)
-
-        else
-            error("model must be: LinearDynamicLinearCostSPModel or PiecewiseLinearCostSPmodel")
         end
 
         models[t] = m

@@ -229,9 +229,6 @@ function backward_pass!(model::SPModel,
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
 
-    # Estimation of initial cost:
-    V0 = 0.
-
     costs::Vector{Float64} = zeros(1)
     costs_npass = zeros(Float64, nb_forward)
     state_t = zeros(Float64, model.dimStates)
@@ -248,12 +245,7 @@ function backward_pass!(model::SPModel,
 
                 alea_t  = collect(law[t].support[:, w])
 
-                nextstep = solve_one_step_one_alea(model,
-                param,
-                solverProblems[t],
-                t,
-                state_t,
-                alea_t)[2]
+                nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)[2]
                 subgradient_array[:, w] = nextstep.sub_gradient
                 costs[w] = nextstep.cost
             end
@@ -264,17 +256,12 @@ function backward_pass!(model::SPModel,
             costs_npass[k] = dot(law[t].proba, costs)
             beta = costs_npass[k] - dot(subgradient, state_t)
 
-
             # Add cut to polyhedral function and JuMP model:
             if init
-                V[t] = PolyhedralFunction([beta],
-                reshape(subgradient,
-                1,
-                model.dimStates), 1)
+                V[t] = PolyhedralFunction([beta], reshape(subgradient, 1, model.dimStates), 1)
                 if t > 1
                     add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
                 end
-
             else
                 add_cut!(model, t, V[t], beta, subgradient)
                 if t > 1
@@ -283,11 +270,5 @@ function backward_pass!(model::SPModel,
             end
 
         end
-
-        if t==1
-            V0 = mean(costs_npass)
-        end
-
     end
-    return V0
 end
