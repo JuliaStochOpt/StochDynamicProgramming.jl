@@ -41,6 +41,7 @@ We will consider 52 time steps as we want to find optimal value functions for on
 
 
 and we consider the following initial position::
+
     X0 = [50, 50]
 
 
