@@ -35,6 +35,12 @@ facts("Probability functions") do
     @fact law3.proba --> vec(proba' * proba2)
     @fact size(law3.support)[1] --> size(law.support)[1] + size(law2.support)[1]
     @fact law3.support[:, 1] --> [1., 4.]
+
+    # Test product of three noiselaws:
+    StochDynamicProgramming.noiselaw_product(law, law2, law)
+
+    # Test sampling:
+    samp = StochDynamicProgramming.sampling([law, law2, law3], 1)
 end
 
 
@@ -71,7 +77,7 @@ facts("SDDP algorithm: 1D case") do
     # number of aleas:
     n_aleas = 5
     # number of stages:
-    n_stages = 2
+    n_stages = 3
 
     # define dynamic:
     function dynamic(t, x, u, w)
@@ -101,19 +107,18 @@ facts("SDDP algorithm: 1D case") do
     epsilon, max_iterations)
 
     V = nothing
-    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
-    u_bounds, x0,
-    cost,
-    dynamic, laws)
+    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
+                                                                   x0, cost, dynamic, laws)
+
+    set_state_bounds(model, x_bounds)
+    # Test error if bounds are not well specified:
+    @fact_throws set_state_bounds(model, [(0,1), (0,1)])
+
     # Generate scenarios for forward simulations:
     noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
     context("Linear cost") do
-        # Instantiate a SDDP linear model:
-        set_state_bounds(model, x_bounds)
-
-
         # Compute bellman functions with SDDP:
         V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
@@ -121,8 +126,8 @@ facts("SDDP algorithm: 1D case") do
 
         # Test if the first subgradient has the same dimension as state:
         @fact length(V[1].lambdas[1, :]) --> model.dimStates
-        @fact V[1].numCuts --> n_stages*n_scenarios + 1
-        @fact length(V[1].lambdas[:, 1]) --> n_stages*n_scenarios + 1
+        @fact V[1].numCuts --> n_scenarios*max_iterations + 1
+        @fact length(V[1].lambdas[:, 1]) --> n_scenarios*max_iterations + 1
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
@@ -131,17 +136,28 @@ facts("SDDP algorithm: 1D case") do
         @fact typeof(upb) --> Float64
 
         sddp_costs, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
+        # Test error if scenarios are not given in the right shape:
+        @fact_throws forward_simulations(model, params, V, pbs, [1.])
 
         # Compare sddp cost with those given by extensive formulation:
         ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
         @fact typeof(ef_cost) --> Float64
 
-        @fact mean(sddp_costs) --> roughly(ef_cost)
+        # As SDDP result is suboptimal, cost must be greater than those of extensive formulation:
+        @fact mean(sddp_costs) > ef_cost --> true
 
         # Test computation of optimal control:
         aleas = StochDynamicProgramming.extract_vector_from_3Dmatrix(noise_scenarios, 1, 1)
         opt = StochDynamicProgramming.get_control(model, params, pbs, 1, model.initialState, aleas)
         @fact typeof(opt) --> Vector{Float64}
+
+        # Test display:
+        StochDynamicProgramming.set_max_iterations(params, 1)
+        V, pbs = solve_SDDP(model, params, 1, V)
+    end
+
+    context("Value functions calculation") do
+        V0 = StochDynamicProgramming.get_lower_bound(model, params, V)
     end
 
     context("Hotstart") do
@@ -152,6 +168,15 @@ facts("SDDP algorithm: 1D case") do
         @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
     end
 
+    context("Cuts pruning") do
+        v = V[1]
+        vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
+        StochDynamicProgramming.prune_cuts!(model, params, V)
+        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.solver)
+        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.solver)
+        @fact isactive1 --> true
+        @fact isactive2 --> false
+    end
 
     context("Piecewise linear cost") do
         # Test Piecewise linear costs:
@@ -173,7 +198,6 @@ facts("SDDP algorithm: 1D case") do
         @fact V[1].betas --> Vdump[1].betas
         @fact V[1].lambdas --> Vdump[1].lambdas
     end
-
 end
 
 

@@ -60,14 +60,13 @@ function solve_SDDP(model::SPModel,
         V, problems = initialize_value_functions(model, param, Vf)
     end
 
-    return run_SDDP(model, param, V, problems, display)
+    run_SDDP!(model, param, V, problems, display)
+    return V, problems
 end
 
 
-"""
-
-"""
-function run_SDDP(model::SPModel,
+"""Run SDDP iterations."""
+function run_SDDP!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     problems::Vector{JuMP.Model},
@@ -134,8 +133,6 @@ function run_SDDP(model::SPModel,
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
-
-    return V, problems
 end
 
 
@@ -253,7 +250,6 @@ function build_models(model::SPModel, param::SDDPparameters)
 
     models = Vector{JuMP.Model}(model.stageNumber-1)
 
-
     for t = 1:model.stageNumber-1
         m = Model(solver=param.solver)
 
@@ -281,9 +277,6 @@ function build_models(model::SPModel, param::SDDPparameters)
                 @addConstraint(m, cost >= model.costFunctions[i](t, x, u, w))
             end
             @setObjective(m, Min, cost + alpha)
-
-        else
-            error("model must be: LinearDynamicLinearCostSPModel or PiecewiseLinearCostSPmodel")
         end
 
         models[t] = m
@@ -502,5 +495,83 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         lambda = vec(V.lambdas[i, :])
         @addConstraint(problem, V.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
     end
+end
+
+
+"""
+Exact pruning of all polyhedral functions in input array.
+
+Parameters:
+- model (SPModel)
+- params (SDDPparameters)
+- V Vector{PolyhedralFunction}
+    Polyhedral functions where cuts will be removed
+
+"""
+function prune_cuts!(model::SPModel, params::SDDPparameters, V::Vector{PolyhedralFunction})
+    for i in 1:length(V)
+        V[i] = exact_prune_cuts(model, params, V[i])
+    end
+end
+
+
+"""
+Remove useless cuts in PolyhedralFunction.
+
+Parameters:
+- model (SPModel)
+- params (SDDPparameters)
+- V (PolyhedralFunction)
+    Polyhedral function where cuts will be removed
+
+Return:
+- PolyhedralFunction: pruned polyhedral function
+
+"""
+function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
+    ncuts = V.numCuts
+    # Find all active cuts:
+    if ncuts > 1
+        active_cuts = Bool[is_cut_relevant(model, i, V, params.solver) for i=1:ncuts]
+        return PolyhedralFunction(V.betas[active_cuts], V.lambdas[active_cuts, :], sum(active_cuts))
+    else
+        return V
+    end
+end
+
+
+"""
+Test whether the cut number k is relevant to define polyhedral function Vt.
+
+Parameters:
+- model (SPModel)
+- k (Int)
+    Position of cut to test in PolyhedralFunction object
+- Vt (PolyhedralFunction)
+    Object storing all cuts
+- solver
+    Solver to use to solve linear problem
+
+Return:
+- Bool: true if the cut is useful in the definition, false otherwise
+
+"""
+function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
+
+    m = Model(solver=solver)
+    @defVar(m, alpha)
+    @defVar(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])
+
+    for i in 1:Vt.numCuts
+        if i!=k
+            lambda = vec(Vt.lambdas[i, :])
+            @addConstraint(m, Vt.betas[i] + dot(lambda, x) <= alpha)
+        end
+    end
+
+    λ_k = vec(Vt.lambdas[k, :])
+    @setObjective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
+    solve(m)
+    return getObjectiveValue(m) < 0.
 end
 
