@@ -91,7 +91,7 @@ Thus, we could define a different probability laws for each time :math:`t`. Here
 Bounds
 ^^^^^^
 
-We could add bounds over the state and the control::
+We add bounds over the state and the control::
 
     s_bounds = [(0, 100)]
     u_bounds = [(0, 7)]
@@ -100,7 +100,7 @@ We could add bounds over the state and the control::
 Problem definition
 ^^^^^^^^^^^^^^^^^^
 
-As our problem is purely linear, we could instantiate::
+As our problem is purely linear, we instantiate::
 
     spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,X0,cost_t,dynamic,xi_laws)
 
@@ -114,9 +114,9 @@ First, we need to use a LP solver::
     using Clp
     SOLVER = ClpSolver()
 
-Clp is automatically installed during package installation. To install the solver on your machine, refer to the JuMP_ documentation.
+Clp is automatically installed during package installation. To install different solvers on your machine, refer to the JuMP_ documentation.
 
-Once the solver installed, we could define the parameters of the SDDP algorithm::
+Once the solver installed, we define SDDP algorithm parameters::
 
     forwardpassnumber = 2 # number of forward pass
     sensibility = 0. # admissible gap between upper and lower bound
@@ -125,31 +125,31 @@ Once the solver installed, we could define the parameters of the SDDP algorithm:
     paramSDDP = SDDPparameters(SOLVER, forwardpassnumber, sensibility, max_iter)
 
 
-Now, we could compute Bellman values::
+Now, we solve the problem by computing Bellman values::
 
     V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
 
 :code:`V` is an array storing the value functions, and :code:`pbs` a vector of JuMP.Model storing each value functions as a linear problem.
 
-We could estimate the lower bound given by :code:`V` with the function::
+We have an exact lower bound given by :code:`V` with the function::
 
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
 
 
-Find optimal control over given scenarios
-=========================================
+Find optimal controls
+=====================
 
-Once Bellman functions are computed, we could control our system over assessments scenarios.
+Once Bellman functions are computed, we can control our system over assessments scenarios, without assuming knowledge of the future.
 
 We build 1000 scenarios according to the laws stored in :code:`xi_laws`::
 
     scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 
-And we could compute 1000 simulations over these scenarios::
+We compute 1000 simulations of the system over these scenarios::
 
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
 
-:code:`costsddp` returns the value of costs along each scenario, and :code:`stocks` the evolution of each stock along time.
+:code:`costsddp` returns the costs for each scenario, and :code:`stocks` the evolution of each stock along time, for each scenario.
 
 .. _JuMP: http://jump.readthedocs.io/en/latest/installation.html#coin-or-clp-and-cbc
 
