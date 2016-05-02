@@ -499,7 +499,7 @@ end
 
 
 """
-Prune all polyhedral functions in input array.
+Exact pruning of all polyhedral functions in input array.
 
 Parameters:
 - model (SPModel)
@@ -541,7 +541,7 @@ end
 
 
 """
-Test whether the cut number k is active in polyhedral function Vt.
+Test whether the cut number k is relevant to define polyhedral function Vt.
 
 Parameters:
 - model (SPModel)
@@ -553,7 +553,7 @@ Parameters:
     Solver to use to solve linear problem
 
 Return:
-- Bool: true if the cut is active, false otherwise
+- Bool: true if the cut is useful in the definition, false otherwise
 
 """
 function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
