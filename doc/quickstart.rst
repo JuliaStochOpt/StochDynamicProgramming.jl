@@ -42,23 +42,24 @@ We will consider 52 time steps as we want to find optimal value functions for on
 
 and we consider the following initial position::
 
-    X0 = [50, 50]
+    X0 = [50]
 
+Note that X0 is a vector.
 
 Dynamic
 ^^^^^^^
 
-We write the dynamic::
+We write the dynamic (which return a vector)::
 
     function dynamic(t, x, u, xi)
-        return [x[1] + u[1] - xi[1]]
+        return [x[1] + u[1] - xi[1]] 
     end
 
 
 Cost
 ^^^^
 
-we store evolution of costs :math:`c_t` in an array `COSTS`, and we define the cost function::
+we store evolution of costs :math:`c_t` in an array `COSTS`, and we define the cost function (which return a float)::
 
     function cost_t(t, x, u, w)
         return COSTS[t] * u[1]
