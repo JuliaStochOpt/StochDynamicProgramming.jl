@@ -20,9 +20,9 @@ Once the package is installed, you can import it in the REPL::
 Install a linear programming solver
 -----------------------------------
 
-SDDP need a linear programming solver to run.
+SDDP need a linear programming solver to run. Clp is installed by default with StochDynamicProgramming.jl.
 
-You could refer to the documentation of JuMP_ to get a solver and interface it with SDDP.
+Refer to the documentation of JuMP_ to get another solver and interface it with SDDP.
 
 
 
