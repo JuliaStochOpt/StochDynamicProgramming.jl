@@ -1,6 +1,6 @@
 
 ========
-Tutorial
+Advanced functions
 ========
 
 This page gives an overview of the functions implemented in the package.
