@@ -3,7 +3,8 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-#  Define the extensive formulation to check the results of small problems
+#  Define the extensive formulation to check the results of small problems.
+#  The problem is instantiate on a tree.
 #############################################################################
 
 """
@@ -12,16 +13,13 @@ Contruct the scenario tree and solve the problem with measurability constraints
 function extensive_formulation(model,
                                param)
 
-
     #Recover all the constant in the model or in param
     laws = model.noises
-    N_NOISES = laws[1].supportSize
 
     DIM_STATE = model.dimStates
     DIM_CONTROL = model.dimControls
 
     X_init = model.initialState
-
 
     T = model.stageNumber-1
 
@@ -41,21 +39,20 @@ function extensive_formulation(model,
     #At each node, we have as many variables as nodes
     @defVar(mod,  u[t=1:T,n=1:DIM_CONTROL*N[t+1]])
     @defVar(mod,  x[t=1:T+1,n=1:DIM_STATE*N[t]])
-    @defVar(mod,  c[t=1:T,n=1:N_NOISES*N[t]])
+    @defVar(mod,  c[t=1:T,n=1:laws[t].supportSize*N[t]])
 
 
     #Computes the total probability of each node from the conditional probabilities
-    proba = []
-    push!(proba, laws[1].proba)
+    proba    = Vector{typeof(laws[1].proba)}(T)
+    proba[1] = laws[1].proba
     for t = 2 : T
-        push!(proba, zeros(N[t+1]))
+        proba[t] = zeros(N[t+1])
         for j = 1 : N[t]
-            for k = 1 : N_NOISES
-                proba[t][N_NOISES*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]
+            for k = 1 : laws[t].supportSize
+                proba[t][laws[t].supportSize*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]
             end
         end
     end
-
 
     #Instantiate the problem creating dynamic constraint at each node
     for t = 1 : (T)
@@ -91,7 +88,7 @@ function extensive_formulation(model,
 
 
     #Define the objective of the function
-    @setObjective(mod, Min, sum{ sum{proba[t][N_NOISES*(n-1)+k]*c[t,N_NOISES*(n-1)+k],k = 1:N_NOISES} , t = 1:T, n=1:div(N[t+1],N_NOISES)})
+    @setObjective(mod, Min, sum{ sum{proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k],k = 1:laws[t].supportSize} , t = 1:T, n=1:div(N[t+1],laws[t].supportSize)})
 
     status = solve(mod)
 
