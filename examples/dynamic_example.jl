@@ -17,10 +17,10 @@ const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
 const N_STAGES = 5
-const N_SCENARIOS = 3
+const N_SCENARIOS = 1
 
-const DIM_STATES = 2
-const DIM_CONTROLS = 2
+const DIM_STATES = 1
+const DIM_CONTROLS = 1
 const DIM_ALEAS = 1
 
 
@@ -28,14 +28,10 @@ const DIM_ALEAS = 1
 #Constants that the user does not have to define
 const T0 = 1
 
-# Constants:
-const VOLUME_MAX = 100
-const VOLUME_MIN = 0
-
-const CONTROL_MAX = round(Int, .4/7. * VOLUME_MAX) + 1
+const CONTROL_MAX = round(Int, .4/7. * 100) + 1
 const CONTROL_MIN = 0
 
-const W_MAX = round(Int, .5/7. * VOLUME_MAX)
+const W_MAX = round(Int, .5/7. * 100)
 const W_MIN = 0
 const DW = 1
 
@@ -46,9 +42,7 @@ const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
 const EPSILON = .05
 const MAX_ITER = 20
 
-alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7.0 3.0 4.0 1.0 1.0 6.0 2.0 2.0 8.0 3.0 7.0 3.0 1.0 4.0 2.0 4.0 1.0 3.0 2.0 8.0 1.0 5.0 5.0 2.0 1.0 6.0 7.0 5.0 1.0 7.0 7.0 7.0 4.0 3.0 2.0 8.0 7.0])
-
-const X0 = [50, 50]
+const X0 = 50*ones(DIM_STATES)
 
 Ax=[]
 Au=[]
@@ -146,12 +140,9 @@ function init_problem()
     x0 = X0
     aleas = generate_probability_laws()
 
-    x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
-    u_bounds  = []
-    for u = 1:DIM_CONTROLS
-        u_bounds = push!(u_bounds, (CONTROL_MIN, CONTROL_MAX))
-    end
- 
+    #Define bounds for the control
+    u_bounds  = [(CONTROL_MIN, CONTROL_MAX) for i in 1:DIM_CONTROLS]
+
     model = LinearDynamicLinearCostSPmodel(N_STAGES,
                                                 u_bounds,
                                                 x0,
@@ -159,10 +150,7 @@ function init_problem()
                                                 dynamic,
                                                 aleas)
 
-    #set_state_bounds(model, x_bounds)
-
-    solver = SOLVER
-    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    params = SDDPparameters(SOLVER, N_SCENARIOS, EPSILON, MAX_ITER)
 
     return model, params
 end
@@ -177,10 +165,7 @@ function solve_dams(model,params,display=false)
 
     V, pbs = solve_SDDP(model, params, display)
 
-    aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               params.forwardPassNumber,
-                               model.dimNoises))
+    aleas = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     params.forwardPassNumber = 1
 
@@ -189,7 +174,7 @@ function solve_dams(model,params,display=false)
     return stocks, V
 end
 
-#Solve the problem and try nb_iter times to generate radom data in case of infeasibility
+#Solve the problem and try nb_iter times to generate random data in case of infeasibility
 unsolve = true
 sol = 0
 i = 0
@@ -219,5 +204,6 @@ if (unsolve)
 else
     a,b = solve_dams(modelbis,paramsbis)
     println("solution =",sol)
+    println("V0 = ", b[1].lambdas[1,:]*X0+b[1].betas[1])
 end
 
