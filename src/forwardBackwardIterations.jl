@@ -111,6 +111,9 @@ function forward_simulations(model::SPModel,
 
             if returnCosts
                 costs[k] += nextstep.cost - nextstep.cost_to_go
+                if t==T-1
+                    costs[k] += nextstep.cost_to_go
+                end
             end
         end
     end
