@@ -40,26 +40,18 @@ Returns :
 function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
                     display=0::Int64,
-                    V=nothing,
-                    V_final=nothing)
+                    V=nothing)
 
-    # First step: process terminal costs.
-    # If not specified, default value is null functions
-    if isa(V_final, Void)
-        Vf = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
-    else
-        Vf = V_final
-    end
-
-    # Second step: process value functions if hotstart is called
+    # First step: process value functions if hotstart is called
     if isa(V, Vector{PolyhedralFunction})
         # If V is already specified, then call hotstart:
         problems = hotstart_SDDP(model, param, V)
     else
         # Otherwise, initialize value functions:
-        V, problems = initialize_value_functions(model, param, Vf)
+        V, problems = initialize_value_functions(model, param)
     end
 
+    # Run SDDP upon example:
     run_SDDP!(model, param, V, problems, display)
     return V, problems
 end
@@ -207,8 +199,6 @@ Parameter:
 
 """
 function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::PolyhedralFunction)
-    alpha = getVar(problem, :alpha)
-
     # if shape is PolyhedralFunction, build terminal cost with it:
     alpha = getVar(problem, :alpha)
     x = getVar(problem, :x)
@@ -307,12 +297,9 @@ Return:
     the initialization of linear problems used to approximate
     each value function
 
-- V_final (PolydrehalFunction)
-    Terminal cost to penalize final state.
-
 """
 function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters, V_final::PolyhedralFunction)
+                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -323,7 +310,10 @@ function initialize_value_functions( model::SPModel,
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises, param.forwardPassNumber)
 
-    V[end] = V_final
+    V[end] = model.finalCost
+
+    # Add final costs to solverProblems:
+    build_terminal_cost!(model, solverProblems[end], V[end])
 
     stockTrajectories = forward_simulations(model,
                         param,
@@ -331,8 +321,6 @@ function initialize_value_functions( model::SPModel,
                         solverProblems_null,
                         aleas,
                         false, true, false)[2]
-
-    build_terminal_cost!(model, solverProblems[end], V[end])
 
     backward_pass!(model,
                   param,

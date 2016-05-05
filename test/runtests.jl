@@ -123,6 +123,8 @@ facts("SDDP algorithm: 1D case") do
         V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
+        @fact length(pbs) --> n_stages - 1
+        @fact length(V) --> n_stages
 
         # Test if the first subgradient has the same dimension as state:
         @fact length(V[1].lambdas[1, :]) --> model.dimStates
