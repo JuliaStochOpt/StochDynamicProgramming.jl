@@ -310,10 +310,13 @@ function initialize_value_functions( model::SPModel,
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises, param.forwardPassNumber)
 
-    V[end] = model.finalCost
-
     # Add final costs to solverProblems:
-    build_terminal_cost!(model, solverProblems[end], V[end])
+    if isa(model.finalCost, PolyhedralFunction)
+        V[end] = model.finalCost
+        build_terminal_cost!(model, solverProblems[end], V[end])
+    elseif isa(model.finalCost, Function)
+        model.finalCost(model, solverProblems[end])
+    end
 
     stockTrajectories = forward_simulations(model,
                         param,
@@ -353,8 +356,15 @@ function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{Polyhedr
 
     solverProblems = build_models(model, param)
 
-    for t in 1:model.stageNumber-1
+    for t in 1:model.stageNumber-2
         add_cuts_to_model!(model, t, solverProblems[t], V[t+1])
+    end
+
+    # Take care of final cost:
+    if isa(model.finalCost, PolyhedralFunction)
+        add_cuts_to_model!(model, model.stageNumber-1, solverProblems[end], V[end])
+    else
+        model.finalCost(model, solverProblems[end])
     end
     return solverProblems
 end

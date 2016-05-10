@@ -37,7 +37,7 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     dynamics::Function
     noises::Vector{NoiseLaw}
 
-    finalCost::PolyhedralFunction
+    finalCost
 
     function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0, cost, dynamic, aleas, Vfinal=nothing)
 
@@ -47,10 +47,10 @@ type LinearDynamicLinearCostSPmodel <: SPModel
 
         # First step: process terminal costs.
         # If not specified, default value is null function
-        if isa(Vfinal, Void)
-            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
-        else
+        if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
             Vf = Vfinal
+        else
+            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
         end
 
         xbounds = []
@@ -79,17 +79,17 @@ type PiecewiseLinearCostSPmodel <: SPModel
     costFunctions::Vector{Function}
     dynamics::Function
     noises::Vector{NoiseLaw}
-    finalCost::PolyhedralFunction
+    finalCost
 
     function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic, aleas, Vfinal=nothing)
         dimStates = length(x0)
         dimControls = length(ubounds)
         dimNoises = length(aleas[1].support[:, 1])
 
-        if isa(Vfinal, Void)
-            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
-        else
+        if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
             Vf = Vfinal
+        else
+            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
         end
 
         xbounds = []
