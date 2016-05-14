@@ -6,7 +6,6 @@
 # run unit-tests
 #############################################################################
 
-push!(LOAD_PATH, "src")
 
 using StochDynamicProgramming
 using Distributions, Clp, FactCheck, JuMP

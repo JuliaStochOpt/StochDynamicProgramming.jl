@@ -8,7 +8,6 @@
 #############################################################################
 
 srand(2713)
-push!(LOAD_PATH, "../src")
 
 using StochDynamicProgramming, JuMP, Clp
 

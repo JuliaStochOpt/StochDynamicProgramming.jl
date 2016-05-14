@@ -7,8 +7,6 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
-push!(LOAD_PATH, "../src")
-
 
 using StochDynamicProgramming, JuMP, Clp
 
