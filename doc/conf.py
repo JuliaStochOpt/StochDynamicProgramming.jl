@@ -15,7 +15,6 @@
 import sys
 import os
 import sphinx_rtd_theme
-import juliadoc
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
@@ -32,7 +31,7 @@ import juliadoc
 # ones.
 extensions = [
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax', 'juliadoc.julia', 'juliadoc.jlhelp'
+    'sphinx.ext.mathjax', 
 ]
 
 # Add any paths that contain templates here, relative to this directory.
