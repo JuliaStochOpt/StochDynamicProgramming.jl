@@ -183,8 +183,8 @@ facts("SDDP algorithm: 1D case") do
     # Test definition of final cost with a JuMP.Model:
     context("Final cost") do
         function fcost(model, m)
-            alpha = getVar(m, :alpha)
-            @addConstraint(m, alpha == 0.)
+            alpha = getvariable(m, :alpha)
+            @constraint(m, alpha == 0.)
         end
         # Store final cost in model:
         model.finalCost = fcost
