@@ -173,11 +173,11 @@ subgradient of the cut to add
 """
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
     t::Int64, beta::Float64, lambda::Vector{Float64})
-    alpha = getVar(problem, :alpha)
-    x = getVar(problem, :x)
-    u = getVar(problem, :u)
-    w = getVar(problem, :w)
-    @addConstraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+    alpha = getvariable(problem, :alpha)
+    x = getvariable(problem, :x)
+    u = getvariable(problem, :u)
+    w = getvariable(problem, :w)
+    @constraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
 end
 
 

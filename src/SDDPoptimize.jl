@@ -200,18 +200,18 @@ Parameter:
 """
 function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::PolyhedralFunction)
     # if shape is PolyhedralFunction, build terminal cost with it:
-    alpha = getVar(problem, :alpha)
-    x = getVar(problem, :x)
-    u = getVar(problem, :u)
-    w = getVar(problem, :w)
+    alpha = getvariable(problem, :alpha)
+    x = getvariable(problem, :x)
+    u = getvariable(problem, :u)
+    w = getvariable(problem, :w)
     t = model.stageNumber -1
     if isa(Vt, PolyhedralFunction)
         for i in 1:Vt.numCuts
             lambda = vec(Vt.lambdas[i, :])
-            @addConstraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+            @constraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
         end
     else
-        @addConstraint(problem, alpha >= 0)
+        @constraint(problem, alpha >= 0)
     end
 end
 
@@ -247,26 +247,26 @@ function build_models(model::SPModel, param::SDDPparameters)
         nu = model.dimControls
         nw = model.dimNoises
 
-        @defVar(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-        @defVar(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
-        @defVar(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
-        @defVar(m, alpha)
+        @variable(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+        @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+        @variable(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
+        @variable(m, alpha)
 
-        @defVar(m, w[1:nw] == 0)
-        m.ext[:cons] = @addConstraint(m, state_constraint, x .== 0)
+        @variable(m, w[1:nw] == 0)
+        m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
 
-        @addConstraint(m, xf .== model.dynamics(t, x, u, w))
+        @constraint(m, xf .== model.dynamics(t, x, u, w))
 
         if typeof(model) == LinearDynamicLinearCostSPmodel
-            @setObjective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+            @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
 
         elseif typeof(model) == PiecewiseLinearCostSPmodel
-            @defVar(m, cost)
+            @variable(m, cost)
 
             for i in 1:length(model.costFunctions)
-                @addConstraint(m, cost >= model.costFunctions[i](t, x, u, w))
+                @constraint(m, cost >= model.costFunctions[i](t, x, u, w))
             end
-            @setObjective(m, Min, cost + alpha)
+            @objective(m, Min, cost + alpha)
         end
 
         models[t] = m
@@ -398,16 +398,16 @@ function get_bellman_value(model::SPModel, param::SDDPparameters,
                            t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
     m = Model(solver=param.solver)
-    @defVar(m, alpha)
+    @variable(m, alpha)
 
     for i in 1:Vt.numCuts
         lambda = vec(Vt.lambdas[i, :])
-        @addConstraint(m, Vt.betas[i] + dot(lambda, xt) <= alpha)
+        @constraint(m, Vt.betas[i] + dot(lambda, xt) <= alpha)
     end
 
-    @setObjective(m, Min, alpha)
+    @objective(m, Min, alpha)
     solve(m)
-    return getValue(alpha)
+    return getvalue(alpha)
 end
 
 
@@ -484,14 +484,14 @@ Parameters:
 
 """
 function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::PolyhedralFunction)
-    alpha = getVar(problem, :alpha)
-    x = getVar(problem, :x)
-    u = getVar(problem, :u)
-    w = getVar(problem, :w)
+    alpha = getvariable(problem, :alpha)
+    x = getvariable(problem, :x)
+    u = getvariable(problem, :u)
+    w = getvariable(problem, :w)
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
-        @addConstraint(problem, V.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+        @constraint(problem, V.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
     end
 end
 
@@ -557,19 +557,19 @@ Return:
 function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
 
     m = Model(solver=solver)
-    @defVar(m, alpha)
-    @defVar(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])
+    @variable(m, alpha)
+    @variable(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])
 
     for i in 1:Vt.numCuts
         if i!=k
             lambda = vec(Vt.lambdas[i, :])
-            @addConstraint(m, Vt.betas[i] + dot(lambda, x) <= alpha)
+            @constraint(m, Vt.betas[i] + dot(lambda, x) <= alpha)
         end
     end
 
     λ_k = vec(Vt.lambdas[k, :])
-    @setObjective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
+    @objective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
     solve(m)
-    return getObjectiveValue(m) < 0.
+    return getobjectivevalue(m) < 0.
 end
 
