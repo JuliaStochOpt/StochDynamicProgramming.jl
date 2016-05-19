@@ -1,8 +1,6 @@
 julia 0.4
-Clp
-Distributions
 JuMP 0.13
-FactCheck
+Distributions
 ProgressMeter
 Interpolations
 Iterators

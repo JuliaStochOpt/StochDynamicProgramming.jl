@@ -6,7 +6,6 @@
 # run unit-tests
 #############################################################################
 
-push!(LOAD_PATH, "src")
 
 using StochDynamicProgramming
 using Distributions, Clp, FactCheck, JuMP
@@ -118,6 +117,15 @@ facts("SDDP algorithm: 1D case") do
     noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
+    
+    context("Unsolvable extensive formulation") do
+        model_ef = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
+                                                                   x0, cost, dynamic, laws)
+        x_bounds_ef = [(-2., -1.)]
+        set_state_bounds(model_ef, x_bounds_ef)
+        @fact_throws extensive_formulation(model_ef, params)
+    end
+    
     context("Linear cost") do
         # Compute bellman functions with SDDP:
         V, pbs = solve_SDDP(model, params, 0)
