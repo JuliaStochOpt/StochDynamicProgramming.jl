@@ -188,6 +188,18 @@ facts("SDDP algorithm: 1D case") do
         @fact isactive2 --> false
     end
 
+    # Test definition of final cost with a JuMP.Model:
+    context("Final cost") do
+        function fcost(model, m)
+            alpha = getvariable(m, :alpha)
+            @constraint(m, alpha == 0.)
+        end
+        # Store final cost in model:
+        model.finalCost = fcost
+        V, pbs = solve_SDDP(model, params, 0)
+        V, pbs = solve_SDDP(model, params, 0, V)
+    end
+
     context("Piecewise linear cost") do
         # Test Piecewise linear costs:
         model = StochDynamicProgramming.PiecewiseLinearCostSPmodel(n_stages,
