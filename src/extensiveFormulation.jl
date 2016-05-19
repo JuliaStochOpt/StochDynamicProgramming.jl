@@ -95,12 +95,8 @@ function extensive_formulation(model,
     solved = (status == :Optimal)
 
     if solved
-<<<<<<< HEAD
-        return getobjectivevalue(mod), status
-=======
-        firstControl = collect(values(getValue(u)))[1:DIM_CONTROL*laws[1].supportSize]
-        return getObjectiveValue(mod), firstControl, status
->>>>>>> dev-release-v0.1.2
+        firstControl = collect(values(getvalue(u)))[1:DIM_CONTROL*laws[1].supportSize]
+        return getobjectivevalue(mod), firstControl, status
     else
         error("Extensive formulation not solved to optimality. Change the model")
     end
