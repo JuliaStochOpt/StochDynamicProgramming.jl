@@ -12,13 +12,20 @@ Create different sets of parameters from a problem and compare the results
 of these different instances.
 
 """
-benchmark(model::SPmodel,
+function benchmark_parameters(model,
           SDDParametersCollection,
-          seeds)
+          seeds, scenarios)
 
 
-
-#return a table with
-#(computing time, Gap, SDDPiterationNumber,CPLEXcalls)
+    V, pbs = solve_SDDP(model, SDDParametersCollection[1], 10) 
+    lb_sddp = StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[1], V)
+    println("Lower bound obtained by SDDP: "*string(lb_sddp))
+    costsddp, stocks = forward_simulations(model, SDDParametersCollection[1], V, pbs, scenarios)
+    
+    V, pbs = solve_SDDP(model, SDDParametersCollection[2], 10) 
+    lb_sddp = StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[2], V)
+    println("Lower bound obtained by SDDP: "*string(lb_sddp))
+    costsddp, stocks = forward_simulations(model, SDDParametersCollection[2], V, pbs, scenarios)
+    
 
 end

@@ -15,7 +15,6 @@ using StochDynamicProgramming, JuMP, Clp, Distributions
 println("library loaded")
 
 run_sddp = true
-run_sdp = true
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -62,33 +61,18 @@ end
 
 
 ######### Solving the problem via SDDP
-if run_sddp
-    paramSDDP = SDDPparameters(SOLVER, 2, 0, MAX_ITER) # 10 forward pass, stop at MAX_ITER
-    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
-    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
-    println("Lower bound obtained by SDDP: "*string(lb_sddp))
-end
-
-######### Solving the problem via Dynamic Programming
-if run_sdp
-    stateSteps = [0.01]
-    controlSteps = [0.01]
-    infoStruct = "HD" # noise at time t is known before taking the decision at time t
-
-    paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
-    Vs = solve_DP(spmodel,paramSDP, 1)
-    lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
-    println("Value obtained by SDP: "*string(lb_sdp))
-end
-
-######### Comparing the solution
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
-if run_sddp
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
-end
-if run_sdp
-    costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
-end
-if run_sddp && run_sdp
-    println(mean(costsddp-costsdp))
-end
+#if run_sddp
+    paramSDDP1 = SDDPparameters(SOLVER, 2, 0, MAX_ITER) #forwardpassnumber, sensibility
+    paramSDDP2 = SDDPparameters(SOLVER, 10, 0, 2)
+    paramSDDP = [paramSDDP1, paramSDDP2]
+#    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
+#    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
+#    println("Lower bound obtained by SDDP: "*string(lb_sddp))
+#end
+
+#if run_sddp
+#    costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
+#end
+
+benchmark_parameters(spmodel, paramSDDP, 3, scenarios)
