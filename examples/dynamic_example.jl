@@ -8,7 +8,6 @@
 #############################################################################
 
 #srand(2713)
-push!(LOAD_PATH, "../src")
 
 using StochDynamicProgramming, JuMP, Clp
 
@@ -16,11 +15,11 @@ using StochDynamicProgramming, JuMP, Clp
 const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
-const N_STAGES = 5
-const N_SCENARIOS = 1
+const N_STAGES = 3
+const N_SCENARIOS = 2
 
 const DIM_STATES = 1
-const DIM_CONTROLS = 1
+const DIM_CONTROLS = 2
 const DIM_ALEAS = 1
 
 
@@ -177,11 +176,12 @@ end
 #Solve the problem and try nb_iter times to generate random data in case of infeasibility
 unsolve = true
 sol = 0
+firstControl = zeros(DIM_CONTROLS*N_SCENARIOS)
 i = 0
 nb_iter = 10
 
 while i<nb_iter
-    sol, status = extensive_formulation(model,params)
+    sol, firstControl, status = extensive_formulation(model,params)
     if (status == :Optimal)
         unsolve = false
         break
@@ -204,6 +204,7 @@ if (unsolve)
 else
     a,b = solve_dams(modelbis,paramsbis)
     println("solution =",sol)
+    println("firstControl =", firstControl)
     println("V0 = ", b[1].lambdas[1,:]*X0+b[1].betas[1])
 end
 

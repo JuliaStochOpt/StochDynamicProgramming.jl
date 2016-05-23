@@ -1,9 +1,6 @@
 julia 0.4
-MathProgBase
-Clp
+JuMP 0.13
 Distributions
-JuMP
-FactCheck
 ProgressMeter
 Interpolations
 Iterators

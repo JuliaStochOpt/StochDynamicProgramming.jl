@@ -6,7 +6,6 @@
 # run unit-tests
 #############################################################################
 
-push!(LOAD_PATH, "src")
 
 using StochDynamicProgramming
 using Distributions, Clp, FactCheck, JuMP
@@ -118,11 +117,22 @@ facts("SDDP algorithm: 1D case") do
     noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
+    
+    context("Unsolvable extensive formulation") do
+        model_ef = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
+                                                                   x0, cost, dynamic, laws)
+        x_bounds_ef = [(-2., -1.)]
+        set_state_bounds(model_ef, x_bounds_ef)
+        @fact_throws extensive_formulation(model_ef, params)
+    end
+    
     context("Linear cost") do
         # Compute bellman functions with SDDP:
         V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
+        @fact length(pbs) --> n_stages - 1
+        @fact length(V) --> n_stages
 
         # Test if the first subgradient has the same dimension as state:
         @fact length(V[1].lambdas[1, :]) --> model.dimStates
@@ -176,6 +186,18 @@ facts("SDDP algorithm: 1D case") do
         isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.solver)
         @fact isactive1 --> true
         @fact isactive2 --> false
+    end
+
+    # Test definition of final cost with a JuMP.Model:
+    context("Final cost") do
+        function fcost(model, m)
+            alpha = getvariable(m, :alpha)
+            @constraint(m, alpha == 0.)
+        end
+        # Store final cost in model:
+        model.finalCost = fcost
+        V, pbs = solve_SDDP(model, params, 0)
+        V, pbs = solve_SDDP(model, params, 0, V)
     end
 
     context("Piecewise linear cost") do

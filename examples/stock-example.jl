@@ -10,7 +10,7 @@
 #         u_min <= u_t <= u_max
 #         u_t choosen knowing xi_1 .. xi_t
 #############################################################################
-push!(LOAD_PATH, "../src")
+
 using StochDynamicProgramming, JuMP, Clp, Distributions
 println("library loaded")
 
