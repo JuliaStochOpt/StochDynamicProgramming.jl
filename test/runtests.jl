@@ -117,7 +117,7 @@ facts("SDDP algorithm: 1D case") do
     noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
-    
+
     context("Unsolvable extensive formulation") do
         model_ef = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
                                                                    x0, cost, dynamic, laws)
@@ -125,7 +125,7 @@ facts("SDDP algorithm: 1D case") do
         set_state_bounds(model_ef, x_bounds_ef)
         @fact_throws extensive_formulation(model_ef, params)
     end
-    
+
     context("Linear cost") do
         # Compute bellman functions with SDDP:
         V, pbs = solve_SDDP(model, params, 0)
@@ -502,13 +502,12 @@ facts("SDP algorithm") do
             @fact costs_sdp2[1] --> costs_sdp
 
             x = x0
-            V_sdp = solve_DP(modelSDP, paramsSDP, false);
             V_sdp2 = StochDynamicProgramming.sdp_solve_HD(modelSDP, paramsSDP, false);
-            V_sdp3 = StochDynamicProgramming.sdp_solve_DH(modelSDP, paramsSDP, false);
+            @time V_sdp3 = StochDynamicProgramming.sdp_solve_DH(modelSDP, paramsSDP, false);
 
-            Vitp = StochDynamicProgramming.value_function_interpolation( modelSDP, V_sdp, 1)
-            Vitp2 = StochDynamicProgramming.value_function_interpolation( modelSDP, V_sdp2, 1)
-            Vitp3 = StochDynamicProgramming.value_function_interpolation( modelSDP, V_sdp3, 1)
+            Vitp = StochDynamicProgramming.value_function_interpolation( modelSDP.dimStates, V_sdp, 1)
+            Vitp2 = StochDynamicProgramming.value_function_interpolation( modelSDP.dimStates, V_sdp2, 1)
+            Vitp3 = StochDynamicProgramming.value_function_interpolation( modelSDP.dimStates, V_sdp3, 1)
 
             v1 = Vitp[(1.1,1.1)...]
             v2 = Vitp2[(1.1,1.1)...]
