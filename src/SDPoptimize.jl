@@ -16,7 +16,7 @@ function index_from_variable( variable,
                     bounds::Array,
                     variable_steps::Array)
 
-    return index_from_variable_1( variable,
+    return SDPancil.index_from_variable_1( variable,
                     bounds,
                     variable_steps)
 end
@@ -45,14 +45,14 @@ function real_index_from_variable( variable,
                     bounds::Array,
                     variable_steps::Array)
 
-    return real_index_from_variable_1( variable,
+    return SDPancil.real_index_from_variable_1( variable,
                     bounds,
                     variable_steps)
 end
 
 
 function value_function_interpolation( dim_states,
-                                    V::Array,
+                                    V,
                                     time::Int)
 
     return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()), OnGrid())
@@ -168,62 +168,46 @@ function solve_DP(model::SPModel,
     return V
 end
 
-function compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim, product_states,
-                                    product_controls, dynamics, constraints, cost, V, Vitp, t, x)
-    expected_V = Inf
-    optimal_u = tuple()
-    current_cost = 0
-
-    #Loop over controls
-    for u = product_controls
-
-        expected_V_u = 0.
-        count_admissible_w = 0
-
-        for w = 1:sampling_size
-            w_sample = samples[:, w]
-            proba = probas[w]
-            next_state = dynamics(t, x, u, w_sample)
-
-            if constraints(t, next_state, u, w_sample)
-
-                count_admissible_w = count_admissible_w + proba
-                ind_next_state = real_index_from_variable_1(next_state, x_bounds, x_steps)
-                next_V = Vitp[ind_next_state...]
-                current_cost = cost(t, x, u, w_sample)
-                expected_V_u += proba*(current_cost + next_V)
-
+function pmaperso(f, lst)
+    np = nprocs()  # determine the number of processes available
+    n = length(lst)
+    results = cell(n)
+    i = 1
+    # function to produce the next work item from the queue.
+    # in this case it's just an index.
+    nextidx() = (idx=i; i+=1; idx)
+    @sync begin
+        for p=1:np
+            if p != myid() || np == 1
+                @async begin
+                    while true
+                        idx = nextidx()
+                        if idx > n
+                            break
+                        end
+                        results[idx] = remotecall_fetch(f, p, lst[idx])
+                    end
+                end
             end
         end
-
-        if (count_admissible_w>0)
-
-            next_V = next_V / count_admissible_w
-
-            if (expected_V_u < expected_V)
-
-                expected_V = expected_V_u
-                optimal_u = u
-
-            end
-         end
     end
-    ind_x = index_from_variable_1(x, x_bounds, x_steps)
-
-    V[ind_x..., t] = expected_V
-    return(ind_x,t)
+    results
 end
+
 
 function compute_V_given_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim, product_states,
                                     product_controls, dynamics, constraints, cost, V, Vitp, t)
-    println(product_states)
     function pf(ind)
-        println(ind)
-        println(compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim, product_states,
-                                    product_controls, dynamics, constraints, cost, V, Vitp, t, product_states[ind]))
+        SDPancil.compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim,
+                                    product_controls, dynamics, constraints, cost, V, Vitp, t, ind)
     end
 
-    pmap(pf,1:length(product_states))
+    pmap(pf,product_states)
+
+    # V[[Colon() for i in 1:x_dim]...,t] = @parallel (vcat) for x in product_states
+    #     SDPancil.compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim,
+    #                                  product_controls, dynamics, constraints, cost, Vitp, t, x)
+    # end
 
 end
 
@@ -270,9 +254,11 @@ function sdp_solve_DH(model::StochDynProgModel,
     product_states, product_controls = generate_grid(model, param)
 
     product_states = collect(product_states)
+    #product_states = SharedArray{typeof(product_states[1])}(product_states)
     product_controls = collect(product_controls)
 
-    V = zeros(Float64, param.stateVariablesSizes..., TF)
+    V = SharedArray{Float64}(zeros(Float64, param.stateVariablesSizes..., TF))
+    #V = zeros(Float64, param.stateVariablesSizes..., TF)
 
     #Compute final value functions
     for x in product_states
@@ -455,7 +441,7 @@ Returns :
 - V(x0) (Float64)
 
 """
-function get_bellman_value(model::SPModel, param::SDPparameters, V::Array{Float64})
+function get_bellman_value(model::SPModel, param::SDPparameters, V)
     ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
     Vi = value_function_interpolation(model.dimStates, V, 1)
     return Vi[ind_x0...,1]
@@ -498,7 +484,7 @@ Returns :
 function sdp_forward_simulation(model::SPModel,
                   param::SDPparameters,
                   scenarios::Array{Float64,3},
-                  V::Array,
+                  V,
                   display=false::Bool)
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
@@ -711,7 +697,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                   param::SDPparameters,
                   scenario::Array,
                   X0::Array,
-                  V::Array,
+                  V,
                   display=true::Bool)
 
     TF = model.stageNumber

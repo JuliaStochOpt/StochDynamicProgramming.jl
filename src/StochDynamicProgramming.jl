@@ -11,7 +11,8 @@ include("SDPancillaries.jl")
 
 module StochDynamicProgramming
 
-using JuMP, Distributions, SDPancil
+using JuMP, Distributions
+import SDPancil
 
 export solve_SDDP,
             NoiseLaw, simulate_scenarios,
