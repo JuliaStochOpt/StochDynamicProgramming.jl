@@ -2,7 +2,7 @@
 
 
 
-**WARNING:** *This package is currently in development, and is not operationnal yet.*
+**WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
 
 [![Build Status](https://travis-ci.org/leclere/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/leclere/StochDynamicProgramming.jl)
