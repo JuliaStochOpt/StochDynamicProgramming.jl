@@ -10,7 +10,7 @@ StochDynamicProgramming installation
 
 To install StochDynamicProgramming::
 
-    julia> Pkg.clone("https://github.com/leclere/StochDynamicProgramming.jl")
+    julia> Pkg.add("StochDynamicProgramming.jl")
 
 Once the package is installed, you can import it in the REPL::
 
