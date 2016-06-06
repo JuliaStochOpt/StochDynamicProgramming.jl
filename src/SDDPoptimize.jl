@@ -12,30 +12,26 @@
 """
 Solve SDDP algorithm and return estimation of bellman functions.
 
+# Description
 Alternate forward and backward phase till the stopping criterion is
 fulfilled.
 
-
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the stochastic problem we want to optimize
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     the parameters of the SDDP algorithm
-
-- display (Int64) - Default is 0
+* `display::Int64)`:
+    Default is `0`
     If non null, display progression in terminal every
-    n iterations, where n is number specified by display.
+    `n` iterations, where `n` is number specified by display.
 
-
-Returns :
-- V (Array{PolyhedralFunction})
+# Returns
+* `V::Array{PolyhedralFunction}`:
     the collection of approximation of the bellman functions
-
-- problems (Array{JuMP.Model})
+* `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-
 """
 function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
@@ -128,34 +124,26 @@ function run_SDDP!(model::SPModel,
 end
 
 
-
 """
 Estimate upper bound with Monte Carlo.
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the stochastic problem we want to optimize
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     the parameters of the SDDP algorithm
-
-- V (Array{PolyhedralFunction})
+* `V::Array{PolyhedralFunction}`:
     the current estimation of Bellman's functions
-
-- problems (Array{JuMP.Model})
+* `problems::Array{JuMP.Model}`:
     Linear model used to approximate each value function
-
-- n_simulation (Float64)
+* `n_simulation::Float64`:
     Number of scenarios to use to compute Monte-Carlo estimation
 
-
-Return:
-- upb (Float64)
+# Return
+* `upb::Float64`:
     estimation of upper bound
-
-- costs (Vector{Float64})
+* `costs::Vector{Float64}`:
     Costs along different trajectories
-
 """
 function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
 
@@ -171,7 +159,6 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{P
 end
 
 
-
 """Build a collection of cuts initialized at 0"""
 function get_null_value_functions_array(model::SPModel)
 
@@ -184,19 +171,15 @@ function get_null_value_functions_array(model::SPModel)
 end
 
 
-
 """
 Build a cut approximating terminal cost with null function
 
-
-Parameter:
-- problem (JuMP.Model)
+# Arguments
+* `problem::JuMP.Model`:
     Cut approximating the terminal cost
-
-- shape
+* `shape`:
     If PolyhedralFunction is given, build terminal cost with it
     Else, terminal cost is null
-
 """
 function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::PolyhedralFunction)
     # if shape is PolyhedralFunction, build terminal cost with it:
@@ -216,25 +199,21 @@ function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::Polyhedra
 end
 
 
-
 """
 Initialize each linear problem used to approximate value  functions
 
+# Description
 This function define the variables and the constraints of each
 linear problem.
 
-
-Parameter:
-- model (SPModel)
+# Arguments
+* `model::SPModel`:
     Parametrization of the problem
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     Parameters of SDDP
 
-
-Return:
-- Array{JuMP.Model}
-
+# Return
+* `Array::JuMP.Model`:
 """
 function build_models(model::SPModel, param::SDDPparameters)
 
@@ -280,26 +259,23 @@ end
 """
 Initialize value functions along a given trajectory
 
+# Description
 This function add the fist cut to each PolyhedralFunction stored in a Array
 
+# Arguments
+* `model::SPModel`:
+* `param::SDDPparameters`:
 
-Parameters:
-- model (SPModel)
-
-- param (SDDPparameters)
-
-Return:
-- V (Array{PolyhedralFunction})
+# Return
+* `V::Array{PolyhedralFunction}`:
     Return T PolyhedralFunction, where T is the number of stages
     specified in model.
-
-- problems (Array{JuMP.Model})
+* `problems::Array{JuMP.Model}`:
     the initialization of linear problems used to approximate
     each value function
-
 """
-function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters)
+function initialize_value_functions(model::SPModel,
+                                    param::SDDPparameters)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -338,19 +314,19 @@ end
 
 
 """
-Initialize JuMP.Model vector with a already computed PolyhedralFunction
+Initialize JuMP.Model vector with a previously computed PolyhedralFunction
 vector.
 
-Parameters:
-- model (SPModel)
+# Arguments
+* `model::SPModel`:
     Parametrization of the problem
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     Parameters of SDDP
-
-- V (Vector{PolyhedralFunction})
+* `V::Vector{PolyhedralFunction}`:
     Estimation of bellman functions as Polyhedral functions
 
+# Return
+* `Vector{JuMP.Model}`
 """
 function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
 
@@ -373,26 +349,20 @@ end
 """
 Compute value of Bellman function at point xt. Return V_t(xt)
 
-Parameters:
-- model (SPModel)
+# Arguments
+* `model::SPModel`:
     Parametrization of the problem
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     Parameters of SDDP
-
-- t (Int64)
+* `t::Int64`:
     Time t where to solve bellman value
-
-- Vt (Polyhedral function)
+* `Vt::Polyhedral function`:
     Estimation of bellman function as Polyhedral function
-
-- xt (Vector{Float64})
+* `xt::Vector{Float64}`:
     Point where to compute Bellman value.
 
-
-Return:
+# Return
 Bellman value (Float64)
-
 """
 function get_bellman_value(model::SPModel, param::SDDPparameters,
                            t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
@@ -412,21 +382,18 @@ end
 
 
 """
-Compute value of Bellman function at point xt. Return V_t(xt)
+Compute lower-bound of the problem at initial time.
 
-Parameters:
-- model (SPModel)
+# Arguments
+* `model::SPModel`:
     Parametrization of the problem
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     Parameters of SDDP
-
-- V (Vector{Polyhedral function})
+* `V::Vector{Polyhedral function}`:
     Estimation of bellman function as Polyhedral function
 
-Return:
+# Return
 current lower bound of the problem (Float64)
-
 """
 function get_lower_bound(model::SPModel, param::SDDPparameters,
                             V::Vector{PolyhedralFunction})
@@ -437,28 +404,22 @@ end
 """
 Compute optimal control at point xt and time t.
 
-Parameters:
-- model (SPModel)
+# Arguments
+* `model::SPModel`:
     Parametrization of the problem
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     Parameters of SDDP
-
-- lpproblem (Vector{JuMP.Model})
+* `lpproblem::Vector{JuMP.Model}`:
     Linear problems used to approximate the value functions
-
-- t (Int64)
+* `t::Int64`:
     Time
-
-- xt (Vector{Float64})
+* `xt::Vector{Float64}`:
     Position where to compute optimal control
-
-- xi (Vector{Float64})
+* `xi::Vector{Float64}`:
     Alea at time t
 
-Return:
-    Vector{Float64}: optimal control at time t
-
+# Return
+    `Vector{Float64}`: optimal control at time t
 """
 function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model}, t::Int, xt::Vector{Float64}, xi::Vector{Float64})
     return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
@@ -468,20 +429,15 @@ end
 """
 Add several cuts to JuMP.Model from a PolyhedralFunction
 
-Parameters:
-- model (SPModel)
+# Arguments
+* `model::SPModel`:
     Store the problem definition
-
-- t (Int)
+* `t::Int`:
     Time index
-
-- problem (JuMP.Model)
+* `problem::JuMP.Model`:
     Linear problem used to approximate the value functions
-
-
-- V (PolyhedralFunction)
+* `V::PolyhedralFunction`:
     Cuts are stored in V
-
 """
 function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::PolyhedralFunction)
     alpha = getvariable(problem, :alpha)
@@ -499,12 +455,11 @@ end
 """
 Exact pruning of all polyhedral functions in input array.
 
-Parameters:
-- model (SPModel)
-- params (SDDPparameters)
-- V Vector{PolyhedralFunction}
+# Arguments
+* `model::SPModel`:
+* `params::SDDPparameters`:
+* `Vector{PolyhedralFunction}`:
     Polyhedral functions where cuts will be removed
-
 """
 function prune_cuts!(model::SPModel, params::SDDPparameters, V::Vector{PolyhedralFunction})
     for i in 1:length(V)
@@ -516,15 +471,14 @@ end
 """
 Remove useless cuts in PolyhedralFunction.
 
-Parameters:
-- model (SPModel)
-- params (SDDPparameters)
-- V (PolyhedralFunction)
+# Arguments
+* `model::SPModel`:
+* `params::SDDPparameters`:
+* `V::PolyhedralFunction`:
     Polyhedral function where cuts will be removed
 
-Return:
-- PolyhedralFunction: pruned polyhedral function
-
+# Return
+* `PolyhedralFunction`: pruned polyhedral function
 """
 function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
     ncuts = V.numCuts
@@ -541,21 +495,19 @@ end
 """
 Test whether the cut number k is relevant to define polyhedral function Vt.
 
-Parameters:
-- model (SPModel)
-- k (Int)
+# Arguments
+* `model::SPModel`:
+* `k::Int`:
     Position of cut to test in PolyhedralFunction object
-- Vt (PolyhedralFunction)
+* `Vt::PolyhedralFunction`:
     Object storing all cuts
-- solver
+* `solver`:
     Solver to use to solve linear problem
 
-Return:
-- Bool: true if the cut is useful in the definition, false otherwise
-
+# Return
+* `Bool`: true if the cut is useful in the definition, false otherwise
 """
 function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
-
     m = Model(solver=solver)
     @variable(m, alpha)
     @variable(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])

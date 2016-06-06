@@ -10,47 +10,32 @@
 """
 Make a forward pass of the algorithm
 
+# Description
 Simulate a scenario of noise and compute an optimal trajectory on this
 scenario according to the current value functions.
 
-Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
-
-- param (SDDPparameters)
-    the parameters of the SDDP algorithm
-
-- V (PolyhedralFunction)
-    the current estimation of Bellman's functions
-
-- solverProblems (Array{JuMP.Model})
+# Arguments
+* `model::SPmodel`: the stochastic problem we want to optimize
+* `param::SDDPparameters`: the parameters of the SDDP algorithm
+* `solverProblems::Array{JuMP.Model}`:
     Linear model used to approximate each value function
-
-- xi (Array{float})
+* `xi::Array{float}`:
     the noise scenarios on which we simulate, each column being one scenario :
     xi[t,k,:] is the alea at time t of scenario k.
-
-- returnCosts (Bool)
+* `returnCosts::Bool`:
     return the cost of each simulated scenario if true
-
-- init (Bool)
+* `init::Bool`:
     Specify if the problem must be initialized
     (ie cuts are empty)
 
-- display (Bool)
-    If specified, display results in shell
-
-
-Returns (according to the last parameters):
-- costs (Array{float,1})
+# Returns
+* `costs::Array{float,1}`:
     an array of the simulated costs
     If returnCosts=false, return nothing
-
-- stocks (Array{float})
+* `stocks::Array{float}`:
     the simulated stock trajectories. stocks(t,k,:) is the stock for
     scenario k at time t.
-
-- controls (Array{Float64, 3})
+* `controls::Array{Float64, 3}`:
     the simulated controls trajectories. controls(t,k,:) is the control for
     scenario k at time t.
 """
@@ -60,8 +45,7 @@ function forward_simulations(model::SPModel,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64},
                             returnCosts=true::Bool,
-                            init=false::Bool,
-                            display=false::Bool)
+                            init=false::Bool)
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -125,22 +109,15 @@ end
 """
 Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 
-Parameters:
-- model (SPModel)
-Store the problem definition
-
-- t (Int64)
-Current time
-
-- Vt (PolyhedralFunction)
-Current lower approximation of the Bellman function at time t
-
-- beta (Float)
-affine part of the cut to add
-
-- lambda (Array{float,1})
-subgradient of the cut to add
-
+# Arguments
+* `model::SPModel`: Store the problem definition
+* `t::Int64`: Current time
+* `Vt::PolyhedralFunction`:
+  Current lower approximation of the Bellman function at time t
+* `beta::Float`:
+  affine part of the cut to add
+* `lambda::Array{float,1}`:
+  subgradient of the cut to add
 """
 function add_cut!(model::SPModel,
     t::Int64, Vt::PolyhedralFunction,
@@ -154,25 +131,20 @@ end
 """
 Add a cut to the JuMP linear problem.
 
-Parameters:
-- model (SPModel)
-Store the problem definition
-
-- problem (JuMP.Model)
-Linear problem used to approximate the value functions
-
-- t (Int)
-Time index
-
-- beta (Float)
-affine part of the cut to add
-
-- lambda (Array{float,1})
-subgradient of the cut to add
-
+# Arguments
+* `model::SPModel`:
+  Store the problem definition
+* `problem::JuMP.Model`:
+  Linear problem used to approximate the value functions
+* `t::Int`:
+  Time index
+* `beta::Float`:
+  affine part of the cut to add
+* `lambda::Array{float,1}`:
+  subgradient of the cut to add
 """
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
-    t::Int64, beta::Float64, lambda::Vector{Float64})
+                            t::Int64, beta::Float64, lambda::Vector{Float64})
     alpha = getvariable(problem, :alpha)
     x = getvariable(problem, :x)
     u = getvariable(problem, :u)
@@ -184,42 +156,27 @@ end
 """
 Make a backward pass of the algorithm
 
+# Description
 For t:T-1 -> 0, compute a valid cut of the Bellman function
 Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
 
-
-Parameters:
-- model (SPmodel)
-the stochastic problem we want to optimize
-
-- param (SDDPparameters)
-the parameters of the SDDP algorithm
-
-- V (Array{PolyhedralFunction})
-the current estimation of Bellman's functions
-
-- solverProblems (Array{JuMP.Model})
-Linear model used to approximate each value function
-
-- stockTrajectories (Array{Float64,3})
-stockTrajectories[t,k,:] is the vector of stock where the cut is computed
-for scenario k and time t.
-
-- law (Array{NoiseLaw})
-Conditionnal distributions of perturbation, for each timestep
-
-- init (Bool)
-If specified, then init PolyhedralFunction
-
-- updateV (Bool)
-Store new cuts in given Polyhedral functions if specified
-
-
-Return:
-- V0 (Float64)
-Approximation of initial cost
-
+# Arguments
+* `model::SPmodel`:
+    the stochastic problem we want to optimize
+* `param::SDDPparameters`:
+    the parameters of the SDDP algorithm
+* `V::Array{PolyhedralFunction}`:
+    the current estimation of Bellman's functions
+* `solverProblems::Array{JuMP.Model}`:
+    Linear model used to approximate each value function
+* `stockTrajectories::Array{Float64,3}`:
+    stockTrajectories[t,k,:] is the vector of stock where the cut is computed
+    for scenario k and time t.
+* `law::Array{NoiseLaw}`:
+    Conditionnal distributions of perturbation, for each timestep
+* `init::Bool`:
+    If specified, then init PolyhedralFunction
 """
 function backward_pass!(model::SPModel,
     param::SDDPparameters,
