@@ -37,21 +37,17 @@ Returns :
     each value function
 
 """
-function solve_SDDP(model::SPModel,
-                    param::SDDPparameters,
-                    display=0::Int64,
-                    V=nothing)
-
-    # First step: process value functions if hotstart is called
-    if isa(V, Vector{PolyhedralFunction})
-        # If V is already specified, then call hotstart:
-        problems = hotstart_SDDP(model, param, V)
-    else
-        # Otherwise, initialize value functions:
-        V, problems = initialize_value_functions(model, param)
-    end
-
+function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
+    # initialize value functions:
+    V, problems = initialize_value_functions(model, param)
     # Run SDDP upon example:
+    run_SDDP!(model, param, V, problems, display)
+    return V, problems
+end
+
+function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, display=0::Int64)
+    # First step: process value functions if hotstart is called
+    problems = hotstart_SDDP(model, param, V)
     run_SDDP!(model, param, V, problems, display)
     return V, problems
 end
@@ -113,7 +109,7 @@ function run_SDDP!(model::SPModel,
     end
 
     # Estimate upper bound with a great number of simulations:
-    if (display>0)
+    if (display>0) & false
         upb = upper_bound(costs)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
 

@@ -117,7 +117,7 @@ facts("SDDP algorithm: 1D case") do
     noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
 
     sddp_costs = 0
-    
+
     context("Unsolvable extensive formulation") do
         model_ef = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
                                                                    x0, cost, dynamic, laws)
@@ -125,7 +125,7 @@ facts("SDDP algorithm: 1D case") do
         set_state_bounds(model_ef, x_bounds_ef)
         @fact_throws extensive_formulation(model_ef, params)
     end
-    
+
     context("Linear cost") do
         # Compute bellman functions with SDDP:
         V, pbs = solve_SDDP(model, params, 0)
@@ -163,7 +163,7 @@ facts("SDDP algorithm: 1D case") do
 
         # Test display:
         StochDynamicProgramming.set_max_iterations(params, 1)
-        V, pbs = solve_SDDP(model, params, 1, V)
+        V, pbs = solve_SDDP(model, params, V, 1)
     end
 
     context("Value functions calculation") do
@@ -172,7 +172,7 @@ facts("SDDP algorithm: 1D case") do
 
     context("Hotstart") do
         # Test hot start with previously computed value functions:
-        V, pbs = solve_SDDP(model, params, 0, V)
+        V, pbs = solve_SDDP(model, params, V, 0)
         # Test if costs are roughly the same:
         sddp_costs2, stocks = forward_simulations(model, params, V, pbs, noise_scenarios)
         @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
@@ -197,7 +197,7 @@ facts("SDDP algorithm: 1D case") do
         # Store final cost in model:
         model.finalCost = fcost
         V, pbs = solve_SDDP(model, params, 0)
-        V, pbs = solve_SDDP(model, params, 0, V)
+        V, pbs = solve_SDDP(model, params, V, 0)
     end
 
     context("Piecewise linear cost") do
@@ -207,7 +207,7 @@ facts("SDDP algorithm: 1D case") do
         [cost],
         dynamic, laws)
         set_state_bounds(model, x_bounds)
-        V, pbs = solve_SDDP(model, params, false)
+        V, pbs = solve_SDDP(model, params, 0)
     end
 
     context("Dump") do
@@ -275,7 +275,7 @@ facts("SDDP algorithm: 2D case") do
 
 
         # Compute bellman functions with SDDP:
-        V, pbs = solve_SDDP(model, params, false)
+        V, pbs = solve_SDDP(model, params, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
 
