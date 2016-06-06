@@ -41,7 +41,6 @@ scenario according to the current value functions.
 """
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
-                            V::Vector{PolyhedralFunction},
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64},
                             returnCosts=true::Bool,
@@ -179,12 +178,12 @@ the current estimation of Vt.
     If specified, then init PolyhedralFunction
 """
 function backward_pass!(model::SPModel,
-    param::SDDPparameters,
-    V::Vector{PolyhedralFunction},
-    solverProblems::Vector{JuMP.Model},
-    stockTrajectories::Array{Float64, 3},
-    law,
-    init=false::Bool)
+                        param::SDDPparameters,
+                        V::Vector{PolyhedralFunction},
+                        solverProblems::Vector{JuMP.Model},
+                        stockTrajectories::Array{Float64, 3},
+                        law,
+                        init=false::Bool)
 
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]

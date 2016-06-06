@@ -84,7 +84,6 @@ function run_SDDP!(model::SPModel,
         # Forward pass
         costs, stockTrajectories, _ = forward_simulations(model,
                             param,
-                            V,
                             problems,
                             noise_scenarios)
 
@@ -151,7 +150,6 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{P
 
     costs, stockTrajectories, _ = forward_simulations(model,
                                                         param,
-                                                        V,
                                                         problem,
                                                         aleas)
 
@@ -280,7 +278,6 @@ function initialize_value_functions(model::SPModel,
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
 
-    V_null = get_null_value_functions_array(model)
     V = Array{PolyhedralFunction}(model.stageNumber)
 
     # Build scenarios according to distribution laws:
@@ -296,10 +293,9 @@ function initialize_value_functions(model::SPModel,
 
     stockTrajectories = forward_simulations(model,
                         param,
-                        V_null,
                         solverProblems_null,
                         aleas,
-                        false, true, false)[2]
+                        false, true)[2]
 
     backward_pass!(model,
                   param,
