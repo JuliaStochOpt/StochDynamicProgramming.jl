@@ -15,17 +15,19 @@ of these different instances.
 function benchmark_parameters(model,
           SDDParametersCollection,
           seeds, scenarios)
-
-
-    V, pbs = solve_SDDP(model, SDDParametersCollection[1], 10) 
-    lb_sddp = StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[1], V)
-    println("Lower bound obtained by SDDP: "*string(lb_sddp))
-    costsddp, stocks = forward_simulations(model, SDDParametersCollection[1], V, pbs, scenarios)
     
-    V, pbs = solve_SDDP(model, SDDParametersCollection[2], 10) 
-    lb_sddp = StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[2], V)
-    println("Lower bound obtained by SDDP: "*string(lb_sddp))
-    costsddp, stocks = forward_simulations(model, SDDParametersCollection[2], V, pbs, scenarios)
     
-
+    
+    for i in 1:length(SDDParametersCollection)
+        srand(seeds)
+        
+        tic()
+        V, pbs = solve_SDDP(model, SDDParametersCollection[i], 10)
+        lb_sddp = StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[i], V)
+        println("Lower bound obtained by SDDP: "*string(lb_sddp))
+        costsddp, stocks = forward_simulations(model, SDDParametersCollection[i], V, pbs, scenarios)
+        toc()
+    end
+    
+    
 end

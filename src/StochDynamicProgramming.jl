@@ -10,7 +10,7 @@
 
 module StochDynamicProgramming
 
-using JuMP, Distributions
+using JuMP, Distributions,
 
 export solve_SDDP,
             NoiseLaw, simulate_scenarios,
