@@ -22,8 +22,6 @@ scenario according to the current value functions.
 * `xi::Array{float}`:
     the noise scenarios on which we simulate, each column being one scenario :
     xi[t,k,:] is the alea at time t of scenario k.
-* `returnCosts::Bool`:
-    return the cost of each simulated scenario if true
 * `init::Bool`:
     Specify if the problem must be initialized
     (ie cuts are empty)
@@ -43,7 +41,6 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64},
-                            returnCosts=true::Bool,
                             init=false::Bool)
 
     T = model.stageNumber
@@ -68,10 +65,7 @@ function forward_simulations(model::SPModel,
         stocks[1, k, :] = model.initialState
     end
 
-    costs = nothing
-    if returnCosts
-        costs = zeros(nb_forward)
-    end
+    costs = zeros(nb_forward)
 
     for t=1:T-1
         for k = 1:nb_forward
@@ -88,16 +82,18 @@ function forward_simulations(model::SPModel,
                                             alea_t,
                                             init)
 
-            stocks[t+1, k, :] = nextstep.next_state
-            opt_control = nextstep.optimal_control
-            controls[t, k, :] = opt_control
-
-            if returnCosts
+            if status
+                stocks[t+1, k, :] = nextstep.next_state
+                opt_control = nextstep.optimal_control
+                controls[t, k, :] = opt_control
                 costs[k] += nextstep.cost - nextstep.cost_to_go
                 if t==T-1
                     costs[k] += nextstep.cost_to_go
                 end
+            else
+                stocks[t+1, k, :] = state_t
             end
+
         end
     end
     return costs, stocks, controls
@@ -189,43 +185,45 @@ function backward_pass!(model::SPModel,
     nb_forward = size(stockTrajectories)[2]
 
     costs::Vector{Float64} = zeros(1)
-    costs_npass = zeros(Float64, nb_forward)
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
-        costs = zeros(law[t].supportSize)
+        costs = zeros(Float64, law[t].supportSize)
 
         for k = 1:nb_forward
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
             state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
 
+            proba = zeros(law[t].supportSize)
             for w in 1:law[t].supportSize
 
                 alea_t  = collect(law[t].support[:, w])
 
-                nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)[2]
-                subgradient_array[:, w] = nextstep.sub_gradient
-                costs[w] = nextstep.cost
+                solved, nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)
+                if solved
+                    subgradient_array[:, w] = nextstep.sub_gradient
+                    costs[w] = nextstep.cost
+                    proba[w] = law[t].proba[w]
+                end
             end
+            # Scale probability (useful when some problems where infeasible):
+            proba /= sum(proba)
 
             # Compute expectation of subgradient:
-            subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
-            # ... and esperancy of cost:
-            costs_npass[k] = dot(law[t].proba, costs)
-            beta = costs_npass[k] - dot(subgradient, state_t)
+            subgradient = vec(sum(proba' .* subgradient_array, 2))
+            # ... and expectation of cost:
+            costs_npass = dot(proba, costs)
+            beta = costs_npass - dot(subgradient, state_t)
 
             # Add cut to polyhedral function and JuMP model:
             if init
                 V[t] = PolyhedralFunction([beta], reshape(subgradient, 1, model.dimStates), 1)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
-                end
             else
                 add_cut!(model, t, V[t], beta, subgradient)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
-                end
+            end
+            if t > 1
+                add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
             end
 
         end
