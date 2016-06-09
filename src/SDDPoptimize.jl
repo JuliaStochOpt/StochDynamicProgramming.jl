@@ -291,7 +291,7 @@ function initialize_value_functions(model::SPModel,
                         param,
                         solverProblems_null,
                         aleas,
-                        false, true)[2]
+                        true)[2]
 
     backward_pass!(model,
                   param,
