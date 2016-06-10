@@ -43,7 +43,7 @@ facts("SDDP algorithm: 1D case") do
 
     # Instantiate parameters of SDDP:
     params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
-    epsilon, max_iterations)
+                                                    epsilon, max_iterations)
 
     V = nothing
     model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
@@ -150,6 +150,19 @@ facts("SDDP algorithm: 1D case") do
         V, pbs = solve_SDDP(model, params, 0)
     end
 
+    context("Stopping criterion") do
+        # Compute upper bound every %% iterations:
+        params.compute_upper_bound = 1
+        params.compute_cuts_pruning = 1
+        params.maxItNumber = 30
+        V, pbs = solve_SDDP(model, params, V, 0)
+        V0 = StochDynamicProgramming.get_lower_bound(model, params, V)
+        n_simulations = 1000
+        upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
+                                                            n_simulations)[1]
+        @fact abs((V0 - upb)/V0) < params.gap --> true
+    end
+
     context("Dump") do
         # Dump V in text file:
         StochDynamicProgramming.dump_polyhedral_functions("dump.dat", V)
@@ -203,7 +216,7 @@ facts("SDDP algorithm: 2D case") do
 
     # Instantiate parameters of SDDP:
     params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
-    epsilon, max_iterations)
+                                                    epsilon, max_iterations)
     V = nothing
     context("Linear cost") do
         # Instantiate a SDDP linear model:
