@@ -125,7 +125,7 @@ function run_SDDP!(model::SPModel,
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
-    
+
     return iteration_count
 end
 
@@ -574,4 +574,3 @@ function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
     solve(m)
     return getobjectivevalue(m) < 0.
 end
-

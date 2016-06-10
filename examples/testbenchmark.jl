@@ -19,7 +19,6 @@ run_sddp = true
 ######## Optimization parameters  ########
 # choose the LP solver used.
 #const SOLVER = ClpSolver()
-# const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_ADVIND=0)
 
 
@@ -56,37 +55,33 @@ function cost_t(t, x, u, w)
 end
 
 ######## Setting up the SPmodel
-    s_bounds = [(0, 1)]
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
-    spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
-    set_state_bounds(spmodel, s_bounds)
+s_bounds = [(0, 1)]
+u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
+spmodel = LinearDynamicLinearCostSPmodel(N_STAGES, u_bounds, [S0], cost_t, dynamic, xi_laws)
+set_state_bounds(spmodel, s_bounds)
 
 
-######### Solving the problem via SDDP
-scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1)
-#if run_sddp
-    paramSDDP1 = SDDPparameters(SOLVER, 2, 0, MAX_ITER) #forwardpassnumber, sensibility
-    paramSDDP2 = SDDPparameters(SOLVER, 10, 0, 2)
-    paramSDDP = [paramSDDP1, paramSDDP1, paramSDDP1, 
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1,
-                    paramSDDP1,paramSDDP1,paramSDDP1]
-#    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
-#    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
-#    println("Lower bound obtained by SDDP: "*string(lb_sddp))
-#end
+######### Define scenarios
+scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws, 1)
 
-#if run_sddp
-#    costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
-#end
+######## Define different scenarios
+paramSDDP1 = SDDPparameters(SOLVER, 2, 0, MAX_ITER) #forwardpassnumber, sensibility
+paramSDDP2 = SDDPparameters(SOLVER, 10, 0, 2)
 
+######## Define parameters collection
+paramSDDP = [paramSDDP1, paramSDDP1, paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1,
+                paramSDDP1,paramSDDP1,paramSDDP1]
+
+#Benchmark the collection of parameters
 benchmark_parameters(spmodel, paramSDDP, 3, scenarios)
