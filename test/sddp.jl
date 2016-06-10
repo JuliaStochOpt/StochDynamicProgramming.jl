@@ -1,7 +1,7 @@
 ################################################################################
 # Test SDDP functions
 ################################################################################
-using FactCheck, StochDynamicProgramming
+using FactCheck, StochDynamicProgramming, JuMP, Clp
 
 # Test SDDP with a one dimensional stock:
 facts("SDDP algorithm: 1D case") do
