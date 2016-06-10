@@ -24,7 +24,7 @@ const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_ADVIND=0)
 
 
 # convergence test
-const MAX_ITER = 2 # maximum iteration of SDDP
+const MAX_ITER = 1 # maximum iteration of SDDP
 
 ######## Stochastic Model  Parameters  ########
 const N_STAGES = 5
@@ -67,7 +67,19 @@ scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1)
 #if run_sddp
     paramSDDP1 = SDDPparameters(SOLVER, 2, 0, MAX_ITER) #forwardpassnumber, sensibility
     paramSDDP2 = SDDPparameters(SOLVER, 10, 0, 2)
-    paramSDDP = [paramSDDP1, paramSDDP1]
+    paramSDDP = [paramSDDP1, paramSDDP1, paramSDDP1, 
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1,
+                    paramSDDP1,paramSDDP1,paramSDDP1]
 #    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
 #    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
 #    println("Lower bound obtained by SDDP: "*string(lb_sddp))

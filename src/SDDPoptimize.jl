@@ -52,8 +52,8 @@ function solve_SDDP(model::SPModel,
     end
 
     # Run SDDP upon example:
-    run_SDDP!(model, param, V, problems, display)
-    return V, problems
+    ic = run_SDDP!(model, param, V, problems, display)
+    return V, problems, ic
 end
 
 
@@ -125,6 +125,8 @@ function run_SDDP!(model::SPModel,
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
+    
+    return iteration_count
 end
 
 
