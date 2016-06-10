@@ -80,7 +80,7 @@ end
 
 """ Remove redundant cuts in a vector of Polyhedral Functions `Vts`."""
 function remove_redundant_cuts!(Vts::Vector{PolyhedralFunction})
-    n_functions = length(Vts)
+    n_functions = length(Vts)-1
     for i in 1:n_functions
         Vts[i] = remove_cuts(Vts[i])
     end
