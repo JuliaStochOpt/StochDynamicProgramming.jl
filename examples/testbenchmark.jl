@@ -69,19 +69,7 @@ paramSDDP1 = SDDPparameters(SOLVER, 2, 0, MAX_ITER) #forwardpassnumber, sensibil
 paramSDDP2 = SDDPparameters(SOLVER, 10, 0, 2)
 
 ######## Define parameters collection
-paramSDDP = [paramSDDP1, paramSDDP1, paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1,
-                paramSDDP1,paramSDDP1,paramSDDP1]
+paramSDDP = [paramSDDP1 for i in 1:20]
 
 #Benchmark the collection of parameters
 benchmark_parameters(spmodel, paramSDDP, 3, scenarios)

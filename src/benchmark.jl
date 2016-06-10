@@ -16,16 +16,16 @@ function benchmark_parameters(model,
           SDDParametersCollection,
           seeds, scenarios)
 
-    for i in 1:length(SDDParametersCollection)
+    for for sddpparams in SDDParametersCollection
 
         srand(seeds)
 
-        (V, pbs, ic), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[i], 0)
-        lb_sddp, t2, m2 = @timed StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[i], V)
-        (costsddp, stocks), t3, m3 = @timed forward_simulations(model, SDDParametersCollection[i], V, pbs, scenarios)
+        (V, pbs, ic), t1, m1 = @timed solve_SDDP(model, sddpparams, 0)
+        lb_sddp, t2, m2 = @timed StochDynamicProgramming.get_lower_bound(model, sddpparams, V)
+        (costsddp, stocks), t3, m3 = @timed forward_simulations(model, sddpparams, V, pbs, scenarios)
 
-        V0, t4, m4 = @timed get_bellman_value(model, SDDParametersCollection[i], 1, V[1], model.initialState)
-        (upb, costs), t5, m5 = @timed estimate_upper_bound(model, SDDParametersCollection[i], V, pbs)
+        V0, t4, m4 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
+        (upb, costs), t5, m5 = @timed estimate_upper_bound(model, sddpparams, V, pbs)
 
         time = t1+t2+t3+t4+t5
         memory = m1+m2+m3+m4+m5
@@ -35,6 +35,6 @@ function benchmark_parameters(model,
         print("memory = ",memory,"\t")
         print("gap = ", round(100*(upb-V0)/V0),"\t")
         print("iteration count = ", ic,"\t")
-        println("number CPLEX call = ", ic*(model.stageNumber-1)*(SDDParametersCollection[i].forwardPassNumber+1))
+        println("number CPLEX call = ", ic*(model.stageNumber-1)*(sddpparams.forwardPassNumber+1))
     end
 end
