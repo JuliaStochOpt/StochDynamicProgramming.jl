@@ -524,7 +524,7 @@ function sdp_forward_simulation(model::SPModel,
 
     for k = 1:nb_scenarios
         costs[k], states[:,k,:], controls[:,k,:] = sdp_forward_single_simulation(SDPmodel,
-                  param,scenarios[:,k],model.initialState,V,display)
+                  param,scenarios[:,k,:],model.initialState,V,display)
     end
 
     return costs, states, controls
