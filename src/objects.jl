@@ -168,13 +168,20 @@ type SDDPparameters
     solver
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
-    # Admissible gap between the estimation of the upper-bound
-    sensibility::Float64
+    # Admissible gap between lower and upper-bound:
+    gap::Float64
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
+    # Prune cuts every %% iterations:
+    compute_cuts_pruning::Int64
+    # Estimate upper-bound every %% iterations:
+    compute_upper_bound::Int64
+    # Number of MonteCarlo simulation to perform to estimate upper-bound:
+    monteCarloSize::Int64
 
-    function SDDPparameters(solver, passnumber=10, sensibility=0., max_iterations=20)
-        return new(solver, passnumber, sensibility, max_iterations)
+    function SDDPparameters(solver, passnumber=10, gap=0.,
+                            max_iterations=20, prune_cuts=0, compute_ub=0, montecarlo=10000)
+        return new(solver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end
 

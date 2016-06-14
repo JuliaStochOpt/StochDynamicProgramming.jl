@@ -56,14 +56,16 @@ function run_SDDP!(model::SPModel,
                     problems::Vector{JuMP.Model},
                     display=0::Int64)
 
-    # Evaluation of initial cost:
-    V0::Float64 = 0
-
     if display > 0
       println("Initialize cuts")
     end
 
+    if param.compute_upper_bound > 0
+        upperbound_scenarios = simulate_scenarios(model.noises, param.monteCarloSize)
+    end
 
+    upb = Inf
+    costs = nothing
     stopping_test::Bool = false
     iteration_count::Int64 = 0
 
@@ -78,10 +80,10 @@ function run_SDDP!(model::SPModel,
         noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
         # Forward pass
-        costs, stockTrajectories, _ = forward_simulations(model,
+        stockTrajectories = forward_simulations(model,
                             param,
                             problems,
-                            noise_scenarios)
+                            noise_scenarios)[2]
 
         # Backward pass
         backward_pass!(model,
@@ -92,11 +94,27 @@ function run_SDDP!(model::SPModel,
                       model.noises,
                       false)
 
-        iteration_count += 1
 
+        iteration_count += 1
+        if (param.compute_upper_bound > 0) && (iteration_count%param.compute_upper_bound==0)
+            (display > 0) && println("Compute upper-bound with ",
+                                      param.monteCarloSize, " scenarios...")
+            upb, costs = estimate_upper_bound(model, param, upperbound_scenarios, problems)
+            if param.gap > 0.
+                lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+                stopping_test = test_stopping_criterion(lwb, upb, param.gap)
+            end
+        end
+
+        if (param.compute_cuts_pruning > 0) && (iteration_count%param.compute_cuts_pruning==0)
+            (display > 0) && println("Prune cuts ...")
+            remove_redundant_cuts!(V)
+            prune_cuts!(model, param, V)
+        end
 
         if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
+                    "\tUpper-bound: ", upb,
                     "\tLower-bound: ", round(get_bellman_value(model, param, 1, V[1], model.initialState),4),
                     "\tTime: ", round(toq(),2),"s")
         end
@@ -104,15 +122,17 @@ function run_SDDP!(model::SPModel,
     end
 
     # Estimate upper bound with a great number of simulations:
-    if (display>0) & false
-        upb = upper_bound(costs)
+    if (display>0) && (param.compute_upper_bound != 0)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
 
-        println("Estimate upper-bound with Monte-Carlo ...")
-        upb, costs = estimate_upper_bound(model, param, V, problems)
+        if param.compute_upper_bound == -1
+            println("Estimate upper-bound with Monte-Carlo ...")
+            upb, costs = estimate_upper_bound(model, param, V, problems)
+        end
+
         println("Estimation of upper-bound: ", round(upb,4),
                 "\tExact lower bound: ", round(V0,4),
-                "\t Gap <  ", round(100*(upb-V0)/V0) , "\%  with prob. > 97.5 \%")
+                "\t Gap <  ", round(100*(upb-V0)/V0, 2) , "\%  with prob. > 97.5 \%")
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
@@ -140,7 +160,10 @@ Estimate upper bound with Monte Carlo.
 * `costs::Vector{Float64}`:
     Costs along different trajectories
 """
-function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
+function estimate_upper_bound(model::SPModel, param::SDDPparameters,
+                                V::Vector{PolyhedralFunction},
+                                problem::Vector{JuMP.Model},
+                                n_simulation=1000::Int)
 
     aleas = simulate_scenarios(model.noises, n_simulation)
 
@@ -149,6 +172,12 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{P
                                                         problem,
                                                         aleas)
 
+    return upper_bound(costs), costs
+end
+function estimate_upper_bound(model::SPModel, param::SDDPparameters,
+                                aleas::Array{Float64, 3},
+                                problem::Vector{JuMP.Model})
+    costs = forward_simulations(model, param, problem, aleas)[1]
     return upper_bound(costs), costs
 end
 
@@ -433,13 +462,11 @@ Add several cuts to JuMP.Model from a PolyhedralFunction
 """
 function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::PolyhedralFunction)
     alpha = getvariable(problem, :alpha)
-    x = getvariable(problem, :x)
-    u = getvariable(problem, :u)
-    w = getvariable(problem, :w)
+    xf = getvariable(problem, :xf)
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
-        @constraint(problem, V.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+        @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
     end
 end
 
@@ -454,7 +481,7 @@ Exact pruning of all polyhedral functions in input array.
     Polyhedral functions where cuts will be removed
 """
 function prune_cuts!(model::SPModel, params::SDDPparameters, V::Vector{PolyhedralFunction})
-    for i in 1:length(V)
+    for i in 1:length(V)-1
         V[i] = exact_prune_cuts(model, params, V[i])
     end
 end
