@@ -153,7 +153,6 @@ type StochDynProgModel <: SPModel
             current_cost = -Inf
             for aff_func in model.costFunctions
                 current_cost = aff_func(t,x,u,w)
-                current_cost = max(current_cost, saved_cost)
             end
             return current_cost
         end
