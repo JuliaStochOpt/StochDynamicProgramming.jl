@@ -256,8 +256,13 @@ function build_models(model::SPModel, param::SDDPparameters)
         m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
 
         @constraint(m, xf .== model.dynamics(t, x, u, w))
-        @constraints(m, model.equalityConstraints(t, x, u, w) .== 0)
-        @constraints(m, model.inequalityConstraints(t, x, u, w) .<= 0)
+
+        if model.equalityConstraints != nothing
+            @constraint(m, model.equalityConstraints(t, x, u, w) .== 0)
+        end
+        if model.inequalityConstraints != nothing
+            @constraint(m, model.inequalityConstraints(t, x, u, w) .<= 0)
+        end
 
         if typeof(model) == LinearDynamicLinearCostSPmodel
             @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)

@@ -37,13 +37,14 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     dynamics::Function
     noises::Vector{NoiseLaw}
 
-    finalCost::Function
+    finalCost
 
-    equalityConstraints::Function
-    inequalityConstraints::Function
+    equalityConstraints
+    inequalityConstraints
 
-
-    function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0, cost, dynamic, aleas, Vfinal=nothing, eq_constr=nothing, ineq_constr=nothing)
+    function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0,
+                                            cost, dynamic, aleas, Vfinal=nothing,
+                                            eqconstr=nothing, ineqconstr=nothing)
 
         dimStates = length(x0)
         dimControls = length(ubounds)
@@ -62,7 +63,8 @@ type LinearDynamicLinearCostSPmodel <: SPModel
             push!(xbounds, (-Inf, Inf))
         end
 
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds, x0, cost, dynamic, aleas, Vf, eq_constr, ineq_constr)
+        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
+                   x0, cost, dynamic, aleas, Vf, eqconstr, ineqconstr)
     end
 end
 
@@ -83,12 +85,14 @@ type PiecewiseLinearCostSPmodel <: SPModel
     costFunctions::Vector{Function}
     dynamics::Function
     noises::Vector{NoiseLaw}
-    finalCost::Function
+    finalCost
 
-    equalityConstraints::Function
-    inequalityConstraints::Function
+    equalityConstraints
+    inequalityConstraints
 
-    function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic, aleas, Vfinal=nothing, eq_constr=nothing, ineq_constr=nothing)
+    function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic,
+                                        aleas, Vfinal=nothing, eqconstr=nothing,
+                                        ineqconstr=nothing)
         dimStates = length(x0)
         dimControls = length(ubounds)
         dimNoises = length(aleas[1].support[:, 1])
@@ -103,7 +107,8 @@ type PiecewiseLinearCostSPmodel <: SPModel
         for i = 1:dimStates
             push!(xbounds, (-Inf, Inf))
         end
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds, x0, costs, dynamic, aleas, Vf, eq_constr, ineq_constr)
+        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
+                   x0, costs, dynamic, aleas, Vf, eqconstr, ineqconstr)
     end
 end
 
