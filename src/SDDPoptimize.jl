@@ -207,14 +207,12 @@ Build a cut approximating terminal cost with null function
 function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::PolyhedralFunction)
     # if shape is PolyhedralFunction, build terminal cost with it:
     alpha = getvariable(problem, :alpha)
-    x = getvariable(problem, :x)
-    u = getvariable(problem, :u)
-    w = getvariable(problem, :w)
+    xf = getvariable(problem, :xf)
     t = model.stageNumber -1
     if isa(Vt, PolyhedralFunction)
         for i in 1:Vt.numCuts
             lambda = vec(Vt.lambdas[i, :])
-            @constraint(problem, Vt.betas[i] + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+            @constraint(problem, Vt.betas[i] + dot(lambda, xf) <= alpha)
         end
     else
         @constraint(problem, alpha >= 0)
@@ -258,6 +256,8 @@ function build_models(model::SPModel, param::SDDPparameters)
         m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
 
         @constraint(m, xf .== model.dynamics(t, x, u, w))
+        @constraints(m, model.equalityConstraints(t, x, u, w) .== 0)
+        @constraints(m, model.inequalityConstraints(t, x, u, w) .<= 0)
 
         if typeof(model) == LinearDynamicLinearCostSPmodel
             @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
