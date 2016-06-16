@@ -19,7 +19,7 @@ run_sddp = true
 ######## Optimization parameters  ########
 # choose the LP solver used.
 #const SOLVER = ClpSolver()
-const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_ADVIND=0)
+const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
 
 # convergence test

@@ -42,18 +42,21 @@ function solve_SDDP(model::SPModel,
                     display=0::Int64,
                     V=nothing)
 
+    callSolver::Int=0    
+    
+    
     # First step: process value functions if hotstart is called
     if isa(V, Vector{PolyhedralFunction})
         # If V is already specified, then call hotstart:
         problems = hotstart_SDDP(model, param, V)
     else
         # Otherwise, initialize value functions:
-        V, problems = initialize_value_functions(model, param)
+        V, problems = initialize_value_functions(model, param, callSolver)
     end
 
     # Run SDDP upon example:
-    ic = run_SDDP!(model, param, V, problems, display)
-    return V, problems, ic
+    callSolver = run_SDDP!(model, param, V, problems, display)
+    return V, problems, callSolver
 end
 
 
@@ -62,6 +65,7 @@ function run_SDDP!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     problems::Vector{JuMP.Model},
+                    callSolver::Int,
                     display=0::Int64)
 
     # Evaluation of initial cost:
@@ -86,19 +90,21 @@ function run_SDDP!(model::SPModel,
         noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
         # Forward pass
-        costs, stockTrajectories, _ = forward_simulations(model,
+        costs, stockTrajectories, _, callSolver = forward_simulations(model,
                             param,
                             V,
                             problems,
-                            noise_scenarios)
+                            noise_scenarios,
+                            callSolver)
 
         # Backward pass
-        backward_pass!(model,
+        callSolver = backward_pass!(model,
                       param,
                       V,
                       problems,
                       stockTrajectories,
                       model.noises,
+                      callSolver,
                       false)
 
         iteration_count += 1
@@ -126,7 +132,7 @@ function run_SDDP!(model::SPModel,
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
 
-    return iteration_count
+    return callSolver
 end
 
 
@@ -162,12 +168,14 @@ Return:
 function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
 
     aleas = simulate_scenarios(model.noises, n_simulation)
-
+    
+    callSolver::Int = 0
     costs, stockTrajectories, _ = forward_simulations(model,
                                                         param,
                                                         V,
                                                         problem,
-                                                        aleas)
+                                                        aleas,
+                                                        callSolver)
 
     return upper_bound(costs), costs
 end
@@ -301,7 +309,8 @@ Return:
 
 """
 function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters)
+                                     param::SDDPparameters,
+                                     callSolver::Int)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -325,14 +334,16 @@ function initialize_value_functions( model::SPModel,
                         V_null,
                         solverProblems_null,
                         aleas,
+                        callSolver,
                         false, true, false)[2]
-
-    backward_pass!(model,
+   
+    callSolver = backward_pass!(model,
                   param,
                   V,
                   solverProblems,
                   stockTrajectories,
                   model.noises,
+                  callSolver,
                   true)
 
     return V, solverProblems
