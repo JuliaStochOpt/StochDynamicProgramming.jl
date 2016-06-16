@@ -93,7 +93,7 @@ function forward_simulations(model::SPModel,
                     stocks[t+1, k, :] = state_t
                 end
             else
-                stocks[t+1, k, :] = [model.xlim[i][1] + rand()*(model.xlim[i][2] - model.xlim[i][1]) for i in 1:model.dimStates]
+                stocks[t+1, k, :] = get_random_state(model)
             end
         end
     end
