@@ -110,6 +110,7 @@ function run_SDDP!(model::SPModel,
             (display > 0) && println("Prune cuts ...")
             remove_redundant_cuts!(V)
             prune_cuts!(model, param, V)
+            problems = hotstart_SDDP(model, param, V)
         end
 
         if (display > 0) && (iteration_count%display==0)
