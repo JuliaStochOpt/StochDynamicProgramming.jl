@@ -73,27 +73,28 @@ function forward_simulations(model::SPModel,
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
             alea_t = extract_vector_from_3Dmatrix(xi, t, k)
 
-            status, nextstep = solve_one_step_one_alea(
+            if ~init
+                status, nextstep = solve_one_step_one_alea(
                                             model,
                                             param,
                                             solverProblems[t],
                                             t,
                                             state_t,
-                                            alea_t,
-                                            init)
-
-            if status
-                stocks[t+1, k, :] = nextstep.next_state
-                opt_control = nextstep.optimal_control
-                controls[t, k, :] = opt_control
-                costs[k] += nextstep.cost - nextstep.cost_to_go
-                if t==T-1
-                    costs[k] += nextstep.cost_to_go
+                                            alea_t)
+                if status
+                    stocks[t+1, k, :] = nextstep.next_state
+                    opt_control = nextstep.optimal_control
+                    controls[t, k, :] = opt_control
+                    costs[k] += nextstep.cost - nextstep.cost_to_go
+                    if t==T-1
+                        costs[k] += nextstep.cost_to_go
+                    end
+                else
+                    stocks[t+1, k, :] = state_t
                 end
             else
-                stocks[t+1, k, :] = state_t
+                stocks[t+1, k, :] = [model.xlim[i][1] + rand()*(model.xlim[i][2] - model.xlim[i][1]) for i in 1:model.dimStates]
             end
-
         end
     end
     return costs, stocks, controls

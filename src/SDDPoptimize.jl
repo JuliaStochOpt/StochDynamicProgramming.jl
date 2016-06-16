@@ -306,7 +306,6 @@ function initialize_value_functions(model::SPModel,
                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
-    solverProblems_null = build_models(model, param)
 
     V = Array{PolyhedralFunction}(model.stageNumber)
 
@@ -323,9 +322,10 @@ function initialize_value_functions(model::SPModel,
 
     stockTrajectories = forward_simulations(model,
                         param,
-                        solverProblems_null,
+                        solverProblems,
                         aleas,
                         true)[2]
+
 
     backward_pass!(model,
                   param,
