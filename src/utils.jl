@@ -86,6 +86,21 @@ function remove_redundant_cuts!(Vts::Vector{PolyhedralFunction})
     end
 end
 
+"""Concatenate collection of arrays of PolyhedralFunction."""
+function catcutsarray(polyfunarray::Vector{StochDynamicProgramming.PolyhedralFunction}...)
+    assert(length(polyfunarray) > 0)
+    ntimes = length(polyfunarray[1])
+    return StochDynamicProgramming.PolyhedralFunction[catcuts([V[t] for V in polyfunarray]...) for t in 1:ntimes]
+end
+
+
+"""Concatenate collection of PolyhedralFunction."""
+function catcuts(Vts::StochDynamicProgramming.PolyhedralFunction...)
+    betas = vcat([V.betas for V in Vts]...)
+    lambdas = vcat([V.lambdas for V in Vts]...)
+    numcuts = sum([V.numCuts for V in Vts])
+    return StochDynamicProgramming.PolyhedralFunction(betas, lambdas, numcuts)
+end
 
 """
 Extract a vector stored in a 3D Array
