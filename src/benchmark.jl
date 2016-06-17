@@ -8,21 +8,41 @@
 #############################################################################
 
 """
-Create different sets of parameters from a problem and compare the results
-of these different instances.
+Compare different sets of parameters to solve an instance of SDDP
 
+Parameters:
+- model (SPmodel)
+    the stochastic problem we want to benchmark
+    
+- SDDParametersCollection ()
+
+- seeds (Int)
+    The seed which is chosen by the users to compare parameters on the same aleas
+    
+- scenarios ()
+    Set of scenarios used to calculate costs
+    
 """
 function benchmark_parameters(model,
           SDDParametersCollection,
           seeds, scenarios)
+    
+    #Execute a first time each function to compile them    
+    (V, pbs, callSolver), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0)
+    lb_sddp, t2, m2 = @timed StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[1], V)
+    (costsddp, stocks,_), t3, m3 = @timed forward_simulations(model, SDDParametersCollection[1], V, pbs, scenarios)
+
+    V0, t4, m4 = @timed get_bellman_value(model, SDDParametersCollection[1], 1, V[1], model.initialState)
+    (upb, costs), t5, m5 = @timed estimate_upper_bound(model, SDDParametersCollection[1], V, pbs)
+
 
     for sddpparams in SDDParametersCollection
 
         srand(seeds)
-
+        
         (V, pbs, callSolver), t1, m1 = @timed solve_SDDP(model, sddpparams, 0)
         lb_sddp, t2, m2 = @timed StochDynamicProgramming.get_lower_bound(model, sddpparams, V)
-        (costsddp, stocks,_), t3, m3 = @timed forward_simulations(model, sddpparams, V, pbs, scenarios,callSolver)
+        (costsddp, stocks,_), t3, m3 = @timed forward_simulations(model, sddpparams, V, pbs, scenarios)
 
         V0, t4, m4 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
         (upb, costs), t5, m5 = @timed estimate_upper_bound(model, sddpparams, V, pbs)

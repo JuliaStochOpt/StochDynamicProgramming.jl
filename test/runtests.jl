@@ -220,7 +220,15 @@ facts("SDDP algorithm: 1D case") do
         @fact V[1].betas --> Vdump[1].betas
         @fact V[1].lambdas --> Vdump[1].lambdas
     end
+    
+    context("Test benchmark function") do
+        paramSDDP = [params for i in 1:20]
+        scenarios = StochDynamicProgramming.simulate_scenarios(laws, 1)
+        benchmark_parameters(model, paramSDDP, 3, scenarios)
+        @fact 3 --> 3
+    end
 end
+
 
 
 # Test SDDP with a two-dimensional stock:

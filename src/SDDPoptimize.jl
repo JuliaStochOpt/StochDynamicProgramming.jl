@@ -36,27 +36,28 @@ Returns :
     the collection of linear problems used to approximate
     each value function
 
+-countCallSolver (Int)
+    Number of times the solver has been called
+
 """
 function solve_SDDP(model::SPModel,
                     param::SDDPparameters,
                     display=0::Int64,
                     V=nothing)
 
-    callSolver::Int=0    
-    
-    
+
     # First step: process value functions if hotstart is called
     if isa(V, Vector{PolyhedralFunction})
         # If V is already specified, then call hotstart:
         problems = hotstart_SDDP(model, param, V)
     else
         # Otherwise, initialize value functions:
-        V, problems = initialize_value_functions(model, param, callSolver)
+        V, problems = initialize_value_functions(model, param)
     end
 
     # Run SDDP upon example:
-    callSolver = run_SDDP!(model, param, V, problems, display)
-    return V, problems, callSolver
+    countCallSolver = run_SDDP!(model, param, V, problems, display)
+    return V, problems, countCallSolver
 end
 
 
@@ -65,11 +66,12 @@ function run_SDDP!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     problems::Vector{JuMP.Model},
-                    callSolver::Int,
                     display=0::Int64)
 
     # Evaluation of initial cost:
     V0::Float64 = 0
+
+    countCallSolver::Int = 0
 
     if display > 0
       println("Initialize cuts")
@@ -94,8 +96,10 @@ function run_SDDP!(model::SPModel,
                             param,
                             V,
                             problems,
-                            noise_scenarios,
-                            callSolver)
+                            noise_scenarios)
+
+        #Update the number of call
+        countCallSolver = countCallSolver + callSolver
 
         # Backward pass
         callSolver = backward_pass!(model,
@@ -104,8 +108,9 @@ function run_SDDP!(model::SPModel,
                       problems,
                       stockTrajectories,
                       model.noises,
-                      callSolver,
                       false)
+
+        countCallSolver = countCallSolver + callSolver
 
         iteration_count += 1
 
@@ -132,7 +137,7 @@ function run_SDDP!(model::SPModel,
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
 
-    return callSolver
+    return countCallSolver
 end
 
 
@@ -168,14 +173,13 @@ Return:
 function estimate_upper_bound(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, problem::Vector{JuMP.Model}, n_simulation=1000::Int)
 
     aleas = simulate_scenarios(model.noises, n_simulation)
-    
+
     callSolver::Int = 0
     costs, stockTrajectories, _ = forward_simulations(model,
                                                         param,
                                                         V,
                                                         problem,
-                                                        aleas,
-                                                        callSolver)
+                                                        aleas)
 
     return upper_bound(costs), costs
 end
@@ -309,8 +313,7 @@ Return:
 
 """
 function initialize_value_functions( model::SPModel,
-                                     param::SDDPparameters,
-                                     callSolver::Int)
+                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
     solverProblems_null = build_models(model, param)
@@ -334,16 +337,14 @@ function initialize_value_functions( model::SPModel,
                         V_null,
                         solverProblems_null,
                         aleas,
-                        callSolver,
                         false, true, false)[2]
-   
+
     callSolver = backward_pass!(model,
                   param,
                   V,
                   solverProblems,
                   stockTrajectories,
                   model.noises,
-                  callSolver,
                   true)
 
     return V, solverProblems

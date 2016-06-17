@@ -53,16 +53,21 @@ Returns (according to the last parameters):
 - controls (Array{Float64, 3})
     the simulated controls trajectories. controls(t,k,:) is the control for
     scenario k at time t.
+
+- callSolver (Int)
+    the number of time CPLEX is called
+    
 """
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             V::Vector{PolyhedralFunction},
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64},
-                            callSolver::Int,
                             returnCosts=true::Bool,
                             init=false::Bool,
                             display=false::Bool)
+
+    callSolver::Int = 0
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -106,7 +111,7 @@ function forward_simulations(model::SPModel,
                                             state_t,
                                             alea_t,
                                             init)
-            
+
             stocks[t+1, k, :] = nextstep.next_state
             opt_control = nextstep.optimal_control
             controls[t, k, :] = opt_control
@@ -229,8 +234,9 @@ function backward_pass!(model::SPModel,
     solverProblems::Vector{JuMP.Model},
     stockTrajectories::Array{Float64, 3},
     law,
-    callSolver::Int,
     init=false::Bool)
+
+    callSolver::Int = 0
 
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
@@ -250,7 +256,7 @@ function backward_pass!(model::SPModel,
             for w in 1:law[t].supportSize
 
                 alea_t  = collect(law[t].support[:, w])
-                
+
                 callSolver += 1
                 nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)[2]
                 subgradient_array[:, w] = nextstep.sub_gradient
