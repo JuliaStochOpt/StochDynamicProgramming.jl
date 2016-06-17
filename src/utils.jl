@@ -90,7 +90,9 @@ end
 function catcutsarray(polyfunarray::Vector{StochDynamicProgramming.PolyhedralFunction}...)
     assert(length(polyfunarray) > 0)
     ntimes = length(polyfunarray[1])
-    return StochDynamicProgramming.PolyhedralFunction[catcuts([V[t] for V in polyfunarray]...) for t in 1:ntimes]
+    # Concatenate cuts in polyfunarray, and discard final time as we do not add cuts at final time:
+    concatcuts = StochDynamicProgramming.PolyhedralFunction[catcuts([V[t] for V in polyfunarray]...) for t in 1:ntimes-1]
+    return vcat(concatcuts, polyfunarray[1][end])
 end
 
 
