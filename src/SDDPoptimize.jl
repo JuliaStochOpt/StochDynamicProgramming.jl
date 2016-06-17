@@ -321,11 +321,10 @@ function initialize_value_functions(model::SPModel,
         model.finalCost(model, solverProblems[end])
     end
 
-    stockTrajectories = forward_simulations(model,
-                        param,
-                        solverProblems,
-                        aleas,
-                        true)[2]
+    stockTrajectories = zeros(model.stageNumber, param.forwardPassNumber, model.dimStates)
+    for i in 1:model.stageNumber, j in 1:param.forwardPassNumber
+        stockTrajectories[i, j, :] = get_random_state(model)
+    end
 
 
     backward_pass!(model,

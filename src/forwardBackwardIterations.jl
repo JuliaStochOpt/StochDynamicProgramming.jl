@@ -22,9 +22,6 @@ scenario according to the current value functions.
 * `xi::Array{float}`:
     the noise scenarios on which we simulate, each column being one scenario :
     xi[t,k,:] is the alea at time t of scenario k.
-* `init::Bool`:
-    Specify if the problem must be initialized
-    (ie cuts are empty)
 
 # Returns
 * `costs::Array{float,1}`:
@@ -40,8 +37,7 @@ scenario according to the current value functions.
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
-                            xi::Array{Float64},
-                            init=false::Bool)
+                            xi::Array{Float64})
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -73,27 +69,23 @@ function forward_simulations(model::SPModel,
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
             alea_t = extract_vector_from_3Dmatrix(xi, t, k)
 
-            if ~init
-                status, nextstep = solve_one_step_one_alea(
-                                            model,
-                                            param,
-                                            solverProblems[t],
-                                            t,
-                                            state_t,
-                                            alea_t)
-                if status
-                    stocks[t+1, k, :] = nextstep.next_state
-                    opt_control = nextstep.optimal_control
-                    controls[t, k, :] = opt_control
-                    costs[k] += nextstep.cost - nextstep.cost_to_go
-                    if t==T-1
-                        costs[k] += nextstep.cost_to_go
-                    end
-                else
-                    stocks[t+1, k, :] = state_t
+            status, nextstep = solve_one_step_one_alea(
+                                        model,
+                                        param,
+                                        solverProblems[t],
+                                        t,
+                                        state_t,
+                                        alea_t)
+            if status
+                stocks[t+1, k, :] = nextstep.next_state
+                opt_control = nextstep.optimal_control
+                controls[t, k, :] = opt_control
+                costs[k] += nextstep.cost - nextstep.cost_to_go
+                if t==T-1
+                    costs[k] += nextstep.cost_to_go
                 end
             else
-                stocks[t+1, k, :] = get_random_state(model)
+                stocks[t+1, k, :] = state_t
             end
         end
     end
