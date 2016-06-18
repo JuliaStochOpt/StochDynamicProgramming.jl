@@ -110,6 +110,7 @@ function run_SDDP!(model::SPModel,
             (display > 0) && println("Prune cuts ...")
             remove_redundant_cuts!(V)
             prune_cuts!(model, param, V)
+            problems = hotstart_SDDP(model, param, V)
         end
 
         if (display > 0) && (iteration_count%display==0)
@@ -306,7 +307,6 @@ function initialize_value_functions(model::SPModel,
                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
-    solverProblems_null = build_models(model, param)
 
     V = Array{PolyhedralFunction}(model.stageNumber)
 
@@ -321,11 +321,11 @@ function initialize_value_functions(model::SPModel,
         model.finalCost(model, solverProblems[end])
     end
 
-    stockTrajectories = forward_simulations(model,
-                        param,
-                        solverProblems_null,
-                        aleas,
-                        true)[2]
+    stockTrajectories = zeros(model.stageNumber, param.forwardPassNumber, model.dimStates)
+    for i in 1:model.stageNumber, j in 1:param.forwardPassNumber
+        stockTrajectories[i, j, :] = get_random_state(model)
+    end
+
 
     backward_pass!(model,
                   param,
