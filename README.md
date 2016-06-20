@@ -5,13 +5,13 @@
 
 **Latest release:** 0.1.2
 
-[![Build Status](https://travis-ci.org/leclere/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/leclere/StochDynamicProgramming.jl)
-[![codecov.io](https://codecov.io/github/leclere/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/leclere/StochDynamicProgramming.jl?branch=master)
+[![Build Status](https://travis-ci.org/leclere/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl)
+[![codecov.io](https://codecov.io/github/leclere/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master)
 
 
 This is a Julia package for optimizing controlled stochastic dynamic system (in discrete time). It offers three methods of resolution :
 
-- Extensive formulation
+- *Extensive formulation*.
 - *Stochastic Dynamic Programming*.
 - *Stochastic Dual Dynamic Programming* (SDDP) algorithm.
 
@@ -23,12 +23,14 @@ It is built upon [JuMP](https://github.com/JuliaOpt/JuMP.jl)
 - Linear dynamics
 - Linear or convex piecewise linear cost
 
-Extension to non-linear formulation are under development.
+Extension to non-linear formulation are under development. 
+Extension to more complex alea dependance are under developpment.
 
 ## Why Extensive formulation ?
 
-An extensive formulation approach consists in representing the problem in a linear
-problem solved by an external linear solver. Complexity is exponential in number of stages.
+An extensive formulation approach consists in representing the stochastic problem as a deterministic
+one with more variable and call a standard deterministic solver. Mainly usable in a linear 
+setting. Computational complexity is exponential in the number of stages.
 
 ## Why Stochastic Dynamic Programming ?
 
@@ -47,11 +49,14 @@ control strategies.
 
 
 ## Installation
+Installing StochDynamicProgramming is an easy process. Open Julia and enter
 
 ```julia
-julia> Pkg.add("https://github.com/leclere/StochDynamicProgramming.jl.git")
+julia> Pkg.update()
+julia> Pkg.add("StochDynamicProgramming")
 
 ```
+
 
 ## Usage
 
