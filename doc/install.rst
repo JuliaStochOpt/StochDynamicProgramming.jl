@@ -10,7 +10,7 @@ StochDynamicProgramming installation
 
 To install StochDynamicProgramming::
 
-    julia> Pkg.clone("https://github.com/leclere/StochDynamicProgramming.jl")
+    julia> Pkg.add("StochDynamicProgramming")
 
 Once the package is installed, you can import it in the REPL::
 
@@ -20,7 +20,9 @@ Once the package is installed, you can import it in the REPL::
 Install a linear programming solver
 -----------------------------------
 
-SDDP need a linear programming solver to run. Clp is installed by default with StochDynamicProgramming.jl.
+SDDP need a linear programming (Clp, Gurobi, CPLEX, etc.) solver to run. To install Clp::
+
+    julia> Pkg.add("Clp")
 
 Refer to the documentation of JuMP_ to get another solver and interface it with SDDP.
 
