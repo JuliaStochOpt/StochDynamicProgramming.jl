@@ -96,6 +96,14 @@ function run_SDDP!(model::SPModel,
 
 
         iteration_count += 1
+
+        if (param.compute_cuts_pruning > 0) && (iteration_count%param.compute_cuts_pruning==0)
+            (display > 0) && println("Prune cuts ...")
+            remove_redundant_cuts!(V)
+            prune_cuts!(model, param, V)
+            problems = hotstart_SDDP(model, param, V)
+        end
+
         if (param.compute_upper_bound > 0) && (iteration_count%param.compute_upper_bound==0)
             (display > 0) && println("Compute upper-bound with ",
                                       param.monteCarloSize, " scenarios...")
@@ -104,12 +112,6 @@ function run_SDDP!(model::SPModel,
                 lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
                 stopping_test = test_stopping_criterion(lwb, upb, param.gap)
             end
-        end
-
-        if (param.compute_cuts_pruning > 0) && (iteration_count%param.compute_cuts_pruning==0)
-            (display > 0) && println("Prune cuts ...")
-            remove_redundant_cuts!(V)
-            prune_cuts!(model, param, V)
         end
 
         if (display > 0) && (iteration_count%display==0)
@@ -527,11 +529,13 @@ Test whether the cut number k is relevant to define polyhedral function Vt.
     Object storing all cuts
 * `solver`:
     Solver to use to solve linear problem
+* `epsilon::Float64`: default is `1e-5`
+    Acceptable tolerance to test cuts relevantness
 
 # Return
 * `Bool`: true if the cut is useful in the definition, false otherwise
 """
-function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
+function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver; epsilon=1e-5)
     m = Model(solver=solver)
     @variable(m, alpha)
     @variable(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])
@@ -546,6 +550,7 @@ function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
     λ_k = vec(Vt.lambdas[k, :])
     @objective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
     solve(m)
-    return getobjectivevalue(m) < 0.
+    sol = getobjectivevalue(m)
+    return sol < epsilon
 end
 
