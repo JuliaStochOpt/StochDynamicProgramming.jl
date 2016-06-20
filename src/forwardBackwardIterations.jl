@@ -187,8 +187,8 @@ function backward_pass!(model::SPModel,
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
             state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
-
             proba = zeros(law[t].supportSize)
+
             for w in 1:law[t].supportSize
 
                 alea_t  = collect(law[t].support[:, w])
@@ -200,23 +200,27 @@ function backward_pass!(model::SPModel,
                     proba[w] = law[t].proba[w]
                 end
             end
-            # Scale probability (useful when some problems where infeasible):
-            proba /= sum(proba)
 
-            # Compute expectation of subgradient:
-            subgradient = vec(sum(proba' .* subgradient_array, 2))
-            # ... and expectation of cost:
-            costs_npass = dot(proba, costs)
-            beta = costs_npass - dot(subgradient, state_t)
+            # We add cuts only if one solution was being found:
+            if sum(proba) > 0
+                # Scale probability (useful when some problems where infeasible):
+                proba /= sum(proba)
 
-            # Add cut to polyhedral function and JuMP model:
-            if init
-                V[t] = PolyhedralFunction([beta], reshape(subgradient, 1, model.dimStates), 1)
-            else
-                add_cut!(model, t, V[t], beta, subgradient)
-            end
-            if t > 1
-                add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                # Compute expectation of subgradient:
+                subgradient = vec(sum(proba' .* subgradient_array, 2))
+                # ... and expectation of cost:
+                costs_npass = dot(proba, costs)
+                beta = costs_npass - dot(subgradient, state_t)
+
+                # Add cut to polyhedral function and JuMP model:
+                if init
+                    V[t] = PolyhedralFunction([beta], reshape(subgradient, 1, model.dimStates), 1)
+                else
+                    add_cut!(model, t, V[t], beta, subgradient)
+                end
+                if t > 1
+                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                end
             end
 
         end
