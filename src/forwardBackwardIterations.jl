@@ -66,8 +66,8 @@ function forward_simulations(model::SPModel,
     for t=1:T-1
         for k = 1:nb_forward
 
-            state_t = extract_vector_from_3Dmatrix(stocks, t, k)
-            alea_t = extract_vector_from_3Dmatrix(xi, t, k)
+            state_t = collect(stocks[t, k, :])
+            alea_t = collect(xi[t, k, :])
 
             status, nextstep = solve_one_step_one_alea(
                                         model,
@@ -186,7 +186,7 @@ function backward_pass!(model::SPModel,
         for k = 1:nb_forward
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
-            state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
+            state_t = collect(stockTrajectories[t, k, :])
             proba = zeros(law[t].supportSize)
 
             for w in 1:law[t].supportSize

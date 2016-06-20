@@ -104,7 +104,7 @@ Extract a vector stored in a 3D Array
 function extract_vector_from_3Dmatrix(input_array::Array{Float64, 3},
                                       nx::Int64,
                                       ny::Int64)
-
+    info("extract_vector_from_3Dmatrix is now deprecated. Use collect instead.")
     state_dimension = size(input_array)[3]
     return reshape(input_array[nx, ny, :], state_dimension)
 end
