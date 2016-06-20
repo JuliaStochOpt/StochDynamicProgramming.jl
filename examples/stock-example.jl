@@ -14,7 +14,7 @@
 using StochDynamicProgramming, JuMP, Clp, Distributions
 println("library loaded")
 
-run_sddp = true
+run_sddp = false
 run_sdp = true
 
 ######## Optimization parameters  ########
@@ -26,7 +26,7 @@ const SOLVER = ClpSolver()
 const MAX_ITER = 100 # maximum iteration of SDDP
 
 ######## Stochastic Model  Parameters  ########
-const N_STAGES = 5
+const N_STAGES = 50
 const COSTS = rand(N_STAGES)
 
 const CONTROL_MAX = 0.5
@@ -72,8 +72,8 @@ end
 ######### Solving the problem via Dynamic Programming
 if run_sdp
     stateSteps = [0.01]
-    controlSteps = [0.01]
-    infoStruct = "HD" # noise at time t is known before taking the decision at time t
+    controlSteps = [0.0001]
+    infoStruct = "DH" # noise at time t is known before taking the decision at time t
 
     paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
     Vs = solve_DP(spmodel,paramSDP, 1)

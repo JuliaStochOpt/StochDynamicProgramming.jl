@@ -168,41 +168,29 @@ function solve_DP(model::SPModel,
     return V
 end
 
-function pmaperso(f, lst)
-    np = nprocs()  # determine the number of processes available
-    n = length(lst)
-    results = cell(n)
-    i = 1
-    # function to produce the next work item from the queue.
-    # in this case it's just an index.
-    nextidx() = (idx=i; i+=1; idx)
-    @sync begin
-        for p=1:np
-            if p != myid() || np == 1
-                @async begin
-                    while true
-                        idx = nextidx()
-                        if idx > n
-                            break
-                        end
-                        results[idx] = remotecall_fetch(f, p, lst[idx])
-                    end
-                end
-            end
-        end
-    end
-    results
-end
-
-
 function compute_V_given_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim, product_states,
                                     product_controls, dynamics, constraints, cost, V, Vitp, t)
-    function pf(ind)
-        SDPancil.compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim,
-                                    product_controls, dynamics, constraints, cost, V, Vitp, t, ind)
+    # function pf(ind)
+    #     SDPancil.compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim,
+    #                                 product_controls, dynamics, constraints, cost, V, Vitp, t, ind)
+    # end
+
+    # pmap(pf,product_states)
+    ncpu = nprocs() - 1
+    workers = procs()[(ncpu==0)+(ncpu>0)*2:end]
+    ncpu += (ncpu==0)
+
+    tasks = []
+
+    for indx in 1:length(product_states)
+        w = workers[1 + (indx % ncpu)]
+        push!(tasks, @spawnat w SDPancil.compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim,
+            product_controls, dynamics, constraints, cost, V, Vitp, t, product_states[indx]))
     end
 
-    pmap(pf,product_states)
+    for ta in 1:length(tasks)
+        fetch(tasks[ta])
+    end
 
     # V[[Colon() for i in 1:x_dim]...,t] = @parallel (vcat) for x in product_states
     #     SDPancil.compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds, x_bounds, x_steps, x_dim,
