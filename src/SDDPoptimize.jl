@@ -34,8 +34,7 @@ fulfilled.
     each value function
 * `count_callsolver::Int64`:
     number of times the solver has been called
-
->>>>>>> benchmark
+    
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
     # initialize value functions:
@@ -88,15 +87,11 @@ function run_SDDP!(model::SPModel,
         noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
         # Forward pass
-        stockTrajectories = forward_simulations(model,
+        _, stockTrajectories,_,callsolver_forward = forward_simulations(model,
                             param,
                             problems,
-                            noise_scenarios)[2]
+                            noise_scenarios)
 
-        callsolver_forward = forward_simulations(model,
-                            param,
-                            problems,
-                            noise_scenarios)[4]
 
         # Backward pass
         callsolver_backward = backward_pass!(model,

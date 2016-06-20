@@ -74,7 +74,7 @@ function forward_simulations(model::SPModel,
             state_t = extract_vector_from_3Dmatrix(stocks, t, k)
             alea_t = extract_vector_from_3Dmatrix(xi, t, k)
 
-            callsolver = callsolver+1
+            callsolver += 1
             status, nextstep = solve_one_step_one_alea(
                                         model,
                                         param,

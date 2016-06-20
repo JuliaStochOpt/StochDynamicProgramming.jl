@@ -178,7 +178,6 @@ facts("SDDP algorithm: 1D case") do
         paramSDDP = [params for i in 1:3]
         scenarios = StochDynamicProgramming.simulate_scenarios(laws, 1)
         benchmark_parameters(model, paramSDDP, 3, scenarios)
-        @fact 3 --> 3
     end
 end
 
