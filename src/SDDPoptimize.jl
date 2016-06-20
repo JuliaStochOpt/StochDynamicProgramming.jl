@@ -21,7 +21,7 @@ fulfilled.
     the stochastic problem we want to optimize
 * `param::SDDPparameters`:
     the parameters of the SDDP algorithm
-* `display::Int64)`:
+* `display::Int64`:
     Default is `0`
     If non null, display progression in terminal every
     `n` iterations, where `n` is number specified by display.
@@ -32,20 +32,25 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
+* `count_callsolver::Int64`:
+    number of times the solver has been called
+
+>>>>>>> benchmark
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
     # initialize value functions:
     V, problems = initialize_value_functions(model, param)
     # Run SDDP upon example:
-    run_SDDP!(model, param, V, problems, display)
-    return V, problems
+    count_callsolver = run_SDDP!(model, param, V, problems, display)
+    return V, problems, count_callsolver
 end
+
 
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, display=0::Int64)
     # First step: process value functions if hotstart is called
     problems = hotstart_SDDP(model, param, V)
-    run_SDDP!(model, param, V, problems, display)
-    return V, problems
+    count_callsolver = run_SDDP!(model, param, V, problems, display)
+    return V, problems, count_callsolver
 end
 
 
@@ -55,6 +60,9 @@ function run_SDDP!(model::SPModel,
                     V::Vector{PolyhedralFunction},
                     problems::Vector{JuMP.Model},
                     display=0::Int64)
+
+    #Initialization of the counter
+    count_callsolver::Int = 0
 
     if display > 0
       println("Initialize cuts")
@@ -85,8 +93,13 @@ function run_SDDP!(model::SPModel,
                             problems,
                             noise_scenarios)[2]
 
+        callsolver_forward = forward_simulations(model,
+                            param,
+                            problems,
+                            noise_scenarios)[4]
+
         # Backward pass
-        backward_pass!(model,
+        callsolver_backward = backward_pass!(model,
                       param,
                       V,
                       problems,
@@ -94,6 +107,8 @@ function run_SDDP!(model::SPModel,
                       model.noises,
                       false)
 
+        #Update the number of call
+        count_callsolver += callsolver_forward + callsolver_backward
 
         iteration_count += 1
         if (param.compute_upper_bound > 0) && (iteration_count%param.compute_upper_bound==0)
@@ -137,6 +152,8 @@ function run_SDDP!(model::SPModel,
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
+
+    return count_callsolver
 end
 
 
@@ -168,6 +185,7 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
 
     aleas = simulate_scenarios(model.noises, n_simulation)
 
+    callsolver::Int = 0
     costs, stockTrajectories, _ = forward_simulations(model,
                                                         param,
                                                         problem,
@@ -327,7 +345,7 @@ function initialize_value_functions(model::SPModel,
     end
 
 
-    backward_pass!(model,
+    callsolver = backward_pass!(model,
                   param,
                   V,
                   solverProblems,
@@ -548,4 +566,3 @@ function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver)
     solve(m)
     return getobjectivevalue(m) < 0.
 end
-
