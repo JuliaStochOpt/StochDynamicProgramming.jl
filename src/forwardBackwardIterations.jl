@@ -34,7 +34,7 @@ scenario according to the current value functions.
     the simulated controls trajectories. controls(t,k,:) is the control for
     scenario k at time t.
 * `callsolver::Int64`:
-    the number of time CPLEX is called
+    the number of solver's call'
 
 """
 function forward_simulations(model::SPModel,

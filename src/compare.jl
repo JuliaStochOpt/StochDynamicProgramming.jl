@@ -54,7 +54,7 @@ function benchmark_parameters(model,
         print("Instance \t")
         print("time = ",round(time,4),"\t")
         print("memory = ",memory,"\t")
-        print("gap = ", round(100*(upb-V0)/V0),"% with probability >97.5%\t")
+        print("gap < ", round(100*(upb-V0)/V0),"% with prob 97.5%\t")
         println("number CPLEX call = ", callsolver)
     end
 end
