@@ -34,7 +34,7 @@ fulfilled.
     each value function
 * `count_callsolver::Int64`:
     number of times the solver has been called
-    
+
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
     # initialize value functions:
@@ -180,15 +180,11 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 n_simulation=1000::Int)
 
     aleas = simulate_scenarios(model.noises, n_simulation)
-
-    callsolver::Int = 0
-    costs, stockTrajectories, _ = forward_simulations(model,
-                                                        param,
-                                                        problem,
-                                                        aleas)
-
+    costs, stockTrajectories, _ = forward_simulations(model, param, problem, aleas)
     return upper_bound(costs), costs
 end
+
+
 function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 aleas::Array{Float64, 3},
                                 problem::Vector{JuMP.Model})
@@ -199,13 +195,7 @@ end
 
 """Build a collection of cuts initialized at 0"""
 function get_null_value_functions_array(model::SPModel)
-
-    V = Vector{PolyhedralFunction}(model.stageNumber)
-    for t = 1:model.stageNumber
-        V[t] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
-    end
-
-    return V
+    return [PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1) for i in 1:model.stageNumber]
 end
 
 
@@ -296,7 +286,6 @@ function build_models(model::SPModel, param::SDDPparameters)
     end
     return models
 end
-
 
 
 """
@@ -461,7 +450,8 @@ Compute optimal control at point xt and time t.
 # Return
     `Vector{Float64}`: optimal control at time t
 """
-function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model}, t::Int, xt::Vector{Float64}, xi::Vector{Float64})
+function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model},
+                     t::Int, xt::Vector{Float64}, xi::Vector{Float64})
     return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
 end
 
@@ -565,3 +555,4 @@ function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver;
     sol = getobjectivevalue(m)
     return sol < epsilon
 end
+
