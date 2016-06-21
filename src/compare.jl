@@ -30,7 +30,7 @@ of calls to the solver
     Print information in the terminal
 """
 function benchmark_parameters(model,
-                               SDDParametersCollection::Array{Any,1},
+                               SDDParametersCollection,
                                scenarios::Array{Float64,3},
                                seeds::Int)
 
@@ -48,13 +48,17 @@ function benchmark_parameters(model,
         V0, t2, m2 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
         (upb, costs), t3, m3 = @timed estimate_upper_bound(model, sddpparams, scenarios, pbs)
 
-        time = t1+t2+t3
-        memory = m1+m2+m3
+        solvingtime = t1
+        simulationtime = t2+t3
+        solvingmemory = m1
+        simulationmemory = m2+m3
         
         print("Instance \t")
-        print("time = ",round(time,4),"\t")
-        print("memory = ",memory,"\t")
-        print("gap < ", round(100*(upb-V0)/V0),"% with prob 97.5%\t")
+        print("Solving time = ",round(solvingtime,4),"\t")
+        print("Solving memory = ", solvingmemory,"\t")
+        print("Simulation time = ",round(simulationtime,4),"\t")
+        print("Simulation memory = ", simulationmemory,"\t")
+        print("Gap < ", round(100*(upb-V0)/V0),"% with prob 97.5%\t")
         println("number CPLEX call = ", callsolver)
     end
 end
