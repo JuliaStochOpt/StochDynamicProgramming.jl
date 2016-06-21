@@ -130,40 +130,6 @@ end
 
 
 """
-DEPRECATED
-Simulate n scenarios according to a given NoiseLaw
-
-Parameters:
-- law::Vector{NoiseLaw}
-    Vector of discrete independent random variables
-- n::Int
-    number of simulations to compute
-
-Returns :
-- scenarios Array(Float64,n,T)
-    an Array of scenarios, scenarios[i,:] being the ith noise scenario
-"""
-function generate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
-    warn("deprecated generate_scenarios use simulate_scenarios")
-    if n <= 0
-        error("negative number of simulations")
-    end
-    Tf = length(laws)
-    scenarios = Array{Vector{Float64}}(n,Tf)
-    for i = 1:n#TODO can be parallelized
-        scenario = []
-        for t=1:Tf
-            new_val = laws[t].support[:, rand(Categorical(laws[t].proba))]
-            push!(scenario, new_val)
-        end
-        scenarios[i,:]=scenario
-    end
-
-    return scenarios
-end
-
-
-"""
 Simulate n scenarios and return a 3D array
 
 # Arguments
