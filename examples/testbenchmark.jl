@@ -62,14 +62,14 @@ set_state_bounds(spmodel, s_bounds)
 
 
 ######### Define scenarios
-scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws, 1)
+scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws, 1000)
 
 ######## Define different scenarios
 paramSDDP1 = SDDPparameters(SOLVER, 4, 0, MAX_ITER) #forwardpassnumber, sensibility
 paramSDDP2 = SDDPparameters(SOLVER, 10, 0, 2)
 
 ######## Define parameters collection
-paramSDDP = [paramSDDP1 for i in 1:20]
+paramSDDP = [paramSDDP1 for i in 1:4]
 
 #Benchmark the collection of parameters
-benchmark_parameters(spmodel, paramSDDP, 3, scenarios)
+benchmark_parameters(spmodel, paramSDDP, scenarios, 12)

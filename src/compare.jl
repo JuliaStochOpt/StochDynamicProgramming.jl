@@ -10,30 +10,34 @@
 """
 Compare different sets of parameters to solve an instance of SDDP
 
-Parameters:
-- model (SPmodel)
-    the stochastic problem we want to benchmark
+# Description
+Take a collection of SDDP parameters and compare the time of execution,
+the memory used, an estimation of the gap to optimality and the number 
+of calls to the solver
 
-- SDDParametersCollection ()
-
-- seeds (Int)
-    The seed which is chosen by the users to compare parameters on the same aleas
-
-- scenarios ()
+# Arguments
+* `model::SPmodel`:
+    The stochastic problem we want to benchmark
+* `SDDParametersCollection::Array{Any,1}`
+    Collection of SDDPparameters
+* `scenarios::Array{Float64,3}`
     Set of scenarios used to calculate costs
-
+* `seeds::Int`
+    The random number generator seeds
+    
+# Output
+* `Display in the terminal`
+    Print information in the terminal
 """
 function benchmark_parameters(model,
-          SDDParametersCollection,
-          seeds, scenarios)
+                               SDDParametersCollection::Array{Any,1},
+                               scenarios::Array{Float64,3},
+                               seeds::Int)
 
     #Execute a first time each function to compile them
     (V, pbs, callsolver), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0)
-    lb_sddp, t2, m2 = @timed StochDynamicProgramming.get_lower_bound(model, SDDParametersCollection[1], V)
-    (costsddp, stocks,_), t3, m3 = @timed forward_simulations(model, SDDParametersCollection[1], pbs, scenarios)
-
-    V0, t4, m4 = @timed get_bellman_value(model, SDDParametersCollection[1], 1, V[1], model.initialState)
-    (upb, costs), t5, m5 = @timed estimate_upper_bound(model, SDDParametersCollection[1], V, pbs)
+     V0, t2, m2 = @timed get_bellman_value(model, SDDParametersCollection[1], 1, V[1], model.initialState)
+    (upb, costs), t3, m3 = @timed estimate_upper_bound(model, SDDParametersCollection[1], scenarios, pbs)
 
 
     for sddpparams in SDDParametersCollection
@@ -41,19 +45,16 @@ function benchmark_parameters(model,
         srand(seeds)
 
         (V, pbs, callsolver), t1, m1 = @timed solve_SDDP(model, sddpparams, 0)
-        lb_sddp, t2, m2 = @timed StochDynamicProgramming.get_lower_bound(model, sddpparams, V)
-        (costsddp, stocks,_), t3, m3 = @timed forward_simulations(model, sddpparams, pbs, scenarios)
+        V0, t2, m2 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
+        (upb, costs), t3, m3 = @timed estimate_upper_bound(model, sddpparams, scenarios, pbs)
 
-        V0, t4, m4 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
-        (upb, costs), t5, m5 = @timed estimate_upper_bound(model, sddpparams, V, pbs)
-
-        time = t1+t2+t3+t4+t5
-        memory = m1+m2+m3+m4+m5
-
+        time = t1+t2+t3
+        memory = m1+m2+m3
+        
         print("Instance \t")
         print("time = ",round(time,4),"\t")
         print("memory = ",memory,"\t")
-        print("gap = ", round(100*(upb-V0)/V0),"\t")
+        print("gap = ", round(100*(upb-V0)/V0),"% with probability >97.5%\t")
         println("number CPLEX call = ", callsolver)
     end
 end
