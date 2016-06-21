@@ -40,16 +40,16 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
     # initialize value functions:
     V, problems = initialize_value_functions(model, param)
     # Run SDDP upon example:
-    count_callsolver = run_SDDP!(model, param, V, problems, display)
-    return V, problems, count_callsolver
+    sddp_stats = run_SDDP!(model, param, V, problems, display)
+    return V, problems, sddp_stats
 end
 
 
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, display=0::Int64)
     # First step: process value functions if hotstart is called
     problems = hotstart_SDDP(model, param, V)
-    count_callsolver = run_SDDP!(model, param, V, problems, display)
-    return V, problems, count_callsolver
+    sddp_stats = run_SDDP!(model, param, V, problems, display)
+    return V, problems, sddp_stats
 end
 
 
@@ -61,7 +61,7 @@ function run_SDDP!(model::SPModel,
                     display=0::Int64)
 
     #Initialization of the counter
-    count_callsolver::Int = 0
+    stats = SDDPStat(0, [], [], [], 0)
 
     if display > 0
       println("Initialize cuts")
@@ -77,10 +77,9 @@ function run_SDDP!(model::SPModel,
     iteration_count::Int64 = 0
 
     while (iteration_count < param.maxItNumber) & (~stopping_test)
+
         # Time execution of current pass:
-        if display > 0
-            tic()
-        end
+        tic()
 
         # Build given number of scenarios according to distribution
         # law specified in model.noises:
@@ -103,9 +102,10 @@ function run_SDDP!(model::SPModel,
                       false)
 
         #Update the number of call
-        count_callsolver += callsolver_forward + callsolver_backward
+        stats.ncallsolver += callsolver_forward + callsolver_backward
 
         iteration_count += 1
+        stats.niterations += 1
 
         if (param.compute_cuts_pruning > 0) && (iteration_count%param.compute_cuts_pruning==0)
             (display > 0) && println("Prune cuts ...")
@@ -113,22 +113,26 @@ function run_SDDP!(model::SPModel,
             prune_cuts!(model, param, V)
             problems = hotstart_SDDP(model, param, V)
         end
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        push!(stats.lower_bounds, lwb)
 
         if (param.compute_upper_bound > 0) && (iteration_count%param.compute_upper_bound==0)
             (display > 0) && println("Compute upper-bound with ",
                                       param.monteCarloSize, " scenarios...")
             upb, costs = estimate_upper_bound(model, param, upperbound_scenarios, problems)
             if param.gap > 0.
-                lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
                 stopping_test = test_stopping_criterion(lwb, upb, param.gap)
             end
         end
 
+        push!(stats.exectime, toq())
+        push!(stats.upper_bounds, upb)
+
         if (display > 0) && (iteration_count%display==0)
             println("Pass number ", iteration_count,
                     "\tUpper-bound: ", upb,
-                    "\tLower-bound: ", round(get_bellman_value(model, param, 1, V[1], model.initialState),4),
-                    "\tTime: ", round(toq(),2),"s")
+                    "\tLower-bound: ", round(stats.lower_bounds[end], 4),
+                    "\tTime: ", round(stats.exectime[end], 2),"s")
         end
 
     end
@@ -149,7 +153,7 @@ function run_SDDP!(model::SPModel,
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
 
-    return count_callsolver
+    return stats
 end
 
 

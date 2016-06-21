@@ -236,7 +236,20 @@ function set_max_iterations(param::SDDPparameters, n_iter::Int)
     param.maxItNumber = n_iter
 end
 
-
+# Define an object to store evolution of solution
+# along iterations:
+type SDDPStat
+    # Number of iterations:
+    niterations::Int64
+    # evolution of lower bound:
+    lower_bounds::Vector{Float64}
+    # evolution of upper bound:
+    upper_bounds::Vector{Float64}
+    # evolution of execution time:
+    exectime::Vector{Float64}
+    # number of calls to solver:
+    ncallsolver::Int64
+end
 
 
 type NextStep
