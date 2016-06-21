@@ -5,8 +5,8 @@
 
 **Latest release:** 0.1.2
 
-[![Build Status](https://travis-ci.org/leclere/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl)
-[![codecov.io](https://codecov.io/github/leclere/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master)
+[![Build Status](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl)
+[![codecov.io](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master)
 
 
 This is a Julia package for optimizing controlled stochastic dynamic system (in discrete time). It offers three methods of resolution :
