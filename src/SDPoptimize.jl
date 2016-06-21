@@ -134,14 +134,8 @@ function solve_DP(model::SPModel,
 
     SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
 
-    #Display start of the algorithm in DH and HD cases
-    if (param.infoStructure == "DH")
-        V = sdp_solve_DH(SDPmodel, param, display)
-    elseif (param.infoStructure == "HD")
-        V = sdp_solve_HD(SDPmodel, param, display)
-    else
-        error("param.infoStructure is neither 'DH' nor 'HD'")
-    end
+    #Start of the algorithm
+    V = sdp_compute_value_functions(SDPmodel, param, display)
 
     return V
 end
@@ -159,7 +153,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
     if info_struc == "DH"
         for indx in 1:length(product_states)
             w = workers[1 + (indx % ncpu)]
-            push!(tasks, @spawnat w SDPancil.compute_V_given_x_t_DH(sampling_size,
+            push!(tasks, @spawnat w SDPutils.compute_V_given_x_t_DH(sampling_size,
                                                                     samples,
                                                                     probas,
                                                                     u_bounds,
@@ -176,7 +170,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
     else
         for indx in 1:length(product_states)
             w = workers[1 + (indx % ncpu)]
-            push!(tasks, @spawnat w SDPancil.compute_V_given_x_t_HD(sampling_size,
+            push!(tasks, @spawnat w SDPutils.compute_V_given_x_t_HD(sampling_size,
                                                                     samples,
                                                                     probas,
                                                                     u_bounds,
@@ -218,9 +212,9 @@ Returns :
     of the system at each time step
 
 """
-function sdp_solve(model::StochDynProgModel,
-                  param::SDPparameters,
-                  display=0::Int64)
+function sdp_compute_value_functions(model::StochDynProgModel,
+                                        param::SDPparameters,
+                                        display=0::Int64)
 
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
@@ -284,7 +278,7 @@ function sdp_solve(model::StochDynProgModel,
         compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 x_steps, x_dim, product_states, product_controls,
                                 dynamics, constraints, cost, V, Vitp, t
-                                , model.infoStructure)
+                                , param.infoStructure)
 
     end
     return V

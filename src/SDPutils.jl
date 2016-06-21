@@ -129,7 +129,7 @@ module SDPutils
                 if constraints(t, next_state, u, w_sample)
 
                     count_admissible_w = count_admissible_w + proba
-                    ind_next_state = real_index_from_variable_1(next_state, x_bounds, x_steps)
+                    ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
                     next_V = Vitp[ind_next_state...]
                     current_cost = cost(t, x, u, w_sample)
                     expected_V_u += proba*(current_cost + next_V)
@@ -149,7 +149,7 @@ module SDPutils
                 end
              end
         end
-        ind_x = index_from_variable_1(x, x_bounds, x_steps)
+        ind_x = index_from_variable(x, x_bounds, x_steps)
 
         V[ind_x..., t] = expected_V
     end

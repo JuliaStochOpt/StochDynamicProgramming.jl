@@ -69,8 +69,8 @@ StochDynamicProgramming.set_state_bounds(spmodel, s_bounds)
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 
 stateSteps = [0.01]
-controlSteps = [0.0001]
-infoStruct = "DH" # noise at time t is known before taking the decision at time t
+controlSteps = [0.001]
+infoStruct = "HD" # noise at time t is known before taking the decision at time t
 
 paramSDP = StochDynamicProgramming.SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
 end
