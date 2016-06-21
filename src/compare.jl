@@ -59,6 +59,6 @@ function benchmark_parameters(model,
         print("Simulation time = ",round(simulationtime,4),"\t")
         print("Simulation memory = ", simulationmemory,"\t")
         print("Gap < ", round(100*(upb-V0)/V0),"% with prob 97.5%\t")
-        println("number CPLEX call = ", callsolver)
+        println("number external solver call = ", callsolver)
     end
 end
