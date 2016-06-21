@@ -18,7 +18,8 @@ export solve_SDDP,
         PiecewiseLinearCostSPmodel, extensive_formulation,
         PolyhedralFunction, NextStep, forward_simulations,
         StochDynProgModel, SDPparameters, solve_DP,
-        sdp_forward_simulation, sampling, get_control, get_bellman_value
+        sdp_forward_simulation, sampling, get_control, get_bellman_value,
+        benchmark_parameters
 
 include("objects.jl")
 include("utils.jl")
@@ -27,4 +28,5 @@ include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 include("extensiveFormulation.jl")
 include("SDPoptimize.jl")
+include("compare.jl")
 end

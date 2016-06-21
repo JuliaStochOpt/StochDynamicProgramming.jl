@@ -173,6 +173,12 @@ facts("SDDP algorithm: 1D case") do
         @fact V[1].betas --> Vdump[1].betas
         @fact V[1].lambdas --> Vdump[1].lambdas
     end
+
+    context("Compare parameters") do
+        paramSDDP = [params for i in 1:3]
+        scenarios = StochDynamicProgramming.simulate_scenarios(laws, 1000)
+        benchmark_parameters(model, paramSDDP, scenarios, 12)
+    end
 end
 
 

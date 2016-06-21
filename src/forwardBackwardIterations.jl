@@ -33,11 +33,16 @@ scenario according to the current value functions.
 * `controls::Array{Float64, 3}`:
     the simulated controls trajectories. controls(t,k,:) is the control for
     scenario k at time t.
+* `callsolver::Int64`:
+    the number of solver's call'
+
 """
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64})
+
+    callsolver::Int = 0
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -69,6 +74,7 @@ function forward_simulations(model::SPModel,
             state_t = collect(stocks[t, k, :])
             alea_t = collect(xi[t, k, :])
 
+            callsolver += 1
             status, nextstep = solve_one_step_one_alea(
                                         model,
                                         param,
@@ -89,7 +95,7 @@ function forward_simulations(model::SPModel,
             end
         end
     end
-    return costs, stocks, controls
+    return costs, stocks, controls, callsolver
 end
 
 
@@ -174,6 +180,8 @@ function backward_pass!(model::SPModel,
                         law,
                         init=false::Bool)
 
+    callsolver::Int = 0
+
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
 
@@ -193,6 +201,7 @@ function backward_pass!(model::SPModel,
 
                 alea_t  = collect(law[t].support[:, w])
 
+                callsolver += 1
                 solved, nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)
                 if solved
                     subgradient_array[:, w] = nextstep.sub_gradient
@@ -225,4 +234,5 @@ function backward_pass!(model::SPModel,
 
         end
     end
+    return callsolver
 end
