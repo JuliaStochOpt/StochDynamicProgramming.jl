@@ -75,9 +75,9 @@ facts("SDDP algorithm: 1D case") do
         @fact length(V) --> n_stages
 
         # Test if the first subgradient has the same dimension as state:
-        @fact length(V[1].lambdas[1, :]) --> model.dimStates
-        @fact V[1].numCuts --> n_scenarios*max_iterations + 1
-        @fact length(V[1].lambdas[:, 1]) --> n_scenarios*max_iterations + 1
+        @fact size(V[1].lambdas, 2) --> model.dimStates
+        @fact V[1].numCuts --> n_scenarios*max_iterations + n_scenarios
+        @fact size(V[1].lambdas, 1) --> n_scenarios*max_iterations + n_scenarios
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100

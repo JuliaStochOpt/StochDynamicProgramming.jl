@@ -98,8 +98,7 @@ function run_SDDP!(model::SPModel,
                       V,
                       problems,
                       stockTrajectories,
-                      model.noises,
-                      false)
+                      model.noises)
 
         #Update the number of call
         stats.ncallsolver += callsolver_forward + callsolver_backward
@@ -315,7 +314,8 @@ function initialize_value_functions(model::SPModel,
 
     solverProblems = build_models(model, param)
 
-    V = Array{PolyhedralFunction}(model.stageNumber)
+    V = PolyhedralFunction[
+                PolyhedralFunction([], Array{Float64}(0, model.dimStates), 0) for i in 1:model.stageNumber]
 
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises, param.forwardPassNumber)
@@ -339,8 +339,7 @@ function initialize_value_functions(model::SPModel,
                   V,
                   solverProblems,
                   stockTrajectories,
-                  model.noises,
-                  true)
+                  model.noises)
 
     return V, solverProblems
 end

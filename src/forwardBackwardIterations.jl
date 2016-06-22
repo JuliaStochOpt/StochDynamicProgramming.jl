@@ -169,16 +169,13 @@ the current estimation of Vt.
     for scenario k and time t.
 * `law::Array{NoiseLaw}`:
     Conditionnal distributions of perturbation, for each timestep
-* `init::Bool`:
-    If specified, then init PolyhedralFunction
 """
 function backward_pass!(model::SPModel,
                         param::SDDPparameters,
                         V::Vector{PolyhedralFunction},
                         solverProblems::Vector{JuMP.Model},
                         stockTrajectories::Array{Float64, 3},
-                        law,
-                        init=false::Bool)
+                        law)
 
     callsolver::Int = 0
 
@@ -222,11 +219,7 @@ function backward_pass!(model::SPModel,
                 beta = costs_npass - dot(subgradient, state_t)
 
                 # Add cut to polyhedral function and JuMP model:
-                if init
-                    V[t] = PolyhedralFunction([beta], reshape(subgradient, 1, model.dimStates), 1)
-                else
-                    add_cut!(model, t, V[t], beta, subgradient)
-                end
+                add_cut!(model, t, V[t], beta, subgradient)
                 if t > 1
                     add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
                 end
