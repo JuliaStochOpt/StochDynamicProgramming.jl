@@ -142,83 +142,26 @@ end
 
 function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 x_steps, x_dim, product_states, product_controls,
-                                dynamics, constraints, cost, V, Vitp, t, info_struc,
-                                ncpu, workers)
-
-    # if info_struc == "DH"
-    #     for indx in 1:length(product_states)
-    #         w = workers[1 + (indx % ncpu)]
-    #         push!(tasks, @spawnat w SDPutils.compute_V_given_x_t_DH(sampling_size,
-    #                                                                 samples,
-    #                                                                 probas,
-    #                                                                 u_bounds,
-    #                                                                 x_bounds,
-    #                                                                 x_steps,
-    #                                                                 x_dim,
-    #                                                                 product_controls,
-    #                                                                 dynamics,
-    #                                                                 constraints,
-    #                                                                 cost, V, Vitp,
-    #                                                                 t,
-    #                                                                 product_states[indx]))
-    #     end
-    # else
-    #     for indx in 1:length(product_states)
-    #         w = workers[1 + (indx % ncpu)]
-    #         push!(tasks, @spawnat w SDPutils.compute_V_given_x_t_HD(sampling_size,
-    #                                                                 samples,
-    #                                                                 probas,
-    #                                                                 u_bounds,
-    #                                                                 x_bounds,
-    #                                                                 x_steps,
-    #                                                                 x_dim,
-    #                                                                 product_controls,
-    #                                                                 dynamics,
-    #                                                                 constraints,
-    #                                                                 cost, V, Vitp,
-    #                                                                 t,
-    #                                                                 product_states[indx]))
-    #     end
-    # end
-
-    # for ta in 1:length(tasks)
-    #     fetch(tasks[ta])
-    # end
+                                dynamics, constraints, cost, V, Vitp, t, info_struc)
 
     if info_struc == "DH"
         @sync @parallel for indx in 1:length(product_states)
-            SDPutils.compute_V_given_x_t_DH(sampling_size,
-                                            samples,
-                                            probas,
-                                            u_bounds,
-                                            x_bounds,
-                                            x_steps,
-                                            x_dim,
-                                            product_controls,
-                                            dynamics,
-                                            constraints,
-                                            cost, V, Vitp,
-                                            t,
-                                            product_states[indx])
+            SDPutils.compute_V_given_x_t_DH(sampling_size, samples,
+                                            probas, u_bounds, x_bounds,
+                                            x_steps, x_dim, product_controls,
+                                            dynamics, constraints, cost, V, Vitp,
+                                            t, product_states[indx])
         end
     elseif info_struc == "HD"
         @sync @parallel for indx in 1:length(product_states)
-            SDPutils.compute_V_given_x_t_HD(sampling_size,
-                                            samples,
-                                            probas,
-                                            u_bounds,
-                                            x_bounds,
-                                            x_steps,
-                                            x_dim,
-                                            product_controls,
-                                            dynamics,
-                                            constraints,
-                                            cost, V, Vitp,
-                                            t,
-                                            product_states[indx])
+            SDPutils.compute_V_given_x_t_HD(sampling_size, samples, probas,
+                                            u_bounds, x_bounds, x_steps, x_dim,
+                                            product_controls, dynamics,
+                                            constraints, cost, V, Vitp,
+                                            t, product_states[indx])
         end
     else
-        "Information structure should be HD or DH"
+        warn("Information structure should be HD or DH")
     end
 end
 
@@ -286,11 +229,6 @@ function sdp_compute_value_functions(model::StochDynProgModel,
         println("[SDP] Starting value functions computation:")
     end
 
-    # Define the workers available for the tasks
-    ncpu = nprocs() - 1
-    workers = procs()[(ncpu==0)+(ncpu>0)*2:end]
-    ncpu += (ncpu==0)
-
     # Loop over time:
     for t = (TF-1):-1:1
 
@@ -313,7 +251,7 @@ function sdp_compute_value_functions(model::StochDynProgModel,
         compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 x_steps, x_dim, product_states, product_controls,
                                 dynamics, constraints, cost, V, Vitp, t
-                                , param.infoStructure, ncpu, workers)
+                                , param.infoStructure)
 
     end
     return V
