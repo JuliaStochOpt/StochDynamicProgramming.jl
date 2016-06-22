@@ -364,7 +364,7 @@ Returns :
 - V(x0) (Float64)
 
 """
-function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
+function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array)
 
     if(param.infoStructure != "DH")
         error("Infostructure must be decision-hazard.")
@@ -449,7 +449,7 @@ Returns :
 - optimal control (tuple(Float64))
 
 """
-function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
+function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array, w::Array)
 
     if(param.infoStructure != "HD")
         error("Infostructure must be hazard-decision.")
