@@ -84,7 +84,7 @@ end
 ######### Comparing the solution
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 if run_sddp
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
+    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
 end
 if run_sdp
     costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)

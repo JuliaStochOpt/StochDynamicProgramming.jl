@@ -12,6 +12,7 @@ To install StochDynamicProgramming::
 
     julia> Pkg.add("StochDynamicProgramming")
 
+
 Once the package is installed, you can import it in the REPL::
 
     julia> using StochDynamicProgramming

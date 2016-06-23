@@ -11,13 +11,11 @@
 """
 Dump Polyhedral functions in a text file.
 
-Parameters:
-- dump (String)
+# Arguments
+* `dump::String`:
     Name of output filt
-
-- Vts (Vector{PolyhedralFunction})
+* `Vts::Vector{PolyhedralFunction}`:
     Vector of polyhedral functions to save
-
 """
 function dump_polyhedral_functions(dump::AbstractString, Vts::Vector{PolyhedralFunction})
     outfile = open(dump, "w")
@@ -40,10 +38,9 @@ end
 """
 Import cuts from a dump text file.
 
-Parameters:
-- dump (String)
+# Argument
+* `dump::String`:
     Name of file to import
-
 """
 function read_polyhedral_functions(dump::AbstractString)
     # Store all values in a two dimensional array:
@@ -73,10 +70,7 @@ function read_polyhedral_functions(dump::AbstractString)
 end
 
 
-"""
-Remove redundant cuts in Polyhedral Value functions
-
-"""
+""" Remove redundant cuts in Polyhedral Value function `V`"""
 function remove_cuts(V::PolyhedralFunction)
     Vf = hcat(V.lambdas, V.betas)
     Vf = unique(Vf, 1)
@@ -84,12 +78,9 @@ function remove_cuts(V::PolyhedralFunction)
 end
 
 
-"""
-Remove redundant cuts in a vector of Polyhedral Functions.
-
-"""
+""" Remove redundant cuts in a vector of Polyhedral Functions `Vts`."""
 function remove_redundant_cuts!(Vts::Vector{PolyhedralFunction})
-    n_functions = length(Vts)
+    n_functions = length(Vts)-1
     for i in 1:n_functions
         Vts[i] = remove_cuts(Vts[i])
     end
@@ -99,50 +90,59 @@ end
 """
 Extract a vector stored in a 3D Array
 
-
-Parameters:
-- input_array (Array{Float64, 3})
+# Arguments
+* `input_array::Array{Float64, 3}`:
     array storing the values of vectors
-
-- nx (Int64)
+* `nx::Int64`:
     Position of vector in first dimension
-
-- ny (Int64)
+* `ny::Int64`:
     Position of vector in second dimension
 
-Return:
-- Vector{Float64}
-
+# Return
+`Vector{Float64}`
 """
 function extract_vector_from_3Dmatrix(input_array::Array{Float64, 3},
                                       nx::Int64,
                                       ny::Int64)
-
+    info("extract_vector_from_3Dmatrix is now deprecated. Use collect instead.")
     state_dimension = size(input_array)[3]
     return reshape(input_array[nx, ny, :], state_dimension)
 end
 
 
 """
+Generate a random state.
+
+# Arguments
+* `model::SPModel`:
+
+# Return
+`Vector{Float64}`, shape=`(model.dimStates,)`
+
+"""
+function get_random_state(model)
+    return [model.xlim[i][1] + rand()*(model.xlim[i][2] - model.xlim[i][1]) for i in 1:model.dimStates]
+end
+
+
+"""
 Estimate the upper bound with a distribution of costs
 
+# Description
 Given a probability p, we have a confidence interval:
 [mu - alpha sigma/sqrt(n), mu + alpha sigma/sqrt(n)]
 where alpha depends upon p.
 
 Upper bound is the max of this interval.
 
-
-Parameters:
-- cost (Vector{Float64})
+# Arguments
+* `cost::Vector{Float64}`:
     Costs values
-
-- probability (Float)
+* `probability::Float`:
     Probability to be inside the confidence interval
 
-Returns :
-- estimated-upper bound
-
+# Return
+estimated-upper bound as `Float`
 """
 function upper_bound(cost::Vector{Float64}, probability=.975)
     tol = sqrt(2) * erfinv(2*probability - 1)
@@ -155,22 +155,18 @@ Test if the stopping criteria is fulfilled.
 
 Return true if |V0 - upb|/V0 < epsilon
 
-
-Parameters:
-- V0 (Float)
+# Arguments
+* `V0::Float`:
     Approximation of initial cost
-
-- upb (Float)
+* `upb::Float`:
     Approximation of the upper bound given by Monte-Carlo estimation
-
-- epsilon (Float)
+*  `epsilon::Float`:
     Sensibility
 
-
-Return:
-Bool
-
+# Return
+`Bool`
 """
 function test_stopping_criterion(V0::Float64, upb::Float64, epsilon::Float64)
     return abs((V0-upb)/V0) < epsilon
 end
+

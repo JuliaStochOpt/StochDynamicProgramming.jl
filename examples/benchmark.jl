@@ -197,19 +197,17 @@ function benchmark_sddp()
     # Launch benchmark
     println("Launch SDDP ...")
     tic()
-    V, pbs = solve_SDDP(model, params, 0)
+    V, pbs = @time solve_SDDP(model, params, 0)
     texec = toq()
     println("Time to solve SDDP: ", texec, "s")
 
     # Test results upon 100 assessment scenarios:
     n_assessments = 100
     aleas = simulate_scenarios(model.noises,
-                              (model.stageNumber,
-                               n_assessments,
-                               model.dimNoises))
+                               n_assessments)
 
     tic()
-    costs_sddp, stocks = forward_simulations(model, params, V, pbs, aleas)
+    costs_sddp, stocks = forward_simulations(model, params, pbs, aleas)
     texec = toq()
     println("Time to perform simulation: ", texec, "s")
 

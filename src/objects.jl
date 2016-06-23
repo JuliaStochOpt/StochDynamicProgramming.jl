@@ -39,7 +39,12 @@ type LinearDynamicLinearCostSPmodel <: SPModel
 
     finalCost
 
-    function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0, cost, dynamic, aleas, Vfinal=nothing)
+    equalityConstraints
+    inequalityConstraints
+
+    function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0,
+                                            cost, dynamic, aleas, Vfinal=nothing,
+                                            eqconstr=nothing, ineqconstr=nothing)
 
         dimStates = length(x0)
         dimControls = length(ubounds)
@@ -58,7 +63,8 @@ type LinearDynamicLinearCostSPmodel <: SPModel
             push!(xbounds, (-Inf, Inf))
         end
 
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds, x0, cost, dynamic, aleas, Vf)
+        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
+                   x0, cost, dynamic, aleas, Vf, eqconstr, ineqconstr)
     end
 end
 
@@ -81,7 +87,12 @@ type PiecewiseLinearCostSPmodel <: SPModel
     noises::Vector{NoiseLaw}
     finalCost
 
-    function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic, aleas, Vfinal=nothing)
+    equalityConstraints
+    inequalityConstraints
+
+    function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic,
+                                        aleas, Vfinal=nothing, eqconstr=nothing,
+                                        ineqconstr=nothing)
         dimStates = length(x0)
         dimControls = length(ubounds)
         dimNoises = length(aleas[1].support[:, 1])
@@ -96,7 +107,8 @@ type PiecewiseLinearCostSPmodel <: SPModel
         for i = 1:dimStates
             push!(xbounds, (-Inf, Inf))
         end
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds, x0, costs, dynamic, aleas, Vf)
+        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
+                   x0, costs, dynamic, aleas, Vf, eqconstr, ineqconstr)
     end
 end
 
@@ -138,15 +150,11 @@ type StochDynProgModel <: SPModel
 
     function StochDynProgModel(model::PiecewiseLinearCostSPmodel, final, cons)
         function cost(t,x,u,w)
-            saved_cost = -Inf
-            current_cost = 0
-            for i in model.costFunctions
-                current_cost = i(t,x,u,w)
-                if (current_cost>saved_cost)
-                    saved_cost = current_cost
-                end
+            current_cost = -Inf
+            for aff_func in model.costFunctions
+                current_cost = aff_func(t,x,u,w)
             end
-            return saved_cost
+            return current_cost
         end
 
         return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
@@ -168,13 +176,20 @@ type SDDPparameters
     solver
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
-    # Admissible gap between the estimation of the upper-bound
-    sensibility::Float64
+    # Admissible gap between lower and upper-bound:
+    gap::Float64
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
+    # Prune cuts every %% iterations:
+    compute_cuts_pruning::Int64
+    # Estimate upper-bound every %% iterations:
+    compute_upper_bound::Int64
+    # Number of MonteCarlo simulation to perform to estimate upper-bound:
+    monteCarloSize::Int64
 
-    function SDDPparameters(solver, passnumber=10, sensibility=0., max_iterations=20)
-        return new(solver, passnumber, sensibility, max_iterations)
+    function SDDPparameters(solver, passnumber=10, gap=0.,
+                            max_iterations=20, prune_cuts=0, compute_ub=0, montecarlo=10000)
+        return new(solver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end
 
@@ -221,7 +236,20 @@ function set_max_iterations(param::SDDPparameters, n_iter::Int)
     param.maxItNumber = n_iter
 end
 
-
+# Define an object to store evolution of solution
+# along iterations:
+type SDDPStat
+    # Number of iterations:
+    niterations::Int64
+    # evolution of lower bound:
+    lower_bounds::Vector{Float64}
+    # evolution of upper bound:
+    upper_bounds::Vector{Float64}
+    # evolution of execution time:
+    exectime::Vector{Float64}
+    # number of calls to solver:
+    ncallsolver::Int64
+end
 
 
 type NextStep

@@ -10,58 +10,39 @@
 """
 Make a forward pass of the algorithm
 
+# Description
 Simulate a scenario of noise and compute an optimal trajectory on this
 scenario according to the current value functions.
 
-Parameters:
-- model (SPmodel)
-    the stochastic problem we want to optimize
-
-- param (SDDPparameters)
-    the parameters of the SDDP algorithm
-
-- V (PolyhedralFunction)
-    the current estimation of Bellman's functions
-
-- solverProblems (Array{JuMP.Model})
+# Arguments
+* `model::SPmodel`: the stochastic problem we want to optimize
+* `param::SDDPparameters`: the parameters of the SDDP algorithm
+* `solverProblems::Array{JuMP.Model}`:
     Linear model used to approximate each value function
-
-- xi (Array{float})
+* `xi::Array{float}`:
     the noise scenarios on which we simulate, each column being one scenario :
     xi[t,k,:] is the alea at time t of scenario k.
 
-- returnCosts (Bool)
-    return the cost of each simulated scenario if true
-
-- init (Bool)
-    Specify if the problem must be initialized
-    (ie cuts are empty)
-
-- display (Bool)
-    If specified, display results in shell
-
-
-Returns (according to the last parameters):
-- costs (Array{float,1})
+# Returns
+* `costs::Array{float,1}`:
     an array of the simulated costs
     If returnCosts=false, return nothing
-
-- stocks (Array{float})
+* `stocks::Array{float}`:
     the simulated stock trajectories. stocks(t,k,:) is the stock for
     scenario k at time t.
-
-- controls (Array{Float64, 3})
+* `controls::Array{Float64, 3}`:
     the simulated controls trajectories. controls(t,k,:) is the control for
     scenario k at time t.
+* `callsolver::Int64`:
+    the number of solver's call'
+
 """
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
-                            V::Vector{PolyhedralFunction},
                             solverProblems::Vector{JuMP.Model},
-                            xi::Array{Float64},
-                            returnCosts=true::Bool,
-                            init=false::Bool,
-                            display=false::Bool)
+                            xi::Array{Float64})
+
+    callsolver::Int = 0
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -85,39 +66,36 @@ function forward_simulations(model::SPModel,
         stocks[1, k, :] = model.initialState
     end
 
-    costs = nothing
-    if returnCosts
-        costs = zeros(nb_forward)
-    end
+    costs = zeros(nb_forward)
 
     for t=1:T-1
         for k = 1:nb_forward
 
-            state_t = extract_vector_from_3Dmatrix(stocks, t, k)
-            alea_t = extract_vector_from_3Dmatrix(xi, t, k)
+            state_t = collect(stocks[t, k, :])
+            alea_t = collect(xi[t, k, :])
 
+            callsolver += 1
             status, nextstep = solve_one_step_one_alea(
-                                            model,
-                                            param,
-                                            solverProblems[t],
-                                            t,
-                                            state_t,
-                                            alea_t,
-                                            init)
-
-            stocks[t+1, k, :] = nextstep.next_state
-            opt_control = nextstep.optimal_control
-            controls[t, k, :] = opt_control
-
-            if returnCosts
+                                        model,
+                                        param,
+                                        solverProblems[t],
+                                        t,
+                                        state_t,
+                                        alea_t)
+            if status
+                stocks[t+1, k, :] = nextstep.next_state
+                opt_control = nextstep.optimal_control
+                controls[t, k, :] = opt_control
                 costs[k] += nextstep.cost - nextstep.cost_to_go
                 if t==T-1
                     costs[k] += nextstep.cost_to_go
                 end
+            else
+                stocks[t+1, k, :] = state_t
             end
         end
     end
-    return costs, stocks, controls
+    return costs, stocks, controls, callsolver
 end
 
 
@@ -125,22 +103,15 @@ end
 """
 Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 
-Parameters:
-- model (SPModel)
-Store the problem definition
-
-- t (Int64)
-Current time
-
-- Vt (PolyhedralFunction)
-Current lower approximation of the Bellman function at time t
-
-- beta (Float)
-affine part of the cut to add
-
-- lambda (Array{float,1})
-subgradient of the cut to add
-
+# Arguments
+* `model::SPModel`: Store the problem definition
+* `t::Int64`: Current time
+* `Vt::PolyhedralFunction`:
+  Current lower approximation of the Bellman function at time t
+* `beta::Float`:
+  affine part of the cut to add
+* `lambda::Array{float,1}`:
+  subgradient of the cut to add
 """
 function add_cut!(model::SPModel,
     t::Int64, Vt::PolyhedralFunction,
@@ -154,25 +125,20 @@ end
 """
 Add a cut to the JuMP linear problem.
 
-Parameters:
-- model (SPModel)
-Store the problem definition
-
-- problem (JuMP.Model)
-Linear problem used to approximate the value functions
-
-- t (Int)
-Time index
-
-- beta (Float)
-affine part of the cut to add
-
-- lambda (Array{float,1})
-subgradient of the cut to add
-
+# Arguments
+* `model::SPModel`:
+  Store the problem definition
+* `problem::JuMP.Model`:
+  Linear problem used to approximate the value functions
+* `t::Int`:
+  Time index
+* `beta::Float`:
+  affine part of the cut to add
+* `lambda::Array{float,1}`:
+  subgradient of the cut to add
 """
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
-    t::Int64, beta::Float64, lambda::Vector{Float64})
+                            t::Int64, beta::Float64, lambda::Vector{Float64})
     alpha = getvariable(problem, :alpha)
     x = getvariable(problem, :x)
     u = getvariable(problem, :u)
@@ -184,88 +150,75 @@ end
 """
 Make a backward pass of the algorithm
 
+# Description
 For t:T-1 -> 0, compute a valid cut of the Bellman function
 Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
 
-
-Parameters:
-- model (SPmodel)
-the stochastic problem we want to optimize
-
-- param (SDDPparameters)
-the parameters of the SDDP algorithm
-
-- V (Array{PolyhedralFunction})
-the current estimation of Bellman's functions
-
-- solverProblems (Array{JuMP.Model})
-Linear model used to approximate each value function
-
-- stockTrajectories (Array{Float64,3})
-stockTrajectories[t,k,:] is the vector of stock where the cut is computed
-for scenario k and time t.
-
-- law (Array{NoiseLaw})
-Conditionnal distributions of perturbation, for each timestep
-
-- init (Bool)
-If specified, then init PolyhedralFunction
-
-- updateV (Bool)
-Store new cuts in given Polyhedral functions if specified
-
-
-Return:
-- V0 (Float64)
-Approximation of initial cost
-
+# Arguments
+* `model::SPmodel`:
+    the stochastic problem we want to optimize
+* `param::SDDPparameters`:
+    the parameters of the SDDP algorithm
+* `V::Array{PolyhedralFunction}`:
+    the current estimation of Bellman's functions
+* `solverProblems::Array{JuMP.Model}`:
+    Linear model used to approximate each value function
+* `stockTrajectories::Array{Float64,3}`:
+    stockTrajectories[t,k,:] is the vector of stock where the cut is computed
+    for scenario k and time t.
+* `law::Array{NoiseLaw}`:
+    Conditionnal distributions of perturbation, for each timestep
 """
 function backward_pass!(model::SPModel,
-    param::SDDPparameters,
-    V::Vector{PolyhedralFunction},
-    solverProblems::Vector{JuMP.Model},
-    stockTrajectories::Array{Float64, 3},
-    law,
-    init=false::Bool)
+                        param::SDDPparameters,
+                        V::Vector{PolyhedralFunction},
+                        solverProblems::Vector{JuMP.Model},
+                        stockTrajectories::Array{Float64, 3},
+                        law)
+
+    callsolver::Int = 0
 
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
 
     costs::Vector{Float64} = zeros(1)
-    costs_npass = zeros(Float64, nb_forward)
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
-        costs = zeros(law[t].supportSize)
+        costs = zeros(Float64, law[t].supportSize)
 
         for k = 1:nb_forward
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
-            state_t = extract_vector_from_3Dmatrix(stockTrajectories, t, k)
+            state_t = collect(stockTrajectories[t, k, :])
+            proba = zeros(law[t].supportSize)
 
             for w in 1:law[t].supportSize
 
                 alea_t  = collect(law[t].support[:, w])
 
-                nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)[2]
-                subgradient_array[:, w] = nextstep.sub_gradient
-                costs[w] = nextstep.cost
+                callsolver += 1
+                solved, nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)
+                if solved
+                    subgradient_array[:, w] = nextstep.sub_gradient
+                    costs[w] = nextstep.cost
+                    proba[w] = law[t].proba[w]
+                end
             end
 
-            # Compute expectation of subgradient:
-            subgradient = vec(sum(law[t].proba' .* subgradient_array, 2))
-            # ... and esperancy of cost:
-            costs_npass[k] = dot(law[t].proba, costs)
-            beta = costs_npass[k] - dot(subgradient, state_t)
+            # We add cuts only if one solution was being found:
+            if sum(proba) > 0
+                # Scale probability (useful when some problems where infeasible):
+                proba /= sum(proba)
 
-            # Add cut to polyhedral function and JuMP model:
-            if init
-                V[t] = PolyhedralFunction([beta], reshape(subgradient, 1, model.dimStates), 1)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
-                end
-            else
+                # Compute expectation of subgradient:
+                subgradient = vec(sum(proba' .* subgradient_array, 2))
+                # ... and expectation of cost:
+                costs_npass = dot(proba, costs)
+                beta = costs_npass - dot(subgradient, state_t)
+
+                # Add cut to polyhedral function and JuMP model:
                 add_cut!(model, t, V[t], beta, subgradient)
                 if t > 1
                     add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
@@ -274,4 +227,5 @@ function backward_pass!(model::SPModel,
 
         end
     end
+    return callsolver
 end

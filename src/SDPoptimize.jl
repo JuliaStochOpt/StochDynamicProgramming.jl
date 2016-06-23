@@ -17,26 +17,19 @@ using Interpolations
 Convert the state and control float tuples (stored as arrays or tuples) of the
 problem into integer tuples that can be used as indexes for the value function
 
-Parameters:
-- variable (Array)
+# Arguments
+* `variable::Array`:
     the vector variable we want to convert to an index (integer)
-
-- bounds (Array)
+* `bounds::Array`:
     the lower bounds for each component of the variable
-
-- variable_steps (Array)
+* `variable_steps::Array`:
     discretization step for each component
 
-
-Returns :
-- index (tuple of integers)
+# Return
+* `index::tuple of integers`:
     the indexes of the variable
-
 """
-function index_from_variable( variable,
-                    bounds::Array,
-                    variable_steps::Array)
-
+function index_from_variable(variable, bounds::Array, variable_steps::Array)
     return tuple([ 1 + floor(Int64,(1e-10+( variable[i] - bounds[i][1] )/ variable_steps[i] )) for i in 1:length(variable)]...)
 end
 
@@ -46,26 +39,19 @@ Convert the state and control float tuples (stored as arrays or tuples) of the
 problem into float tuples that can be used as indexes for the interpolated
 value function
 
-Parameters:
-- variable (Array)
+# Arguments
+* `variable::Array`:
     the vector variable we want to convert to an index (integer)
-
-- bounds (Array)
+* `bounds::Array`:
     the lower bounds for each component of the variable
-
-- variable_steps (Array)
+* `variable_steps::Array`:
     discretization step for each component
 
-
-Returns :
-- index (tuple of integers)
+# Return
+* `index::tuple of integers`:
     the indexes of the variable
-
 """
-function real_index_from_variable( variable,
-                    bounds::Array,
-                    variable_steps::Array)
-
+function real_index_from_variable(variable, bounds::Array, variable_steps::Array)
     return tuple([1 + ( variable[i] - bounds[i][1] )/variable_steps[i] for i in 1:length(variable)]...)
 end
 
@@ -73,24 +59,18 @@ end
 """
 Compute interpolation of the value function at time t
 
-Parameters:
-- model (SPmodel)
-
-- v (Array)
+# Arguments
+* `model::SPmodel`:
+* `v::Array`:
     the value function to interpolate
-
-- time (Int)
+* `time::Int`:
     time at which we have to interpolate V
 
-
-Returns :
-- Interpolation
+# Return
+* Interpolation
     the interpolated value function (working as an array with float indexes)
 """
-function value_function_interpolation( model::SPModel,
-                                    V::Array,
-                                    time::Int)
-
+function value_function_interpolation(model::SPModel, V::Array, time::Int)
     return interpolate(V[[Colon() for i in 1:model.dimStates]...,time], BSpline(Linear()), OnGrid())
 end
 
@@ -98,24 +78,19 @@ end
 """
 Compute interpolation of the value function at time t
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the model of the problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters of the problem
 
-
-Returns :
-- Iterators : product_states and product_controls
+# Return
+* Iterators: product_states and product_controls
     the cartesian product iterators for both states and controls
 """
 function generate_grid(model::SPModel, param::SDPparameters)
-
     product_states = product([model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2] for i in 1:model.dimStates]...)
-
     product_controls = product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
-
     return product_states, product_controls
 end
 
@@ -123,16 +98,14 @@ end
 """
 Transform a general SPmodel into a StochDynProgModel
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the model of the problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters of the problem
 
-
-Returns :
-- sdpmodel : (StochDynProgModel)
+# Return
+* `sdpmodel::StochDynProgModel:
     the corresponding StochDynProgModel
 """
 function build_sdpmodel_from_spmodel(model::SPModel)
@@ -170,26 +143,20 @@ end
 Value iteration algorithm to compute optimal value functions in
 the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- display (Int)
+* `display::Int`:
     the output display or verbosity parameter
 
-
-Returns :
-- value_functions (Array)
+# Return
+* `value_functions::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
-
 """
-function solve_DP(model::SPModel,
-                  param::SDPparameters,
-                  display=0::Int64)
+function solve_DP(model::SPModel, param::SDPparameters, display=0::Int64)
 
     SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
 
@@ -210,26 +177,21 @@ end
 Value iteration algorithm to compute optimal value functions in
 the Decision Hazard (DH) case
 
-Parameters:
-- model (StochDynProgModel)
+# Arguments
+* `model::StochDynProgModel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- display (Int)
+* `display::Int`:
     the output display or verbosity parameter
 
-
-Returns :
-- value_functions (Array)
+# Return
+* `value_functions::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
 
 """
-function sdp_solve_DH(model::StochDynProgModel,
-                  param::SDPparameters,
-                  display=0::Int64)
+function sdp_solve_DH(model::StochDynProgModel, param::SDPparameters, display=0::Int64)
 
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
@@ -331,26 +293,20 @@ end
 Value iteration algorithm to compute optimal value functions in
 the Hazard Decision (HD) case
 
-Parameters:
-- model (StochDynProgModel)
+# Arguments
+* `model::StochDynProgModel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- display (Int)
+* `display::Int`:
     the output display or verbosity parameter
 
-
-Returns :
-- value_functions (Array)
+# Return
+* `value_functions::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
-
 """
-function sdp_solve_HD(model::StochDynProgModel,
-                  param::SDPparameters,
-                  display=0::Int64)
+function sdp_solve_HD(model::StochDynProgModel, param::SDPparameters, display=0::Int64)
 
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
@@ -453,19 +409,16 @@ end
 """
 Get the optimal value of the problem from the optimal Bellman Function
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- V (Array{Float64})
+* `V::Array{Float64}`:
     the Bellman Functions
 
-Returns :
-- V(x0) (Float64)
-
+# Return
+* `V_x0::Float64`:
 """
 function get_bellman_value(model::SPModel, param::SDPparameters, V::Array{Float64})
     ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
@@ -477,41 +430,32 @@ end
 """
 Simulation of optimal trajectories given model and Bellman functions
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the SPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- scenarios (Array)
+* `scenarios::Array`:
     the scenarios of uncertainties realizations we want to simulate on
     scenarios[t,k,:] is the alea at time t for scenario k
-
-- V (Array)
+* `V::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
-
-- display (Bool)
+* `display::Bool`:
     the output display or verbosity parameter
 
-Returns :
-
-- costs (Vector{Float64})
+# Return
+* `costs::Vector{Float64}`:
     the cost of the optimal control over the scenario provided
-
-- states (Array{Float64})
+* `states::Array{Float64}`:
     the state of the controlled system at each time step
-
-- controls (Array{Float64})
+* `controls::Array{Float64}`:
     the controls applied to the system at each time step
-
 """
-function sdp_forward_simulation(model::SPModel,
-                  param::SDPparameters,
-                  scenarios::Array{Float64,3},
-                  V::Array,
-                  display=false::Bool)
+function sdp_forward_simulation(model::SPModel, param::SDPparameters,
+                                scenarios::Array{Float64,3},
+                                V::Array,
+                                display=false::Bool)
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
     TF = SDPmodel.stageNumber
@@ -524,7 +468,7 @@ function sdp_forward_simulation(model::SPModel,
 
     for k = 1:nb_scenarios
         costs[k], states[:,k,:], controls[:,k,:] = sdp_forward_single_simulation(SDPmodel,
-                  param,scenarios[:,k],model.initialState,V,display)
+                  param,scenarios[:,k,:],model.initialState,V,display)
     end
 
     return costs, states, controls
@@ -534,28 +478,22 @@ end
 """
 Get the optimal control at time t knowing the state of the system in the decision hazard case
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- V (Array{Float64})
+* `V::Array{Float64}`:
     the Bellman Functions
-
-- t (int)
+* `t::int`:
     the time step
-
-- x (Array)
+* `x::Array`:
     the state variable
+* `w::Array`:
+    the alea realization
 
-- w (Array)
-the alea realization
-
-Returns :
-- V(x0) (Float64)
-
+# Return
+* `V_x0::Float64`:
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
 
@@ -619,27 +557,22 @@ end
 """
 Get the optimal control at time t knowing the state of the system and the alea in the hazard decision case
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- V (Array{Float64})
+* `V::Array{Float64}`:
     the Bellman Functions
-
-- t (int)
+* `t::int`:
     the time step
-
-- x (Array)
+* `x::Array`:
     the state variable
+* `w::Array`:
+    the alea realization
 
-- w (Array)
-the alea realization
-
-Returns :
-- optimal control (tuple(Float64))
+# Return
+* optimal control (tuple(Float64))
 
 """
 function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
@@ -687,44 +620,35 @@ end
 """
 Simulation of optimal control given an initial state and an alea scenario
 
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the DPSPmodel of our problem
-
-- param (SDPparameters)
+* `param::SDPparameters`:
     the parameters for the SDP algorithm
-
-- scenario (Array)
+* `scenario::Array`:
     the scenario of uncertainties realizations we want to simulate on
-
-- X0 (SDPparameters)
+* `X0::SDPparameters`:
     the initial state of the system
-
-- V (Array)
+* `V::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
-
-- display (Bool)
+* `display::Bool`:
     the output display or verbosity parameter
 
-Returns :
-
-- J (Float)
+# Return
+* `J::Float`:
     the cost of the optimal control over the scenario provided
-
-- stocks (Array)
+* `stocks::Array`:
     the state of the controlled system at each time step
-
-- controls (Array)
+* `controls::Array`:
     the controls applied to the system at each time step
-
 """
 function sdp_forward_single_simulation(model::StochDynProgModel,
-                  param::SDPparameters,
-                  scenario::Array,
-                  X0::Array,
-                  V::Array,
-                  display=true::Bool)
+                                        param::SDPparameters,
+                                        scenario::Array,
+                                        X0::Array,
+                                        V::Array,
+                                        display=true::Bool)
 
     TF = model.stageNumber
     law = model.noises

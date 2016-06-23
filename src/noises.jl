@@ -17,6 +17,7 @@ type NoiseLaw
     support::Array{Float64,2}
     # Probabilities of points:
     proba::Vector{Float64}
+
     function NoiseLaw(supportSize, support, proba)
         supportSize = convert(Int64,supportSize)
         if ndims(support)==1
@@ -31,7 +32,6 @@ type NoiseLaw
 
         return new(supportSize,support,proba)
     end
-
 end
 
 
@@ -39,17 +39,14 @@ end
 Generic constructor to instantiate NoiseLaw
 
 
-Parameters:
-- support
+# Arguments
+* `support`:
     Position of each point
-
-- proba
+* `proba`:
     Probabilities of each point
 
-
-Return:
-- NoiseLaw
-
+# Return
+* `law::NoiseLaw`
 """
 function NoiseLaw(support, proba)
     return NoiseLaw(length(proba), support, proba)
@@ -57,38 +54,29 @@ end
 
 
 """
-Generate one sample of the aleas of the problem at time t
-
-Parameters:
-- law::Vector{NoiseLaw}
-    Vector of discrete independent random variables
-
-- t::Int
-    time step at which a sample is needed
-
 Generate all permutations between discrete probabilities specified in args.
 
-Exemple:
-    noiselaw_product(law1, law2)
+# Usage
+
+```julia
+julia> noiselaw_product(law1, law2, ..., law_n)
+
+```
+# Arguments
+* `law::NoiseLaw`:
+    First law to consider
+* `laws::Tuple(NoiseLaw)`:
+    Other noiselaws
+
+# Return
+`output::NoiseLaw`
+
+# Exemple
+    `noiselaw_product(law1, law2)`
 with law1 : P(X=x_i) = pi1_i
 and  law1 : P(X=y_i) = pi2_i
 return the following discrete law:
     output: P(X = (x_i, y_i)) = pi1_i * pi2_i
-
-Usage:
-    noiselaw_product(law1, law2, ..., law_n)
-
-
-Parameters:
-- law (NoiseLaw)
-    First law to consider
-
-- laws (Tuple(NoiseLaw))
-    Other noiselaws
-
-
-Return:
-NoiseLaw
 
 """
 function noiselaw_product(law, laws...)
@@ -124,11 +112,17 @@ end
 
 
 """
+Generate one sample of the aleas of the problem at time t
 
-Returns :
-- sample Array(Float64, dimAlea)
+# Arguments
+* `law::Vector{NoiseLaw}`:
+    Vector of discrete independent random variables
+* `t::Int`:
+    time step at which a sample is needed
+
+# Return
+* `sample::Array(Float64, dimAlea}`:
     an Array of size dimAlea containing a sample w
-
 """
 function sampling(law::Vector{NoiseLaw}, t::Int64)
     return law[t].support[:, rand(Categorical(law[t].proba))]
@@ -136,53 +130,16 @@ end
 
 
 """
-DEPRECATED
-Simulate n scenarios according to a given NoiseLaw
-
-Parameters:
-- law::Vector{NoiseLaw}
-    Vector of discrete independent random variables
-
-- n::Int
-    number of simulations to compute
-
-
-Returns :
-- scenarios Array(Float64,n,T)
-    an Array of scenarios, scenarios[i,:] being the ith noise scenario
-"""
-function generate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
-    warn("deprecated generate_scenarios use simulate_scenarios")
-    if n <= 0
-        error("negative number of simulations")
-    end
-    Tf = length(laws)
-    scenarios = Array{Vector{Float64}}(n,Tf)
-    for i = 1:n#TODO can be parallelized
-        scenario = []
-        for t=1:Tf
-            new_val = laws[t].support[:, rand(Categorical(laws[t].proba))]
-            push!(scenario, new_val)
-        end
-        scenarios[i,:]=scenario
-    end
-
-    return scenarios
-end
-
-
-"""
 Simulate n scenarios and return a 3D array
 
-Parameters:
-- laws (Vector{NoiseLaw})
+# Arguments
+* `laws::Vector{NoiseLaw}`:
     Distribution laws corresponding to each timestep
-
-- n (Int64)
+* `n::Int64`:
     number of scenarios to simulate
 
-Return:
-- scenarios Array{Float64, 3}
+# Return
+* `scenarios::Array{Float64, 3}`:
     scenarios[t,k,:] is the noise at time t for scenario k
 """
 function simulate_scenarios(laws::Vector{NoiseLaw}, n::Int64)

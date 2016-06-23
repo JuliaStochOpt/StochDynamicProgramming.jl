@@ -50,6 +50,7 @@ Contents:
    install
    quickstart
    tutorial
+   install_windows
 
 .. _MathProgBase: http://mathprogbasejl.readthedocs.org/en/latest/
 .. _here: http://www2.isye.gatech.edu/people/faculty/Alex_Shapiro/ONS-FR.pdf

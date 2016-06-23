@@ -15,7 +15,7 @@ Get Bellman value at a given point
 To estimate the Bellman value at a given position :code:`xt` with a :code:`PolyhedralFunction` :code:`Vt` ::
 
     vx = get_bellman_value(model, param, t, Vt, xt)
-    
+
 This is a lower bound of the true value.
 
 Get optimal control at a given point
@@ -57,7 +57,7 @@ SDDP hotstart
 
 If cuts are already available, we can hotstart SDDP while overloading the function :code:`solve_SDDP`::
 
-    V, pbs = solve_SDDP(model, params, 0, V)
+    V, pbs = solve_SDDP(model, params, V, 0)
 
 
 Cuts pruning

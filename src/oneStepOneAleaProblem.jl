@@ -12,43 +12,34 @@
 Solve the Bellman equation at time t starting at state x under alea xi
 with the current evaluation of Vt+1
 
+# Description
 The function solve
 min_u current_cost(t,x,u,xi) + current_Bellman_Value_{t+1}(dynamic(t,x,u,xi))
 and can return the optimal control and a subgradient of the value of the
 problem with respect to the initial state x
 
-
-Parameters:
-- model (SPmodel)
+# Arguments
+* `model::SPmodel`:
     the stochastic problem we want to optimize
-
-- param (SDDPparameters)
+* `param::SDDPparameters`:
     the parameters of the SDDP algorithm
-
-- m (JuMP.Model)
+* `m::JuMP.Model`:
     The linear problem to solve, in order to approximate the
     current value functions
-
-- t (int)
+* `t::int`:
     time step at which the problem is solved
-
-- xt (Array{Float})
+* `xt::Array{Float}`:
     current starting state
-
-- xi (Array{float})
+* `xi::Array{float}`:
     current noise value
-
-- init (Bool)
+* `init::Bool`:
     If specified, approximate future cost as 0
 
-
-Returns:
-- Bool
+# Returns
+* `Bool`:
     True if the solution is feasible, false otherwise
-
-- NextStep
-    Store solution of the problem solved
-
+* `NextStep`:
+    Store solution of the problem
 """
 function solve_one_step_one_alea(model,
                                  param,
@@ -65,19 +56,12 @@ function solve_one_step_one_alea(model,
     # Update value of w:
     setvalue(w, xi)
 
-    # If this is the first call to the solver, value-to-go are approximated
-    # with null function:
-    if init
-        @constraint(m, alpha >= 0)
-    end
     # Update constraint x == xt
     for i in 1:model.dimStates
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
-
     status = solve(m)
-
     solved = (status == :Optimal)
 
     if solved
@@ -96,3 +80,4 @@ function solve_one_step_one_alea(model,
 
     return solved, result
 end
+
