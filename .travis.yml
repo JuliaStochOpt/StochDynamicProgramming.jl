@@ -1,7 +1,6 @@
 language: julia
 os:
   - linux
-  - windows 
 julia:
   - release
   - 0.4
