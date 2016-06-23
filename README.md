@@ -1,9 +1,11 @@
 # StochDynamicProgramming
 
 
-**WARNING:** *This package is currently in development*
+**WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
-**Latest release:** 0.1.2
+
+**Latest release:** 0.1.3
+
 
 [![Build Status](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl)
 [![codecov.io](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master)
