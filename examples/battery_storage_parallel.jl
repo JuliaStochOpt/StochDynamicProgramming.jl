@@ -62,7 +62,7 @@ println("library loaded")
 
     # Define dynamic of the stock:
     function dynamic(t, x, u, xi)
-        return [min(STATE_MAX, max(STATE_MIN,x[1] + u[1] + max(0,xi[1], DEMAND[t]))]
+        return [min(STATE_MAX, max(STATE_MIN,x[1] + u[1] + max(0,xi[1], DEMAND[t])))]
     end
 
     # Define cost corresponding to each timestep:
@@ -93,7 +93,7 @@ println("library loaded")
     scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 
     stateSteps = [0.01]
-    controlSteps = [0.0001]
+    controlSteps = [0.001]
     infoStruct = "DH" # noise at time t is not known before taking the decision at time t
 
     paramSDP = StochDynamicProgramming.SDPparameters(spmodel, stateSteps,
