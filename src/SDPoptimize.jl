@@ -166,7 +166,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
 end
 
 """
-Value iteration algorithm to compute optimal value functions
+Dynamic Programming algorithm to compute optimal value functions
 
 Parameters:
 - model (StochDynProgModel)
@@ -271,7 +271,7 @@ Parameters:
     the Bellman Functions
 
 Returns :
-- V(x0) (Float64)
+- V_0(x0) (Float64)
 
 """
 function get_bellman_value(model::SPModel, param::SDPparameters, V)
@@ -361,7 +361,7 @@ Parameters:
 the alea realization
 
 Returns :
-- V(x0) (Float64)
+- V_0(x0) (Float64)
 
 """
 function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array)
