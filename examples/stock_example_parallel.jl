@@ -3,20 +3,31 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-# Solving an decision hazard stock problem using multiprocessed dynamic programming :
-# We decide which quantity to store before the randomness happens
-# If too much energy comes, the excess is wasted
+# Solving an decision hazard battery storage problem using multiprocessed 
+# dynamic programming :
+# We manage a network connecting an electrical demand, 
+# a renewable energy production unit, a battery and the global network.
+# We assume electrical demand d_t as well as cost of electricity c_t deterministic 
+# We decide which quantity to store before knowing renewable energy production
+# If more energy comes, we store the excess up to the state of charge upper bound
+# The remaining excess is wasted
 # If not enough energy comes, we lower accordingly what was decided to discharge
-# Min   E [\sum_{t=1}^TF c_t C_t(u_t)]
-# s.t.    s_{t+1} = s_t - u_t + xi_t, if 0 <= s_t - u_t + xi_t <= s_{max}
-#         s_{t+1} = s_{max}, if s_t - u_t + xi_t > s_{max}
-#         s_{t+1} = 0, if s_t - u_t + xi_t < 0
-#         C_t(u_t) = u_t, if 0 <= s_t - u_t + xi_t
-#         C_t(u_t) = -(0 - s_{t} - xi_t), otherwise
+# to ensure state of charge lower bound constraint
+# We have to ensure supply/demand balance: the energy provided by the network
+# equals the demand minus the renewable production, plus the battery demand 
+# or minus the battery production: G_t = max(d_t - xi_t, 0) + F_t(u_t)
+# We forbid electricity sale to the network
+# Min   E [\sum_{t=1}^TF c_t G_t]
+# s.t.    s_{t+1} = s_t - u_t + max(0,xi_t-d_t), if 0 <= s_t - u_t + max(0,xi_t-d_t) <= s_{max}
+#         s_{t+1} = s_{max}, if s_t - u_t + max(0,xi_t-d_t) >= s_{min}
+#         s_{t+1} = 0, if s_t - u_t + max(0,xi_t-d_t) < 0
+#         F_t(u_t) = max(0,s_{max} - s_{t} - max(0,xi_t-d_t)), if s_{t+1} = s_{max} 
+#		  F_t(u_t) = s_{min} - s_{t} - max(0,xi_t-d_t), if s_{t+1} = s_{min}
+#         F_t(u_t) = u_t, otherwise
 #         s_0 given
-#         0 <= s_t <= 1
+#         s_{min} <= s_t <= s_{max}
 #         u_min <= u_t <= u_max
-#         u_t choosen knowing xi_1 .. xi_t
+#         u_t choosen knowing xi_0 .. xi_{t-1}
 #############################################################################
 
 import StochDynamicProgramming, Distributions
@@ -29,6 +40,7 @@ println("library loaded")
     ######## Stochastic Model  Parameters  ########
     const N_STAGES = 50
     const COSTS = rand(N_STAGES)
+    const DEMAND = rand(N_STAGES)
 
     const CONTROL_MAX = 0.5
     const CONTROL_MIN = 0
@@ -50,21 +62,25 @@ println("library loaded")
 
     # Define dynamic of the stock:
     function dynamic(t, x, u, xi)
-        return [min(STATE_MAX, max(STATE_MIN,x[1] - u[1] + xi[1]))]
+        return [min(STATE_MAX, max(STATE_MIN,x[1] + u[1] + max(0,xi[1], DEMAND[t]))]
     end
 
     # Define cost corresponding to each timestep:
     function cost_t(t, x, u, xi)
-        a = u[1]
-        b = dynamic(t, x, u, xi)[1]
-        if b==0
-            a = x[1] + xi[1]
-        end
-        return -COSTS[t] * a
+    	x1 = dynamic(t, x, u, xi)[1]
+		c = max(0, DEMAND[t] - xi[1])
+    	if x1 == STATE_MAX
+    		c += max(0, STATE_MAX - x[1] - max(0,xi[1], DEMAND[t]))
+    	elseif x1 == STATE_MIN
+    		c += STATE_MIN - x[1] - max(0,xi[1], DEMAND[t])
+    	else
+    		c += u[1] 
+    	end 
+        return COSTS[t] * c
     end
 
     ######## Setting up the SPmodel
-    s_bounds = [(0, 1)]
+    s_bounds = [(STATE_MIN, STATE_MAX)]
     u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
     spmodel = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES,
                                                                     u_bounds,
