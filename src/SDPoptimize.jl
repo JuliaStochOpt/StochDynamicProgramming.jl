@@ -140,6 +140,59 @@ function solve_DP(model::SPModel,
     return V
 end
 
+"""
+Compute the value function at time t
+
+Parameters:
+- sampling size (Int)
+    number of randomness samples
+
+- samples (Array{Float64})
+    list of random samples
+
+- probas (Array{Float64})
+    array of probabilities of samples
+
+- u_bounds (Array{Tuple{Float64}})
+    array of lower and upper bounds of controls
+
+- x_bounds (Array{Tuple{Float64}})
+    array of lower and upper bounds of states
+
+- x_steps (Array{Float64})
+    array discretization steps for states space
+
+- x_dim (Int)
+    number of state variables
+
+- product_states (Array{Float64})
+    discretized state space
+
+- product_controls (Array{Float64})
+    discretized control space
+
+- dynamics (Function)
+    dynamics function of the time step, state, control and randomness returning next state
+
+- contraints (Function)
+    constraints function of the time step, state, control and randomness returning boolean
+
+- cost (Function)
+    cost function of the time step, state, control and randomness returning the instantaneous cost
+
+- V (Array of SharedArray)
+    the array containing the discretized value functions at each time step
+
+- Vitp (Interpolations)
+    the interpolated value functions
+
+- t (Float64)
+    the time step
+
+- info_struc (String)
+    the information structure "HD" or "DH"
+
+"""
 function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 x_steps, x_dim, product_states, product_controls,
                                 dynamics, constraints, cost, V, Vitp, t, info_struc)
@@ -267,7 +320,7 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- V (Array{Float64})
+- V (Array{Float64} or SharedArray{Float64})
     the Bellman Functions
 
 Returns :
@@ -295,7 +348,7 @@ Parameters:
     the scenarios of uncertainties realizations we want to simulate on
     scenarios[t,k,:] is the alea at time t for scenario k
 
-- V (Array)
+- V (Array{Float64} or SharedArray{Float64})
     the vector representing the value functions as functions of the state
     of the system at each time step
 
@@ -348,7 +401,7 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- V (Array{Float64})
+- V (Array{Float64} or SharedArray{Float64})
     the Bellman Functions
 
 - t (int)
@@ -433,7 +486,7 @@ Parameters:
 - param (SDPparameters)
     the parameters for the SDP algorithm
 
-- V (Array{Float64})
+- V (Array{Float64} or SharedArray{Float64})
     the Bellman Functions
 
 - t (int)
@@ -507,7 +560,7 @@ Parameters:
 - X0 (SDPparameters)
     the initial state of the system
 
-- V (Array)
+- Array{Float64} or SharedArray{Float64}
     the vector representing the value functions as functions of the state
     of the system at each time step
 
