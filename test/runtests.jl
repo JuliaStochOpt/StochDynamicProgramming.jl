@@ -488,10 +488,6 @@ facts("SDP algorithm") do
             @fact_throws solve_DP(modelSDP, paramsSDP, false);
             paramsSDP.infoStructure = infoStruct
 
-            paramsSDP.expectation_computation = "anything"
-            @fact_throws solve_DP(modelSDP, paramsSDP, false);
-            paramsSDP.expectation_computation = "Exact"
-
             V_sdp = solve_DP(modelSDP, paramsSDP, false);
 
             @fact size(V_sdp) --> (paramsSDP.stateVariablesSizes..., TF)

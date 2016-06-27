@@ -214,7 +214,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                             t, product_states[indx])
         end
     else
-        warn("Information structure should be HD or DH")
+        error("Information structure should be HD or DH")
     end
 end
 
