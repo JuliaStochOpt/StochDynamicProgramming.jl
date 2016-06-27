@@ -108,12 +108,13 @@ end
 
 
 """
-Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+Dynamic programming algorithm to compute optimal value functions
+by backward induction using bellman equation in the finite horizon case.
+The information structure can be Decision Hazard (DH) or Hazard Decision (HD)
 
 Parameters:
 - model (SPmodel)
-    the DPSPmodel of our problem
+    the model of our problem
 
 - param (SDPparameters)
     the parameters for the SDP algorithm
@@ -141,14 +142,16 @@ function solve_DP(model::SPModel,
 end
 
 """
-Compute the value function at time t
+Compute the value function at time t using bellman equation
+and knowing value function at time t+1
 
 Parameters:
 - sampling size (Int)
-    number of randomness samples
+    number of noises samples (number of outcomes if the probability laws are discrete,
+    number of monte carlo samples otherwise)
 
 - samples (Array{Float64})
-    list of random samples
+    arrays of the noises samples/realizations
 
 - probas (Array{Float64})
     array of probabilities of samples
@@ -160,7 +163,7 @@ Parameters:
     array of lower and upper bounds of states
 
 - x_steps (Array{Float64})
-    array discretization steps for states space
+    array of discretization steps for states space
 
 - x_dim (Int)
     number of state variables
@@ -190,7 +193,8 @@ Parameters:
     the time step
 
 - info_struc (String)
-    the information structure "HD" or "DH"
+    the information structure "HD" for hazard-decision
+    or "DH" for decision-hazard
 
 """
 function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
