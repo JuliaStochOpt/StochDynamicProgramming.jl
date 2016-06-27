@@ -484,6 +484,13 @@ facts("SDP algorithm") do
         end
 
         context("Solve and simulate using SDP") do
+            paramsSDP.infoStructure = "anything"
+            @fact_throws solve_DP(modelSDP, paramsSDP, false);
+            paramsSDP.infoStructure = infoStruct
+
+            paramsSDP.expectation_computation = "anything"
+            @fact_throws solve_DP(modelSDP, paramsSDP, false);
+            paramsSDP.expectation_computation = "Exact"
 
             V_sdp = solve_DP(modelSDP, paramsSDP, false);
 
