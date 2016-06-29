@@ -7,23 +7,26 @@
 # dynamic programming :
 # We manage a network connecting an electrical demand,
 # a renewable energy production unit, a battery and the global network.
+# We want to minimize the cost of consumed electricity until time T: \sum_{t=0}^T c_t * G_{t+1}.
 # We assume electrical demand d_t as well as cost of electricity c_t deterministic
 # We decide which quantity to store before knowing renewable energy production
-# If more energy comes, we store the excess up to the state of charge upper bound
-# The remaining excess is wasted
-# If not enough energy comes, we lower accordingly what was decided to discharge
-# to ensure state of charge lower bound constraint
-# We have to ensure supply/demand balance: the energy provided by the network
-# equals the demand minus the renewable production, plus the battery demand
-# or minus the battery production: G_t = max(d_t - xi_t, 0) + F_t(u_t)
-# We forbid electricity sale to the network
-# Min   E [\sum_{t=1}^TF c_t G_t]
-# s.t.    s_{t+1} = s_t - u_t + max(0,xi_t-d_t), if 0 <= s_t - u_t + max(0,xi_t-d_t) <= s_{max}
-#         s_{t+1} = s_{max}, if s_t - u_t + max(0,xi_t-d_t) >= s_{min}
-#         s_{t+1} = 0, if s_t - u_t + max(0,xi_t-d_t) < 0
-#         F_t(u_t) = max(0,s_{max} - s_{t} - max(0,xi_t-d_t)), if s_{t+1} = s_{max}
-#		  F_t(u_t) = s_{min} - s_{t} - max(0,xi_t-d_t), if s_{t+1} = s_{min}
-#         F_t(u_t) = u_t, otherwise
+# but we don't waste the eventual excess.
+# If more energy comes, we store the excess up to the state of charge upper bound.
+# The remaining excess is provided directly to the demand or wasted if still too important.
+# We have to ensure supply/demand balance: the energy provided by the network G_{t+1}
+# equals the demand d_t plus the battery effective demand or minus the battery effective
+# production U_{t+1} then minus the used renewable production xi_{t+1} - R_{t+1].
+# R_{t+1] is the renewable energy wasted/curtailed
+# U_{t+1} is a function of the decision variable: the amount of energy decided
+# to store or discharge u_t before the uncertainty realization.
+# We forbid electricity sale to the network: G_t+1 >=0 .
+# This inequality constraint can be translated on an equality constraint on R_{t+1}
+# Min   E [\sum_{t=1}^T c_t G_{t+1}]
+# s.t.    s_{t+1} = s_t + U_{t+1}
+#		  G_{t+1} = d_t + U_{t+1} - (W_{t+1} - R_{t+1})
+#		  U_{t+1} = | rho_c * min(S_{max} - S_t, min( u_t ,W_{t+1})), if u_t >=0
+#					| (1/rho_dc) * max(u_t, -max( d_t - W_{t+1}, 0)), otherwise
+#         R_{t+1} = max(W_{t+1} - d_t - U_{t+1}, 0)
 #         s_0 given
 #         s_{min} <= s_t <= s_{max}
 #         u_min <= u_t <= u_max
@@ -55,6 +58,10 @@ println("library loaded")
     # initial stock
     const S0 = 0.5
 
+    # charge and discharge efficiency parameters
+    const rho_c = 0.98
+    const rho_dc = 0.97
+
     # create law of noises
     proba = 1/N_XI*ones(N_XI) # uniform probabilities
     xi_support = collect(linspace(XI_MIN,XI_MAX,N_XI))
@@ -63,33 +70,43 @@ println("library loaded")
 
     # Define dynamic of the stock:
     function dynamic(t, x, u, xi)
-        return [min(STATE_MAX, max(STATE_MIN,x[1] + u[1] + max(0,xi[1], DEMAND[t])))]
+    	if u[1]>=0
+    		return [ x[1] + rho_c * min(max(u[1], xi[1]),STATE_MAX-x[1])]
+    	else
+    		return [ x[1] + 1/rho_dc * max(u[1],-max(0,DEMAND[t])) ]
+    	end
     end
 
     # Define cost corresponding to each timestep:
     function cost_t(t, x, u, xi)
-    	x1 = dynamic(t, x, u, xi)[1]
-		c = max(0, DEMAND[t] - xi[1])
-    	if x1 == STATE_MAX
-    		c += max(0, STATE_MAX - x[1] - max(0,xi[1], DEMAND[t]))
-    	elseif x1 == STATE_MIN
-    		c += STATE_MIN - x[1] - max(0,xi[1], DEMAND[t])
+    	U = 0
+    	if u[1]>=0
+    		U = rho_c * min(max(u[1], xi[1]),STATE_MAX-x[1])
     	else
-    		c += u[1]
+    		U = 1/rho_dc * max(u[1],-max(0,DEMAND[t]))
     	end
-        return COSTS[t] * c
+        return COSTS[t] * max(0, DEMAND[t] + U - xi[1])
+    end
+
+    function constraint(t, x, u, xi)
+    	return( (x[1] <= s_bounds[1][2] )&(x[1] >= s_bounds[1][1]))
+    end
+
+    function finalCostFunction(x)
+    	return(0)
     end
 
     ######## Setting up the SPmodel
     s_bounds = [(STATE_MIN, STATE_MAX)]
     u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
-    spmodel = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES,
+    spmodel = StochDynamicProgramming.StochDynProgModel(N_STAGES, s_bounds,
                                                                     u_bounds,
                                                                     [S0],
                                                                     cost_t,
+                                                                    finalCostFunction,
                                                                     dynamic,
+                                                                    constraint,
                                                                     xi_laws)
-    StochDynamicProgramming.set_state_bounds(spmodel, s_bounds)
 
     scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 
@@ -101,11 +118,7 @@ println("library loaded")
                                                     controlSteps, infoStruct)
 end
 
-Vs = []
-
-@time for i in 1:1
 Vs = StochDynamicProgramming.solve_DP(spmodel,paramSDP, 1)
-end
 
 lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
 println("Value obtained by SDP: "*string(lb_sdp))
