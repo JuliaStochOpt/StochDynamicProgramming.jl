@@ -14,8 +14,8 @@
 using StochDynamicProgramming, JuMP, Clp, Distributions
 println("library loaded")
 
-run_sddp = true
-run_sdp = true
+run_sddp = true # false if you don't want to run sddp
+run_sdp = true # false if you don't want to run sdp
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -23,7 +23,7 @@ const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 
 # convergence test
-const MAX_ITER = 100 # maximum iteration of SDDP
+const MAX_ITER = 100 # number of iterations of SDDP
 
 ######## Stochastic Model  Parameters  ########
 const N_STAGES = 5
@@ -55,33 +55,33 @@ function cost_t(t, x, u, w)
 end
 
 ######## Setting up the SPmodel
-    s_bounds = [(0, 1)]
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX)]
+    s_bounds = [(0, 1)] # bounds on the state
+    u_bounds = [(CONTROL_MIN, CONTROL_MAX)] # bounds on controls
     spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
-    set_state_bounds(spmodel, s_bounds)
+    set_state_bounds(spmodel, s_bounds) # adding the bounds to the model
 
 
 ######### Solving the problem via SDDP
 if run_sddp
-    paramSDDP = SDDPparameters(SOLVER, 2, 0, MAX_ITER) # 10 forward pass, stop at MAX_ITER
+    paramSDDP = SDDPparameters(SOLVER, 2, 0, MAX_ITER) # 2 forward pass, stop at MAX_ITER
     V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
-    println("Lower bound obtained by SDDP: "*string(lb_sddp))
+    println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
 end
 
 ######### Solving the problem via Dynamic Programming
 if run_sdp
-    stateSteps = [0.01]
-    controlSteps = [0.01]
+    stateSteps = [0.01] # discretization step of the state
+    controlSteps = [0.01] # discretization step of the control
     infoStruct = "HD" # noise at time t is known before taking the decision at time t
 
     paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
     Vs = solve_DP(spmodel,paramSDP, 1)
-    lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
-    println("Value obtained by SDP: "*string(lb_sdp))
+    value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
+    println("Value obtained by SDP: "*string(round(value_sdp,4)))
 end
 
-######### Comparing the solution
+######### Comparing the solutions
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 if run_sddp
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
@@ -90,5 +90,5 @@ if run_sdp
     costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
 end
 if run_sddp && run_sdp
-    println(mean(costsddp-costsdp))
+    println("Relative difference between sddp and sdp: "*string(2*round(mean(costsddp-costsdp)/mean(costsddp+costsdp),4)))
 end
