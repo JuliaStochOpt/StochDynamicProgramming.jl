@@ -4,34 +4,32 @@
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
 # Solving an decision hazard battery storage problem using multiprocessed
-# dynamic programming :
-# We manage a network connecting an electrical demand,
-# a renewable energy production unit, a battery and the global network.
-# We want to minimize the cost of consumed electricity until time T: \sum_{t=0}^T c_t * G_{t+1}.
-# We assume electrical demand d_t as well as cost of electricity c_t deterministic
-# We decide which quantity to store before knowing renewable energy production
-# but we don't waste the eventual excess.
-# If more energy comes, we store the excess up to the state of charge upper bound.
-# The remaining excess is provided directly to the demand or wasted if still too important.
-# We have to ensure supply/demand balance: the energy provided by the network G_{t+1}
-# equals the demand d_t plus the battery effective demand or minus the battery effective
-# production U_{t+1} then minus the used renewable production xi_{t+1} - R_{t+1].
-# R_{t+1] is the renewable energy wasted/curtailed
-# U_{t+1} is a function of the decision variable: the amount of energy decided
-# to store or discharge u_t before the uncertainty realization.
-# We forbid electricity sale to the network: G_t+1 >=0 .
-# This inequality constraint can be translated on an equality constraint on R_{t+1}
-# Min   E [\sum_{t=1}^T c_t G_{t+1}]
-# s.t.    s_{t+1} = s_t + U_{t+1}
-#		  G_{t+1} = d_t + U_{t+1} - (W_{t+1} - R_{t+1})
-#		  U_{t+1} = | rho_c * min(S_{max} - S_t, min( u_t ,W_{t+1})), if u_t >=0
-#					| (1/rho_dc) * max(u_t, -max( d_t - W_{t+1}, 0)), otherwise
-#         R_{t+1} = max(W_{t+1} - d_t - U_{t+1}, 0)
-#         s_0 given
-#         s_{min} <= s_t <= s_{max}
-#         u_min <= u_t <= u_max
-#         u_t choosen knowing xi_0 .. xi_{t-1}
-#############################################################################
+# dynamic programming.
+#
+# to launch (with N processes)
+#       $ julia -p N battery_storage_parallel.jl
+#
+#       PROBLEM DESCRIPTION
+# For t = 1..T, we want to satisfy a deterministic energy demand d_t using:
+# - a random renewable energy unit with production (at time t) W_t
+# - a battery with stock (at time t) S_t
+# - a quantity G_{t} bought on the market for a deterministic price c_t
+# The decision variable is the quantity U_t of energy stored (or discharged) in
+# the battery, is decided knowing the uncertainty W_0,...,W_t.
+# We want to minimize the money spent on buying electricity (cost are deterministic) :
+#               min     E[\sum_{t=0}^T c_t * G_{t}] 
+#                       d_t + U_t <= W_t + G_t                          (a)
+#                       S_{t+1} = S_t + r (U_t)^+ + 1/r (U_t)^-         (b)
+#                       Smin <= S_t <= Smax                             (c)
+#                       G_t >= 0                                        (d)
+#
+# (a) : more production than demand (excess is wasted)
+# (b) : dynamic of the stock with a charge coefficient r
+# (c) : limits on the battery
+# (d) : we don't sell electricity
+
+
+
 
 import StochDynamicProgramming, Distributions
 println("library loaded")
