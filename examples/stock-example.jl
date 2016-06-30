@@ -15,7 +15,8 @@ using StochDynamicProgramming, JuMP, Clp, Distributions
 println("library loaded")
 
 run_sddp = true # false if you don't want to run sddp
-run_sdp = true # false if you don't want to run sdp
+run_sdp  = true # false if you don't want to run sdp
+run_ef   = true # false if you don't want to run extensive formulation
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -26,17 +27,17 @@ const SOLVER = ClpSolver()
 const MAX_ITER = 100 # number of iterations of SDDP
 
 ######## Stochastic Model  Parameters  ########
-const N_STAGES = 5
-const COSTS = rand(N_STAGES)
+const N_STAGES = 5              # number of stages of the SP problem
+const COSTS = rand(N_STAGES)    # generating deterministic costs
 
-const CONTROL_MAX = 0.5
+const CONTROL_MAX = 0.5         # bounds on the control
 const CONTROL_MIN = 0
 
-const XI_MAX = 0.3
+const XI_MAX = 0.3              # bounds on the noise
 const XI_MIN = 0
-const N_XI = 10
-# initial stock
-const S0 = 0.5
+const N_XI = 10                 # discretization of the noise
+
+const S0 = 0.5                  # initial stock
 
 # create law of noises
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
@@ -55,14 +56,15 @@ function cost_t(t, x, u, w)
 end
 
 ######## Setting up the SPmodel
-    s_bounds = [(0, 1)] # bounds on the state
-    u_bounds = [(CONTROL_MIN, CONTROL_MAX)] # bounds on controls
-    spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
-    set_state_bounds(spmodel, s_bounds) # adding the bounds to the model
-
+s_bounds = [(0, 1)] # bounds on the state
+u_bounds = [(CONTROL_MIN, CONTROL_MAX)] # bounds on controls
+spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
+set_state_bounds(spmodel, s_bounds) # adding the bounds to the model
+println("Model set up")
 
 ######### Solving the problem via SDDP
 if run_sddp
+    println("Starting resolution by SDDP")
     paramSDDP = SDDPparameters(SOLVER, 2, 0, MAX_ITER) # 2 forward pass, stop at MAX_ITER
     V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
@@ -71,17 +73,26 @@ end
 
 ######### Solving the problem via Dynamic Programming
 if run_sdp
+    println("Starting resolution by SDP")
     stateSteps = [0.01] # discretization step of the state
     controlSteps = [0.01] # discretization step of the control
     infoStruct = "HD" # noise at time t is known before taking the decision at time t
-
     paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
     Vs = solve_DP(spmodel,paramSDP, 1)
     value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
     println("Value obtained by SDP: "*string(round(value_sdp,4)))
 end
 
-######### Comparing the solutions
+if run_ef
+    println("Starting resolution by Extensive Formulation")
+    println( extensive_formulation(spmodel, paramSDDP))
+    value_ef = extensive_formulation(spmodel, paramSDDP)[1]
+    println("Value obtained by Extensive Formulation: "*string(round(value_ef,4)))
+    println(round(value_sdp/value_ef,4))
+    println(round(lb_sddp/value_ef,4))
+end
+
+######### Comparing the solutions on simulated scenarios.
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 if run_sddp
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
@@ -92,3 +103,4 @@ end
 if run_sddp && run_sdp
     println("Relative difference between sddp and sdp: "*string(2*round(mean(costsddp-costsdp)/mean(costsddp+costsdp),4)))
 end
+
