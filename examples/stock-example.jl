@@ -88,7 +88,7 @@ if run_ef
     value_ef = extensive_formulation(spmodel, paramSDDP)[1]
     println("Value obtained by Extensive Formulation: "*string(round(value_ef,4)))
     println("Relative error of SDP value: "*string(100*round(value_sdp/value_ef-1,4))*"%")
-    println("Relative error of SDDP value: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
+    println("Relative error of SDDP lower bound: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
 end
 
 ######### Comparing the solutions on simulated scenarios.
@@ -101,5 +101,5 @@ if run_sdp
 end
 if run_sddp && run_sdp
     println("Simulated relative difference between sddp and sdp: "
-            *string(200*round(mean(costsddp-costsdp)/mean(costsddp+costsdp),4))*"%")
+            *string(round(200*mean(costsddp-costsdp)/mean(costsddp+costsdp),3))*"%")
 end
