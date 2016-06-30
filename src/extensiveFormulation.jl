@@ -53,12 +53,16 @@ function extensive_formulation(model, param)
             end
         end
     end
-
-    #Instantiate the problem creating dynamic constraint at each node
-    for t = 1 : (T)
+    #Add state constraints
+    for t = 1 :(T+1)
         for n = 1 : N[t]
             @constraint(mod,[x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE] .>= [model.xlim[k][1] for k = 1:DIM_STATE])
             @constraint(mod,[x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE] .<= [model.xlim[k][2] for k = 1:DIM_STATE])
+        end
+    end
+    #Instantiate the problem creating dynamic constraint at each node
+    for t = 1 : (T)
+        for n = 1 : N[t]
             for xi = 1 : laws[t].supportSize
                 m = (n-1)*laws[t].supportSize+xi
 
@@ -87,12 +91,18 @@ function extensive_formulation(model, param)
     @constraint(mod, [x[1,k] for k = 1:DIM_STATE] .== X_init)
 
     #Define the objective of the function
-    @objective(mod, Min, sum{ sum{proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k],k = 1:laws[t].supportSize} , t = 1:T, n=1:div(N[t+1],laws[t].supportSize)})
+    @objective(mod, Min, 
+    sum{ 
+        sum{    proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k],
+            k = 1:laws[t].supportSize}, 
+        t = 1:T, n=1:div(N[t+1],laws[t].supportSize)}
+    )
 
     status = solve(mod)
     solved = (status == :Optimal)
 
     if solved
+        println("EF value: "*string(getobjectivevalue(mod)))
         firstControl = collect(values(getvalue(u)))[1:DIM_CONTROL*laws[1].supportSize]
         return getobjectivevalue(mod), firstControl, status
     else
