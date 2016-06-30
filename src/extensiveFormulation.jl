@@ -13,6 +13,10 @@ measurability constraints.
 # Arguments:
 * `model::SPModel`
 * `param::SDDPparameters`
+# Returns
+* `objective value`
+* `first control` 
+* `status of optimization problem`
 """
 function extensive_formulation(model, param)
 
