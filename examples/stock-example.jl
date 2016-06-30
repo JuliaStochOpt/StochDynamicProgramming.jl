@@ -24,10 +24,10 @@ const SOLVER = ClpSolver()
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 
 # convergence test
-const MAX_ITER = 100 # number of iterations of SDDP
+const MAX_ITER = 10 # number of iterations of SDDP
 
 ######## Stochastic Model  Parameters  ########
-const N_STAGES = 5              # number of stages of the SP problem
+const N_STAGES = 6              # number of stages of the SP problem
 const COSTS = rand(N_STAGES)    # generating deterministic costs
 
 const CONTROL_MAX = 0.5         # bounds on the control
@@ -65,8 +65,8 @@ println("Model set up")
 ######### Solving the problem via SDDP
 if run_sddp
     println("Starting resolution by SDDP")
-    paramSDDP = SDDPparameters(SOLVER, 2, 0, MAX_ITER) # 2 forward pass, stop at MAX_ITER
-    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
+    paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward pass, stop at MAX_ITER
+    V, pbs = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
     println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
 end
@@ -85,11 +85,10 @@ end
 
 if run_ef
     println("Starting resolution by Extensive Formulation")
-    println( extensive_formulation(spmodel, paramSDDP))
     value_ef = extensive_formulation(spmodel, paramSDDP)[1]
     println("Value obtained by Extensive Formulation: "*string(round(value_ef,4)))
-    println(round(value_sdp/value_ef,4))
-    println(round(lb_sddp/value_ef,4))
+    println("Relative error of SDP value: "*string(100*round(value_sdp/value_ef-1,4))*"%")
+    println("Relative error of SDDP value: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
 end
 
 ######### Comparing the solutions on simulated scenarios.
@@ -101,6 +100,6 @@ if run_sdp
     costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
 end
 if run_sddp && run_sdp
-    println("Relative difference between sddp and sdp: "*string(2*round(mean(costsddp-costsdp)/mean(costsddp+costsdp),4)))
+    println("Simulated relative difference between sddp and sdp: "
+            *string(200*round(mean(costsddp-costsdp)/mean(costsddp+costsdp),4))*"%")
 end
-
