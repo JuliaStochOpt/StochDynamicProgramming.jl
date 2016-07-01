@@ -17,7 +17,7 @@
 # The decision variable is the quantity U_t of energy stored (or discharged) in
 # the battery, is decided knowing the uncertainty W_0,...,W_t.
 # We want to minimize the money spent on buying electricity (cost are deterministic) :
-#               min     E[\sum_{t=0}^T c_t * G_{t}] 
+#               min     E[\sum_{t=0}^T c_t * G_{t}]
 #                       d_t + U_t <= W_t + G_t                          (a)
 #                       S_{t+1} = S_t + r (U_t)^+ + 1/r (U_t)^-         (b)
 #                       Smin <= S_t <= Smax                             (c)
@@ -68,22 +68,12 @@ println("library loaded")
 
     # Define dynamic of the stock:
     function dynamic(t, x, u, xi)
-    	if u[1]>=0
-    		return [ x[1] + rho_c * min(max(u[1], xi[1]),STATE_MAX-x[1])]
-    	else
-    		return [ x[1] + 1/rho_dc * max(u[1],-max(0,DEMAND[t])) ]
-    	end
+    	return [ x[1] + 1/rho_dc * min(u[1],0) + rho_c * max(u[1],0) ]
     end
 
     # Define cost corresponding to each timestep:
     function cost_t(t, x, u, xi)
-    	U = 0
-    	if u[1]>=0
-    		U = rho_c * min(max(u[1], xi[1]),STATE_MAX-x[1])
-    	else
-    		U = 1/rho_dc * max(u[1],-max(0,DEMAND[t]))
-    	end
-        return COSTS[t] * max(0, DEMAND[t] + U - xi[1])
+        return COSTS[t] * max(0, DEMAND[t] + u[1] - xi[1])
     end
 
     function constraint(t, x, u, xi)
@@ -110,7 +100,7 @@ println("library loaded")
 
     stateSteps = [0.01]
     controlSteps = [0.001]
-    infoStruct = "DH" # noise at time t is not known before taking the decision at time t
+    infoStruct = "HD" # noise at time t is not known before taking the decision at time t
 
     paramSDP = StochDynamicProgramming.SDPparameters(spmodel, stateSteps,
                                                     controlSteps, infoStruct)
