@@ -39,7 +39,7 @@ fulfilled.
 function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
     # initialize value functions:
     V, problems = initialize_value_functions(model, param)
-    println("initial value function intialized")
+    (display > 0) && println("Initial value function loaded into memory.")
     # Run SDDP upon example:
     sddp_stats = run_SDDP!(model, param, V, problems, display)
     return V, problems, sddp_stats
@@ -134,7 +134,7 @@ function run_SDDP!(model::SPModel,
                     "\tUpper-bound: ", upb,
                     "\tLower-bound: ", round(stats.lower_bounds[end], 4),
                     "\tTime: ", round(stats.exectime[end], 2),"s")
-             else 
+             else
                 println("Pass number ", iteration_count,
                     "\tLower-bound: ", round(stats.lower_bounds[end], 4),
                     "\tTime: ", round(stats.exectime[end], 2),"s")
@@ -320,7 +320,6 @@ function initialize_value_functions(model::SPModel,
                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
-    println("model builded")
     V = PolyhedralFunction[
                 PolyhedralFunction([], Array{Float64}(0, model.dimStates), 0) for i in 1:model.stageNumber]
 
