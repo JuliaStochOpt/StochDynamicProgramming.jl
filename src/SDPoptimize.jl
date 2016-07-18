@@ -14,53 +14,12 @@ using Interpolations
 
 
 """
-Convert the state and control float tuples (stored as arrays or tuples) of the
-problem into integer tuples that can be used as indexes for the value function
-
-# Arguments
-* `variable::Array`:
-    the vector variable we want to convert to an index (integer)
-* `bounds::Array`:
-    the lower bounds for each component of the variable
-* `variable_steps::Array`:
-    discretization step for each component
-
-# Return
-* `index::tuple of integers`:
-    the indexes of the variable
-"""
-function index_from_variable(variable, bounds::Array, variable_steps::Array)
-    return tuple([ 1 + floor(Int64,(1e-10+( variable[i] - bounds[i][1] )/ variable_steps[i] )) for i in 1:length(variable)]...)
-end
-
-
-"""
-Convert the state and control float tuples (stored as arrays or tuples) of the
-problem into float tuples that can be used as indexes for the interpolated
-value function
-
-# Arguments
-* `variable::Array`:
-    the vector variable we want to convert to an index (integer)
-* `bounds::Array`:
-    the lower bounds for each component of the variable
-* `variable_steps::Array`:
-    discretization step for each component
-
-# Return
-* `index::tuple of integers`:
-    the indexes of the variable
-"""
-function real_index_from_variable(variable, bounds::Array, variable_steps::Array)
-    return tuple([1 + ( variable[i] - bounds[i][1] )/variable_steps[i] for i in 1:length(variable)]...)
-end
-
-
-"""
 Compute interpolation of the value function at time t
 
 # Arguments
 * `model::SPmodel`:
+* `dim_states::Int`:
+    the number of state variables
 * `v::Array`:
     the value function to interpolate
 * `time::Int`:
@@ -69,14 +28,15 @@ Compute interpolation of the value function at time t
 # Return
 * Interpolation
     the interpolated value function (working as an array with float indexes)
+
 """
-function value_function_interpolation(model::SPModel, V::Array, time::Int)
-    return interpolate(V[[Colon() for i in 1:model.dimStates]...,time], BSpline(Linear()), OnGrid())
+function value_function_interpolation( dim_states, V, time::Int)
+    return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()), OnGrid())
 end
 
 
 """
-Compute interpolation of the value function at time t
+Compute the cartesian products of discretized state and control spaces
 
 # Arguments
 * `model::SPmodel`:
@@ -87,6 +47,7 @@ Compute interpolation of the value function at time t
 # Return
 * Iterators: product_states and product_controls
     the cartesian product iterators for both states and controls
+
 """
 function generate_grid(model::SPModel, param::SDPparameters)
     product_states = product([model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2] for i in 1:model.dimStates]...)
@@ -107,6 +68,7 @@ Transform a general SPmodel into a StochDynProgModel
 # Return
 * `sdpmodel::StochDynProgModel:
     the corresponding StochDynProgModel
+
 """
 function build_sdpmodel_from_spmodel(model::SPModel)
 
@@ -140,8 +102,9 @@ end
 
 
 """
-Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) as well as the Hazard Decision (HD) case
+Dynamic programming algorithm to compute optimal value functions
+by backward induction using bellman equation in the finite horizon case.
+The information structure can be Decision Hazard (DH) or Hazard Decision (HD)
 
 # Arguments
 * `model::SPmodel`:
@@ -155,252 +118,168 @@ the Decision Hazard (DH) as well as the Hazard Decision (HD) case
 * `value_functions::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
+
 """
 function solve_DP(model::SPModel, param::SDPparameters, display=0::Int64)
-
     SDPmodel = build_sdpmodel_from_spmodel(model::SPModel)
-
-    #Display start of the algorithm in DH and HD cases
-    if (param.infoStructure == "DH")
-        V = sdp_solve_DH(SDPmodel, param, display)
-    elseif (param.infoStructure == "HD")
-        V = sdp_solve_HD(SDPmodel, param, display)
-    else
-        error("param.infoStructure is neither 'DH' nor 'HD'")
-    end
-
+    # Start of the algorithm
+    V = sdp_compute_value_functions(SDPmodel, param, display)
     return V
 end
 
 
 """
-Value iteration algorithm to compute optimal value functions in
-the Decision Hazard (DH) case
+Compute the value function at time t using bellman equation
+and knowing value function at time t+1
 
-# Arguments
+# Parameters
+* `sampling::iz`: (Int)
+    number of noises samples (number of outcomes if the probability laws are discrete,
+    number of monte carlo samples otherwise)
+* `samples::Array{Float64}`:
+    arrays of the noises samples/realizations
+* `probas::Array{Float64}`:
+    array of probabilities of samples
+* `u_bounds::Array{Tuple{Float64}}`:
+    array of lower and upper bounds of controls
+* `x_bounds::Array{Tuple{Float64}}`:
+    array of lower and upper bounds of states
+* `x_steps::Array{Float64}`:
+    array of discretization steps for states space
+* `x_dim::Int`:
+    number of state variables
+* `product_states::Array{Float64}`:
+    discretized state space
+* `product_controls::Array{Float64}`:
+    discretized control space
+* `dynamics::Function`:
+    dynamics function of the time step, state, control and randomness returning next state
+* `contraints::Function`:
+    constraints function of the time step, state, control and randomness returning boolean
+* `cost::Function`:
+    cost function of the time step, state, control and randomness returning the instantaneous cost
+* `V::Array or SharedArray`:
+    the array containing the discretized value functions at each time step
+* `Vitp::Interpolations`:
+    the interpolated value functions
+* `t::Float64`:
+    the time step
+* `info_struc::String`:
+    the information structure "HD" for hazard-decision
+    or "DH" for decision-hazard
+
+"""
+function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
+                                x_steps, x_dim, product_states, product_controls,
+                                dynamics, constraints, cost, V, Vitp, t, info_struc)
+
+    if info_struc == "DH"
+        @sync @parallel for indx in 1:length(product_states)
+            SDPutils.compute_V_given_x_t_DH(sampling_size, samples,
+                                            probas, u_bounds, x_bounds,
+                                            x_steps, x_dim, product_controls,
+                                            dynamics, constraints, cost, V, Vitp,
+                                            t, product_states[indx])
+        end
+    elseif info_struc == "HD"
+        @sync @parallel for indx in 1:length(product_states)
+            SDPutils.compute_V_given_x_t_HD(sampling_size, samples, probas,
+                                            u_bounds, x_bounds, x_steps, x_dim,
+                                            product_controls, dynamics,
+                                            constraints, cost, V, Vitp,
+                                            t, product_states[indx])
+        end
+    else
+        error("Information structure should be HD or DH")
+    end
+end
+
+
+"""
+Dynamic Programming algorithm to compute optimal value functions
+
+# Parameters
 * `model::StochDynProgModel`:
-    the DPSPmodel of our problem
+    the StochDynProgModel of the problem
 * `param::SDPparameters`:
-    the parameters for the SDP algorithm
+    the parameters for the algorithm
 * `display::Int`:
     the output display or verbosity parameter
 
-# Return
+# Returns
 * `value_functions::Array`:
     the vector representing the value functions as functions of the state
     of the system at each time step
 
 """
-function sdp_solve_DH(model::StochDynProgModel, param::SDPparameters, display=0::Int64)
+function sdp_compute_value_functions(model::StochDynProgModel,
+                                     param::SDPparameters,
+                                     display=0::Int64)
 
     TF = model.stageNumber
     next_state = zeros(Float64, model.dimStates)
-    law = model.noises
 
     u_bounds = model.ulim
     x_bounds = model.xlim
     x_steps = param.stateSteps
+    x_dim = model.dimStates
+
+    dynamics = model.dynamics
+    constraints = model.constraints
+    cost = model.costFunctions
+
+    law = model.noises
 
     #Compute cartesian product spaces
     product_states, product_controls = generate_grid(model, param)
 
+    product_states = collect(product_states)
     product_controls = collect(product_controls)
 
-    V = zeros(Float64, param.stateVariablesSizes..., TF)
+    V = SharedArray{Float64}(zeros(Float64, param.stateVariablesSizes..., TF))
 
     #Compute final value functions
     for x in product_states
-        ind_x = index_from_variable(x, x_bounds, x_steps)
+        ind_x = SDPutils.index_from_variable(x, x_bounds, x_steps)
         V[ind_x..., TF] = model.finalCostFunction(x)
     end
 
+    if param.expectation_computation!="MonteCarlo" && param.expectation_computation!="Exact"
+        warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'. Defaulted to 'exact'")
+        param.expectation_computation="Exact"
+    end
+
     #Construct a progress meter
+    p = 0
     if display > 0
-        p = Progress((TF-1)*param.totalStateSpaceSize, 1)
-        println("Starting stochastic dynamic programming decision hazard computation")
+        p = Progress((TF-1), 1)
+        println("[SDP] Starting value functions computation:")
     end
 
     # Loop over time:
     for t = (TF-1):-1:1
-        Vitp = value_function_interpolation(model, V, t+1)
 
-            #Loop over states
-        for x in product_states
-
-            if display > 0
-                next!(p)
-            end
-
-            expected_V = Inf
-            optimal_u = tuple()
-            current_cost = 0
-
-            #Loop over controls
-            for u = product_controls
-
-                expected_V_u = 0.
-                count_admissible_w = 0
-
-                if (param.expectation_computation=="MonteCarlo")
-                    sampling_size = param.monteCarloSize
-                    samples = [sampling(law,t) for i in 1:sampling_size]
-                    probas = (1/sampling_size)
-                else
-                    sampling_size = law[t].supportSize
-                    samples = law[t].support
-                    probas = law[t].proba
-                end
-
-                for w = 1:sampling_size
-                    w_sample = samples[:, w]
-                    proba = probas[w]
-                    next_state = model.dynamics(t, x, u, w_sample)
-
-
-                    if model.constraints(t, next_state, u, w_sample)
-
-                        count_admissible_w = count_admissible_w + proba
-                        ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                        next_V = Vitp[ind_next_state...]
-                        current_cost = model.costFunctions(t, x, u, w_sample)
-                        expected_V_u += proba*(current_cost + next_V)
-
-                    end
-                end
-
-                if (count_admissible_w>0)
-
-                    next_V = next_V / count_admissible_w
-
-                    if (expected_V_u < expected_V)
-
-                        expected_V = expected_V_u
-                        optimal_u = u
-
-                    end
-                 end
-            end
-            ind_x = index_from_variable(x, x_bounds, x_steps)
-
-            V[ind_x..., t] = expected_V
+        if display > 0
+            next!(p)
         end
-    end
-    return V
-end
 
-
-"""
-Value iteration algorithm to compute optimal value functions in
-the Hazard Decision (HD) case
-
-# Arguments
-* `model::StochDynProgModel`:
-    the DPSPmodel of our problem
-* `param::SDPparameters`:
-    the parameters for the SDP algorithm
-* `display::Int`:
-    the output display or verbosity parameter
-
-# Return
-* `value_functions::Array`:
-    the vector representing the value functions as functions of the state
-    of the system at each time step
-"""
-function sdp_solve_HD(model::StochDynProgModel, param::SDPparameters, display=0::Int64)
-
-    TF = model.stageNumber
-    next_state = zeros(Float64, model.dimStates)
-    law = model.noises
-
-    u_bounds = model.ulim
-    x_bounds = model.xlim
-    x_steps = param.stateSteps
-
-    #Compute cartesian product spaces
-    product_states, product_controls = generate_grid(model, param)
-
-    product_controls = collect(product_controls)
-
-    V = zeros(Float64, param.stateVariablesSizes..., TF)
-
-    #Compute final value functions
-    for x in product_states
-        ind_x = index_from_variable(x, x_bounds, x_steps)
-        V[ind_x..., TF] = model.finalCostFunction(x)
-    end
-
-    #Construct a progress meter
-    if display > 0
-        p = Progress((TF-1)*param.totalStateSpaceSize, 1)
-        println("Starting stochastic dynamic programming hazard decision computation")
-    end
-
-    #Loop over time
-    for t = (TF-1):-1:1
-        Vitp = value_function_interpolation(model, V, t+1)
-
-        #Loop over states
-        for x in product_states
-
-            if display > 0
-                next!(p)
-            end
-
-            expected_V = 0.
-            current_cost = 0.
-            count_admissible_w = 0.
-
-                #Tuning expectation computation parameters
-            if param.expectation_computation!="MonteCarlo" && param.expectation_computation!="Exact"
-                warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'. Defaulted to 'exact'")
-                param.expectation_computation="Exact"
-            end
-            if (param.expectation_computation=="MonteCarlo")
-                sampling_size = param.monteCarloSize
-                samples = [sampling(law,t) for i in 1:sampling_size]
-                probas = (1/sampling_size)
-            else
-                sampling_size = law[t].supportSize
-                samples = law[t].support
-                probas = law[t].proba
-            end
-
-            #Compute expectation
-            for w in 1:sampling_size
-                admissible_u_w_count = 0
-                best_V_x_w = Inf
-                next_V_x_w = Inf
-                w_sample = samples[:, w]
-                proba = probas[w]
-
-                #Loop over controls to find best next value function
-                for u in product_controls
-
-                    next_state = model.dynamics(t, x, u, w_sample)
-
-                    if model.constraints(t, next_state, u, w_sample)
-                        admissible_u_w_count += 1
-                        current_cost = model.costFunctions(t, x, u, w_sample)
-                        ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
-                        next_V_x_w_u = Vitp[ind_next_state...]
-                        next_V_x_w = current_cost + next_V_x_w_u
-
-                        if (next_V_x_w < best_V_x_w)
-                            best_V_x_w = next_V_x_w
-                        end
-
-                    end
-                end
-
-                expected_V += proba*best_V_x_w
-                count_admissible_w += (admissible_u_w_count>0)*proba
-            end
-            if (count_admissible_w>0.)
-                expected_V = expected_V / count_admissible_w
-            end
-            ind_x = index_from_variable(x, x_bounds, x_steps)
-            V[ind_x..., t] = expected_V
+        if (param.expectation_computation=="MonteCarlo")
+            sampling_size = param.monteCarloSize
+            samples = [sampling(law,t) for i in 1:sampling_size]
+            probas = (1/sampling_size)
+        else
+            sampling_size = law[t].supportSize
+            samples = law[t].support
+            probas = law[t].proba
         end
+
+        Vitp = value_function_interpolation(x_dim, V, t+1)
+
+        compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
+                                x_steps, x_dim, product_states, product_controls,
+                                dynamics, constraints, cost, V, Vitp, t
+                                , param.infoStructure)
+
     end
     return V
 end
@@ -419,10 +298,11 @@ Get the optimal value of the problem from the optimal Bellman Function
 
 # Return
 * `V_x0::Float64`:
+
 """
-function get_bellman_value(model::SPModel, param::SDPparameters, V::Array{Float64})
-    ind_x0 = real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
-    Vi = value_function_interpolation(model, V, 1)
+function get_bellman_value(model::SPModel, param::SDPparameters, V)
+    ind_x0 = SDPutils.real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
+    Vi = value_function_interpolation(model.dimStates, V, 1)
     return Vi[ind_x0...,1]
 end
 
@@ -451,10 +331,11 @@ Simulation of optimal trajectories given model and Bellman functions
     the state of the controlled system at each time step
 * `controls::Array{Float64}`:
     the controls applied to the system at each time step
+
 """
 function sdp_forward_simulation(model::SPModel, param::SDPparameters,
                                 scenarios::Array{Float64,3},
-                                V::Array,
+                                V,
                                 display=false::Bool)
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
@@ -494,8 +375,9 @@ Get the optimal control at time t knowing the state of the system in the decisio
 
 # Return
 * `V_x0::Float64`:
+
 """
-function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array)
+function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array)
 
     if(param.infoStructure != "DH")
         error("Infostructure must be decision-hazard.")
@@ -506,7 +388,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
 
     law = SDPmodel.noises
     best_control = tuple()
-    Vitp = value_function_interpolation(SDPmodel, V, t+1)
+    Vitp = value_function_interpolation(SDPmodel.dimStates, V, t+1)
 
     u_bounds = SDPmodel.ulim
     x_bounds = SDPmodel.xlim
@@ -537,7 +419,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
             next_state = SDPmodel.dynamics(t, x, u, w_sample)
 
             if SDPmodel.constraints(t, next_state, u, w_sample)
-                ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                 next_V = Vitp[ind_next_state...]
                 current_V += proba *(SDPmodel.costFunctions(t, x, u, w_sample) + next_V)
                 count_admissible_w = count_admissible_w + proba
@@ -575,7 +457,7 @@ Get the optimal control at time t knowing the state of the system and the alea i
 * optimal control (tuple(Float64))
 
 """
-function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::Int64, x::Array, w::Array)
+function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array, w::Array)
 
     if(param.infoStructure != "HD")
         error("Infostructure must be hazard-decision.")
@@ -587,7 +469,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
 
     law = SDPmodel.noises
     best_control = tuple()
-    Vitp = value_function_interpolation(SDPmodel, V, t+1)
+    Vitp = value_function_interpolation(SDPmodel.dimStates, V, t+1)
 
     u_bounds = SDPmodel.ulim
     x_bounds = SDPmodel.xlim
@@ -600,7 +482,7 @@ function get_control(model::SPModel,param::SDPparameters,V::Array{Float64}, t::I
         next_state = SDPmodel.dynamics(t, x, u, w)
 
         if SDPmodel.constraints(t, next_state, u, w)
-            ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+            ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
             next_V = Vitp[ind_next_state...]
             current_V = SDPmodel.costFunctions(t, x, u, w) + next_V
             if (current_V < best_V)
@@ -647,7 +529,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                                         param::SDPparameters,
                                         scenario::Array,
                                         X0::Array,
-                                        V::Array,
+                                        V,
                                         display=true::Bool)
 
     TF = model.stageNumber
@@ -680,7 +562,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
             x = states[t,1,:]
 
             best_V = Inf
-            Vitp = value_function_interpolation(model, V, t+1)
+            Vitp = value_function_interpolation(model.dimStates, V, t+1)
 
             for u in product_controls
 
@@ -705,7 +587,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                     next_state = model.dynamics(t, x, u, w_sample)
 
                     if model.constraints(t, next_state, u, w_sample)
-                        ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                        ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                         next_V = Vitp[ind_next_state...]
                         current_V += proba *(model.costFunctions(t, x, u, w_sample) + next_V)
                         count_admissible_w = count_admissible_w + proba
@@ -739,7 +621,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
             x = states[t,1,:]
 
-            Vitp = value_function_interpolation(model, V, t+1)
+            Vitp = value_function_interpolation(model.dimStates, V, t+1)
 
             best_V = Inf
 
@@ -748,7 +630,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                 next_state = model.dynamics(t, x, u, scenario[t,1,:])
 
                 if model.constraints(t, next_state, u, scenario[t])
-                    ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                    ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                     next_V = Vitp[ind_next_state...]
                     current_V = model.costFunctions(t, x, u, scenario[t,1,:]) + next_V
                     if (current_V < best_V)

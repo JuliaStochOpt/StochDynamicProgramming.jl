@@ -8,6 +8,7 @@
 
 
 using StochDynamicProgramming
+using SDPutils
 using Distributions, Clp, FactCheck, JuMP
 
 
