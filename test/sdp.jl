@@ -2,9 +2,7 @@
 # Test SDDP functions
 ################################################################################
 using FactCheck, StochDynamicProgramming
-include("../src/SDPutils.jl")
-using SDPutils
-
+using StochDynamicProgramming.SDPutils
 
 facts("Indexation for SDP") do
 
