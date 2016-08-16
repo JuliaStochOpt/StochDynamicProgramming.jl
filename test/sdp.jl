@@ -2,7 +2,7 @@
 # Test SDDP functions
 ################################################################################
 using FactCheck, StochDynamicProgramming
-
+using StochDynamicProgramming.SDPutils
 
 facts("Indexation for SDP") do
 
