@@ -111,8 +111,8 @@ We can instantiate a model that can be solved by SDDP as well::
 Or we can instantiate a StochDynProgModel that can be solved only by SDP but we
 need to define the constraint function and the final cost function::
 
-    function constraints(t, x, u, xi)
-        return (x[1] >= s_bounds[1][1])&&(x[1] <= s_bounds[1][2])
+    function constraints(t, x, u, xi) # return true when there is no constraints ecept state and control bounds
+        return true
     end
 
     function final_cost_function(x)
