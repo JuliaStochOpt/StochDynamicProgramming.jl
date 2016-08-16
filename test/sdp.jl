@@ -67,7 +67,7 @@ facts("SDP algorithm") do
     end
 
     function constraints(t, x, u, w)
-        return (x[1]<=VOLUME_MAX)&(x[1]>=VOLUME_MIN)&(x[2]<=VOLUME_MAX)&(x[2]>=VOLUME_MIN)
+        return true
     end
 
     function finalCostFunction(x)

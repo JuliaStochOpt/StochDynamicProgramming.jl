@@ -104,7 +104,15 @@ function compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds,
             proba = probas[w]
             next_state = dynamics(t, x, u, w_sample)
 
-            if constraints(t, next_state, u, w_sample)
+            next_state_box_const = true
+
+            for i in 1:x_dim
+                next_state_box_const =  (next_state_box_const&&
+                                        (next_state[i]>=x_bounds[i][1])&&
+                                        (next_state[i]<=x_bounds[i][2]))
+            end
+
+            if constraints(t, x, u, w_sample)&&next_state_box_const
 
                 count_admissible_w = count_admissible_w + proba
                 ind_next_state = real_index_from_variable(next_state, x_bounds,
@@ -195,7 +203,15 @@ function compute_V_given_x_t_HD(sampling_size, samples, probas, u_bounds,
 
             next_state = dynamics(t, x, u, w_sample)
 
-            if constraints(t, next_state, u, w_sample)
+            next_state_box_const = true
+
+            for i in 1:x_dim
+                next_state_box_const =  (next_state_box_const&&
+                                        (next_state[i]>=x_bounds[i][1])&&
+                                        (next_state[i]<=x_bounds[i][2]))
+            end
+
+            if constraints(t, x, u, w_sample)&&next_state_box_const
                 admissible_u_w_count += 1
                 current_cost = cost(t, x, u, w_sample)
                 ind_next_state = real_index_from_variable(next_state, x_bounds,
