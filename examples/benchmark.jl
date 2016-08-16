@@ -259,7 +259,7 @@ function benchmark_sdp()
     end
 
     function constraints(t, x, u, w)
-        return (VOLUME_MIN<=x[1]<=VOLUME_MAX)&(VOLUME_MIN<=x[2]<=VOLUME_MAX)
+        return true
     end
 
     function finalCostFunction(x)
