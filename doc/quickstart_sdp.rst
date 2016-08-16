@@ -1,10 +1,10 @@
-.. _quickstart:
+.. _quickstart_sdp:
 
 ====================
-SDDP: Step-by-step example
+SDP: Step-by-step example
 ====================
 
-This page gives a short introduction to the interface of this package. It explains the resolution with SDDP of a classical example: the management of a dam over one year with random inflow.
+This page gives a short introduction to the interface of this package. It explains the resolution with Stochastic Dynamic Programming of a classical example: the management of a dam over one year with random inflow.
 
 Use case
 ========
@@ -101,44 +101,49 @@ We add bounds over the state and the control::
 Problem definition
 ^^^^^^^^^^^^^^^^^^
 
-As our problem is purely linear, we instantiate::
+We have two options to contruct a model that can be solved by the SDP algorithm.
+We can instantiate a model that can be solved by SDDP as well::
 
     spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,X0,cost_t,dynamic,xi_laws)
 
-We add the state bounds to the model afterward::
-
     set_state_bounds(spmodel, s_bounds)
+
+Or we can instantiate a StochDynProgModel that can be solved only by SDP but we
+need to define the constraint function and the final cost function::
+
+    function constraints(t, x, u, xi)
+        return (x[1] >= s_bounds[1][1])&&(x[1] <= s_bounds[1][2])
+    end
+
+    function final_cost_function(x)
+        return 0
+    end
+
+    spmodel = StochDynProgModel(N_STAGES, s_bounds, u_bounds, X0, cost_t,
+                                final_cost_function, dynamic, constraints,
+                                xi_laws)
 
 
 Solver
 ^^^^^^
-We define a SDDP solver for our problem.
 
-First, we need to use a LP solver::
+It remains to define SDP algorithm parameters::
 
-    using Clp
-    SOLVER = ClpSolver()
-
-Clp is automatically installed during package installation. To install different solvers on your machine, refer to the JuMP_ documentation.
-
-Once the solver installed, we define SDDP algorithm parameters::
-
-    forwardpassnumber = 2 # number of forward pass
-    sensibility = 0. # admissible gap between upper and lower bound
-    max_iter = 20  # maximum number of iterations
-
-    paramSDDP = SDDPparameters(SOLVER, forwardpassnumber, sensibility, max_iter)
+    stateSteps = [1] # discretization steps of the state space
+    controlSteps = [0.1] # discretization steps of the control space
+    infoStruct = "HD" # noise at time t is known before taking the decision at time t
+    paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
 
 
 Now, we solve the problem by computing Bellman values::
 
-    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
+    Vs = solve_DP(spmodel,paramSDP, 1)
 
-:code:`V` is an array storing the value functions, and :code:`pbs` a vector of JuMP.Model storing each value functions as a linear problem.
+:code:`V` is an array storing the value functions
 
 We have an exact lower bound given by :code:`V` with the function::
 
-    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
+    value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
 
 
 Find optimal controls
@@ -152,9 +157,8 @@ We build 1000 scenarios according to the laws stored in :code:`xi_laws`::
 
 We compute 1000 simulations of the system over these scenarios::
 
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
+    costsdp, states, controls =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
 
-:code:`costsddp` returns the costs for each scenario, and :code:`stocks` the evolution of each stock along time, for each scenario.
-
-.. _JuMP: http://jump.readthedocs.io/en/latest/installation.html#coin-or-clp-and-cbc
+:code:`costsdp` returns the costs for each scenario, :code:`states` the simulation of each state variable along time, for each scenario, and
+:code:`controls` returns the optimal controls for each scenario
 
