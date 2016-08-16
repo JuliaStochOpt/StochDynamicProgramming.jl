@@ -648,7 +648,15 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
                 next_state = model.dynamics(t, x, u, scenario[t,1,:])
 
-                if model.constraints(t, next_state, u, scenario[t])
+                next_state_box_const = true
+
+                for i in 1:model.dimStates
+                    next_state_box_const =  (next_state_box_const&&
+                                            (next_state[i]>=model.xlim[i][1])&&
+                                            (next_state[i]<=model.xlim[i][2]))
+                end
+
+                if model.constraints(t, x, u, scenario[t])&&next_state_box_const
                     ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                     next_V = Vitp[ind_next_state...]
                     current_V = model.costFunctions(t, x, u, scenario[t,1,:]) + next_V
