@@ -413,15 +413,7 @@ function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array)
 
             next_state = SDPmodel.dynamics(t, x, u, w_sample)
 
-            next_state_box_const = true
-
-            for i in 1:model.dimStates
-                next_state_box_const =  (next_state_box_const&&
-                                        (next_state[i]>=model.xlim[i][1])&&
-                                        (next_state[i]<=model.xlim[i][2]))
-            end
-
-            if SDPmodel.constraints(t, x, u, w_sample)&&next_state_box_const
+            if SDPmodel.constraints(t, x, u, w_sample)&&SDPutils.is_next_state_feasible(next_state, model.dimStates, model.xlim)
                 ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                 next_V = Vitp[ind_next_state...]
                 current_V += proba *(SDPmodel.costFunctions(t, x, u, w_sample) + next_V)
@@ -484,15 +476,7 @@ function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array, 
 
         next_state = SDPmodel.dynamics(t, x, u, w)
 
-        next_state_box_const = true
-
-        for i in 1:model.dimStates
-            next_state_box_const =  (next_state_box_const&&
-                                    (next_state[i]>=model.xlim[i][1])&&
-                                    (next_state[i]<=model.xlim[i][2]))
-        end
-
-        if SDPmodel.constraints(t, x, u, w)&&next_state_box_const
+        if SDPmodel.constraints(t, x, u, w)&&SDPutils.is_next_state_feasible(next_state, model.dimStates, model.xlim)
             ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
             next_V = Vitp[ind_next_state...]
             current_V = SDPmodel.costFunctions(t, x, u, w) + next_V
@@ -597,15 +581,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
                     next_state = model.dynamics(t, x, u, w_sample)
 
-                    next_state_box_const = true
-
-                    for i in 1:model.dimStates
-                        next_state_box_const =  (next_state_box_const&&
-                                                (next_state[i]>=model.xlim[i][1])&&
-                                                (next_state[i]<=model.xlim[i][2]))
-                    end
-
-                    if model.constraints(t, x, u, w_sample)&&next_state_box_const
+                    if model.constraints(t, x, u, w_sample)&&SDPutils.is_next_state_feasible(next_state, model.dimStates, model.xlim)
                         ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                         next_V = Vitp[ind_next_state...]
                         current_V += proba *(model.costFunctions(t, x, u, w_sample) + next_V)
@@ -648,15 +624,7 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
                 next_state = model.dynamics(t, x, u, scenario[t,1,:])
 
-                next_state_box_const = true
-
-                for i in 1:model.dimStates
-                    next_state_box_const =  (next_state_box_const&&
-                                            (next_state[i]>=model.xlim[i][1])&&
-                                            (next_state[i]<=model.xlim[i][2]))
-                end
-
-                if model.constraints(t, x, u, scenario[t])&&next_state_box_const
+                if model.constraints(t, x, u, scenario[t])&&SDPutils.is_next_state_feasible(next_state, model.dimStates, model.xlim)
                     ind_next_state = SDPutils.real_index_from_variable(next_state, x_bounds, x_steps)
                     next_V = Vitp[ind_next_state...]
                     current_V = model.costFunctions(t, x, u, scenario[t,1,:]) + next_V

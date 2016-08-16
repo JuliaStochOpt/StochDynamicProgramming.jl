@@ -14,12 +14,16 @@ facts("Indexation for SDP") do
     ind = SDPutils.index_from_variable(var, bounds, steps)
     ind2 = SDPutils.real_index_from_variable(vart, bounds, steps)
 
+    checkFalse = SDPutils.is_next_state_feasible([0,1,2],3,bounds)
+    checkTrue = SDPutils.is_next_state_feasible([0.12,1.3,1.3],3,bounds)
+
 
     @fact ind --> (4,51,141)
     @fact ind2[1] --> roughly(4.2)
     @fact ind2[2] --> roughly(52.6)
     @fact ind2[3] --> roughly(144.2)
-
+    @fact checkFalse --> false
+    @fact checkTrue --> true
 
 end
 
