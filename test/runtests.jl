@@ -20,3 +20,6 @@ include("sddp.jl")
 
 # Test DP:
 include("sdp.jl")
+
+# Test extensive formulation:
+include("extensive_formulation.jl")
