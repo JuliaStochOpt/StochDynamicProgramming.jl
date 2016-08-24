@@ -145,7 +145,7 @@ function run_SDDP!(model::SPModel,
     end
     
     ##########
-    # Estimate final upper bound with a great number of simulations:
+    # Estimate final upper bound with param.monteCarloSize simulations:
     if (verbose>0) && (param.compute_upper_bound != 0)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
 
