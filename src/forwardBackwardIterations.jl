@@ -66,15 +66,17 @@ function forward_simulations(model::SPModel,
         stocks[1, k, :] = model.initialState
     end
 
+    # Store costs of different scenarios in an array:
     costs = zeros(nb_forward)
 
     for t=1:T-1
         for k = 1:nb_forward
-
+            # Collect current state and noise:
             state_t = collect(stocks[t, k, :])
             alea_t = collect(xi[t, k, :])
 
             callsolver += 1
+            # Solve optimization problem corresponding to current position:
             status, nextstep = solve_one_step_one_alea(
                                         model,
                                         param,
@@ -82,15 +84,21 @@ function forward_simulations(model::SPModel,
                                         t,
                                         state_t,
                                         alea_t)
+            # Check if the problem is effectively solved:
             if status
+                # Get the next position:
                 stocks[t+1, k, :] = nextstep.next_state
+                # the optimal control just computed:
                 opt_control = nextstep.optimal_control
                 controls[t, k, :] = opt_control
+                # and the current cost:
                 costs[k] += nextstep.cost - nextstep.cost_to_go
                 if t==T-1
                     costs[k] += nextstep.cost_to_go
                 end
             else
+                # if problem is not properly solved, next position if equal
+                # to current one:
                 stocks[t+1, k, :] = state_t
             end
         end
@@ -191,18 +199,30 @@ function backward_pass!(model::SPModel,
         for k = 1:nb_forward
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
+            # We collect current state:
             state_t = collect(stockTrajectories[t, k, :])
+            # We will store probabilities in a temporary array.
+            # It is initialized at 0. If all problem are infeasible for
+            # current timestep, then proba remains equal to 0 and not cut is added.
             proba = zeros(law[t].supportSize)
 
+            # We iterate other the possible realization of noise:
             for w in 1:law[t].supportSize
 
+                # We get current noise:
                 alea_t  = collect(law[t].support[:, w])
 
                 callsolver += 1
-                solved, nextstep = solve_one_step_one_alea(model, param, solverProblems[t], t, state_t, alea_t)
+                # We solve LP problem with current noise and position:
+                solved, nextstep = solve_one_step_one_alea(model, param,
+                                                           solverProblems[t],
+                                                           t, state_t, alea_t)
                 if solved
+                    # We catch the subgradient λ:
                     subgradient_array[:, w] = nextstep.sub_gradient
+                    # and the current cost:
                     costs[w] = nextstep.cost
+                    # and as problem is solved we store current proba in array:
                     proba[w] = law[t].proba[w]
                 end
             end
@@ -212,10 +232,11 @@ function backward_pass!(model::SPModel,
                 # Scale probability (useful when some problems where infeasible):
                 proba /= sum(proba)
 
-                # Compute expectation of subgradient:
+                # Compute expectation of subgradient λ:
                 subgradient = vec(sum(proba' .* subgradient_array, 2))
-                # ... and expectation of cost:
+                # ... expectation of cost:
                 costs_npass = dot(proba, costs)
+                # ... and expectation of slope β:
                 beta = costs_npass - dot(subgradient, state_t)
 
                 # Add cut to polyhedral function and JuMP model:
