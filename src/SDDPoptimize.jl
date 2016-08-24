@@ -24,7 +24,7 @@ fulfilled.
 * `verbose::Int64`:
     Default is `0`
     If non null, display progression in terminal every
-    `n` iterations, where `n` is number specified by display.
+    `n` iterations, where `n` is the number specified by display.
 
 # Returns
 * `V::Array{PolyhedralFunction}`:
@@ -82,7 +82,7 @@ function run_SDDP!(model::SPModel,
         # Time execution of current pass:
         tic()
 
-        # Build a set of scenarios according to the probability
+        # Draw a set of scenarios according to the probability
         # law specified in model.noises:
         noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
@@ -102,7 +102,7 @@ function run_SDDP!(model::SPModel,
                       stockTrajectories,
                       model.noises)
 
-        # Update the number of call
+        # Update the number of solver call
         stats.ncallsolver += callsolver_forward + callsolver_backward
         iteration_count += 1
         stats.niterations += 1
@@ -143,8 +143,9 @@ function run_SDDP!(model::SPModel,
         end
 
     end
-
-    # Estimate upper bound with a great number of simulations:
+    
+    ##########
+    # Estimate final upper bound with a great number of simulations:
     if (verbose>0) && (param.compute_upper_bound != 0)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
 
