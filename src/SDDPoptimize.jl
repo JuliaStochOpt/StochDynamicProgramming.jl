@@ -143,13 +143,13 @@ function run_SDDP!(model::SPModel,
         end
 
     end
-    
+
     ##########
     # Estimate final upper bound with a great number of simulations:
-    if (verbose>0) && (param.compute_upper_bound != 0)
+    if (verbose>0) && (param.compute_upper_bound != -1)
         V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
 
-        if param.compute_upper_bound == -1
+        if param.compute_upper_bound == 0
             println("Estimate upper-bound with Monte-Carlo ...")
             upb, costs = estimate_upper_bound(model, param, V, problems)
         end
