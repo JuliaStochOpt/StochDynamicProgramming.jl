@@ -188,7 +188,7 @@ type SDDPparameters
     monteCarloSize::Int64
 
     function SDDPparameters(solver, passnumber=10, gap=0.,
-                            max_iterations=20, prune_cuts=0, compute_ub=0, montecarlo=10000)
+                            max_iterations=20, prune_cuts=0, compute_ub=-1, montecarlo=10000)
         return new(solver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end
