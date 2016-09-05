@@ -180,7 +180,10 @@ function init_problem()
     EPSILON = .05
     MAX_ITER = 20
     solver = SOLVER
-    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    params = SDDPparameters(solver,
+                            passnumber=N_SCENARIOS,
+                            gap=EPSILON,
+                            max_iterations=MAX_ITER)
 
     return model, params
 end

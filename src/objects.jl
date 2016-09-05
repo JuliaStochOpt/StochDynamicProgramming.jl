@@ -37,10 +37,10 @@ type LinearDynamicLinearCostSPmodel <: SPModel
     dynamics::Function
     noises::Vector{NoiseLaw}
 
-    finalCost
+    finalCost::Union{Function, PolyhedralFunction}
 
-    equalityConstraints
-    inequalityConstraints
+    equalityConstraints::Union{Void, Function}
+    inequalityConstraints::Union{Void, Function}
 
     function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0,
                                             cost, dynamic, aleas, Vfinal=nothing,
@@ -85,10 +85,11 @@ type PiecewiseLinearCostSPmodel <: SPModel
     costFunctions::Vector{Function}
     dynamics::Function
     noises::Vector{NoiseLaw}
-    finalCost
 
-    equalityConstraints
-    inequalityConstraints
+    finalCost::Union{Function, PolyhedralFunction}
+
+    equalityConstraints::Union{Void, Function}
+    inequalityConstraints::Union{Void, Function}
 
     function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic,
                                         aleas, Vfinal=nothing, eqconstr=nothing,
@@ -173,7 +174,9 @@ end
 
 type SDDPparameters
     # Solver used to solve LP
-    solver
+    LPSOLVER::MathProgBase.AbstractMathProgSolver
+    # Solver used to solve MILP:
+    MIPSOLVER
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # Admissible gap between lower and upper-bound:
@@ -187,9 +190,9 @@ type SDDPparameters
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
     monteCarloSize::Int64
 
-    function SDDPparameters(solver, passnumber=10, gap=0.,
+    function SDDPparameters(solver; passnumber=10, gap=0.,
                             max_iterations=20, prune_cuts=0, compute_ub=-1, montecarlo=10000)
-        return new(solver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
+        return new(solver, nothing, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end
 

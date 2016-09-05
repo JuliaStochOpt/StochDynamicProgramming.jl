@@ -120,8 +120,11 @@ function init_problem()
 
     # We need to use CPLEX to solve QP at final stages:
     solver = CPLEX.CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_BARDISPLAY=0)
-    params = SDDPparameters(solver, FORWARD_PASS, EPSILON, MAX_ITER)
 
+    params = SDDPparameters(solver,
+                            passnumber=FORWARD_PASS,
+                            gap=EPSILON,
+                            max_iterations=MAX_ITER)
     return model, params
 end
 

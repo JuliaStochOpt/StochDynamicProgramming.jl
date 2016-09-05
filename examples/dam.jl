@@ -151,7 +151,10 @@ function init_problem()
     set_state_bounds(model, x_bounds)
 
     solver = SOLVER
-    params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    params = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=N_SCENARIOS,
+                                                    gap=EPSILON,
+                                                    max_iterations=MAX_ITER)
 
     return model, params
 end

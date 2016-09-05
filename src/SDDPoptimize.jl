@@ -257,7 +257,7 @@ function build_models(model::SPModel, param::SDDPparameters)
 end
 
 function build_model(model, param, t)
-    m = Model(solver=param.solver)
+    m = Model(solver=param.LPSOLVER)
 
     nx = model.dimStates
     nu = model.dimControls
@@ -399,7 +399,7 @@ Bellman value (Float64)
 function get_bellman_value(model::SPModel, param::SDDPparameters,
                            t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
-    m = Model(solver=param.solver)
+    m = Model(solver=param.LPSOLVER)
     @variable(m, alpha)
 
     for i in 1:Vt.numCuts
@@ -515,7 +515,7 @@ function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralF
     ncuts = V.numCuts
     # Find all active cuts:
     if ncuts > 1
-        active_cuts = Bool[is_cut_relevant(model, i, V, params.solver) for i=1:ncuts]
+        active_cuts = Bool[is_cut_relevant(model, i, V, params.LPSOLVER) for i=1:ncuts]
         return PolyhedralFunction(V.betas[active_cuts], V.lambdas[active_cuts, :], sum(active_cuts))
     else
         return V

@@ -10,7 +10,7 @@
 module StochDynamicProgramming
 include("SDPutils.jl")
 
-using JuMP, Distributions
+using MathProgBase, JuMP, Distributions
 
 export solve_SDDP,
         NoiseLaw, simulate_scenarios,
