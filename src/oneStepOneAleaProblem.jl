@@ -46,7 +46,8 @@ function solve_one_step_one_alea(model,
                                  m::JuMP.Model,
                                  t::Int64,
                                  xt::Vector{Float64},
-                                 xi::Vector{Float64},
+                                 xi::Vector{Float64};
+                                 relaxation=false::Bool,
                                  init=false::Bool)
     # Get var defined in JuMP.model:
     u = getvariable(m, :u)
@@ -61,16 +62,18 @@ function solve_one_step_one_alea(model,
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
-    status = solve(m)
+    status = solve(m, relaxation=relaxation)
     solved = (status == :Optimal)
 
     if solved
         optimalControl = getvalue(u)
         # Return object storing results:
+        λ = (~model.IS_SMIP || relaxation)?Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]:nothing
+
         result = NextStep(
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
-                          [getdual(m.ext[:cons][i]) for i in 1:model.dimStates],
+                          λ,
                           getobjectivevalue(m),
                           getvalue(alpha))
     else

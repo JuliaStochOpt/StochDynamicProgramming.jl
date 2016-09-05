@@ -21,6 +21,7 @@ end
 
 PolyhedralFunction(ndim) =  PolyhedralFunction([], Array{Float64}(0, ndim), 0)
 
+
 type LinearSPModel <: SPModel
     # problem dimension
     stageNumber::Int64
@@ -40,15 +41,19 @@ type LinearSPModel <: SPModel
 
     finalCost::Union{Function, PolyhedralFunction}
 
-    is_boolean::Vector{Bool}
+    stateCat::Vector{Symbol}
+    controlCat::Vector{Symbol}
     equalityConstraints::Union{Void, Function}
     inequalityConstraints::Union{Void, Function}
+
+    IS_SMIP::Bool
 
     function LinearSPModel(nstage, ubounds, x0,
                            cost, dynamic, aleas,
                            Vfinal=nothing,
                            eqconstr=nothing, ineqconstr=nothing,
-                           is_bool=nothing)
+                           state_cat=nothing,
+                           control_cat=nothing)
 
         dimStates = length(x0)
         dimControls = length(ubounds)
@@ -62,15 +67,14 @@ type LinearSPModel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
         end
 
-        isb = [true, true]
+        isbx = isa(state_cat, Vector{Symbol})? state_cat: [:Cont for i in 1:dimStates]
+        isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimStates]
+        is_smip = (:Int in isbx) || (:Int in isbu)||(:Bin in isbx)||(:Bin in isbu)
 
-        xbounds = []
-        for i = 1:dimStates
-            push!(xbounds, (-Inf, Inf))
-        end
+        xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isb, eqconstr, ineqconstr)
+                   x0, cost, dynamic, aleas, Vf, isbx, isbu, eqconstr, ineqconstr, is_smip)
     end
 end
 
@@ -134,8 +138,8 @@ end
 type SDDPparameters
     # Solver used to solve LP
     LPSOLVER::MathProgBase.AbstractMathProgSolver
-    # Solver used to solve MILP:
-    MIPSOLVER
+    # Solver used to solve MILP (default is nothing):
+    MIPSOLVER::Union{Void, MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # Admissible gap between lower and upper-bound:

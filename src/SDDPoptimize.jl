@@ -254,9 +254,10 @@ function build_model(model, param, t)
     nu = model.dimControls
     nw = model.dimNoises
 
+    # define variables in JuMP:
     @variable(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-    @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
     @variable(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
+    @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
     @variable(m, alpha)
 
     @variable(m, w[1:nw] == 0)
@@ -264,6 +265,7 @@ function build_model(model, param, t)
 
     @constraint(m, xf .== model.dynamics(t, x, u, w))
 
+    # Add equality and inequality constraints:
     if model.equalityConstraints != nothing
         @constraint(m, model.equalityConstraints(t, x, u, w) .== 0)
     end
@@ -271,6 +273,7 @@ function build_model(model, param, t)
         @constraint(m, model.inequalityConstraints(t, x, u, w) .<= 0)
     end
 
+    # Define objective function (could be linear or piecewise linear)
     if isa(model.costFunctions, Function)
         @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
     elseif isa(model.costFunctions, Vector{Function})
@@ -280,6 +283,13 @@ function build_model(model, param, t)
             @constraint(m, cost >= model.costFunctions[i](t, x, u, w))
         end
         @objective(m, Min, cost + alpha)
+    end
+
+    # Add binary variable if problem is a SMIP:
+    if model.IS_SMIP
+        m.colCat[1:nx] = model.stateCat
+        m.colCat[nx+1:2*nx] = model.stateCat
+        m.colCat[2*nx+1:2*nx+nu] = model.controlCat
     end
 
     return m
