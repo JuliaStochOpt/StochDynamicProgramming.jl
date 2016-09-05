@@ -138,13 +138,13 @@ facts("SDP algorithm") do
         context("Compare StochDynProgModel constructors") do
 
 
-            modelSDPPiecewise = StochDynamicProgramming.PiecewiseLinearCostSPmodel(TF,
+            modelSDPPiecewise = StochDynamicProgramming.LinearSPModel(TF,
             u_bounds, x0,
             [cost_t],
             dynamic, aleas)
             set_state_bounds(modelSDPPiecewise, x_bounds)
 
-            modelSDPLinear = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(TF,
+            modelSDPLinear = StochDynamicProgramming.LinearSPModel(TF,
             u_bounds, x0,
             cost_t,
             dynamic, aleas)

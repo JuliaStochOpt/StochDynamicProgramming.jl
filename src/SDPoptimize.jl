@@ -76,7 +76,7 @@ function build_sdpmodel_from_spmodel(model::SPModel)
         return 0
     end
 
-    if isa(model,PiecewiseLinearCostSPmodel)||isa(model,LinearDynamicLinearCostSPmodel)
+    if isa(model,LinearSPModel)
         function cons_fun(t,x,u,w)
             return true
         end

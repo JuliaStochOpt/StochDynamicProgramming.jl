@@ -107,13 +107,10 @@ function init_problem()
 
     x_bounds = [(VOLUME_MIN, VOLUME_MAX) for i in 1:N_DAMS]
     u_bounds = vcat([(CONTROL_MIN, CONTROL_MAX) for i in 1:N_DAMS], [(0., 200) for i in 1:N_DAMS]);
-    model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                u_bounds,
-                                                X0,
-                                                cost_t,
-                                                dynamic,
-                                                aleas,
-                                                final_cost_dams)
+    model = LinearSPModel(N_STAGES, u_bounds,
+                          X0, cost_t,
+                          dynamic, aleas,
+                          final_cost_dams)
 
     # Add bounds for stocks:
     set_state_bounds(model, x_bounds)

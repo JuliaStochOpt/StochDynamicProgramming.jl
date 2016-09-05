@@ -42,11 +42,13 @@ facts("SDDP algorithm: 1D case") do
     u_bounds = [(0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
-                                                    epsilon, max_iterations)
+    params = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    max_iterations=max_iterations)
 
     V = nothing
-    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages, u_bounds,
+    model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
                                                                    x0, cost, dynamic, laws)
 
     set_state_bounds(model, x_bounds)
@@ -114,8 +116,8 @@ facts("SDDP algorithm: 1D case") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
         StochDynamicProgramming.prune_cuts!(model, params, V)
-        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.solver)
-        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.solver)
+        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.LPSOLVER)
+        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.LPSOLVER)
         @fact isactive1 --> true
         @fact isactive2 --> false
     end
@@ -134,7 +136,7 @@ facts("SDDP algorithm: 1D case") do
 
     context("Piecewise linear cost") do
         # Test Piecewise linear costs:
-        model = StochDynamicProgramming.PiecewiseLinearCostSPmodel(n_stages,
+        model = StochDynamicProgramming.LinearSPModel(n_stages,
         u_bounds, x0,
         [cost],
         dynamic, laws)
@@ -213,12 +215,14 @@ facts("SDDP algorithm: 2D case") do
     u_bounds = [(0., 7.), (0., Inf), (0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    params = StochDynamicProgramming.SDDPparameters(solver, n_scenarios,
-                                                    epsilon, max_iterations)
+    params = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    max_iterations=max_iterations)
     V = nothing
     context("Linear cost") do
         # Instantiate a SDDP linear model:
-        model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(n_stages,
+        model = StochDynamicProgramming.LinearSPModel(n_stages,
         u_bounds, x0,
         cost,
         dynamic, laws)

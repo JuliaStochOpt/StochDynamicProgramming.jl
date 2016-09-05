@@ -191,22 +191,13 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 problem::Vector{JuMP.Model},
                                 n_simulation=1000::Int)
     aleas = simulate_scenarios(model.noises, n_simulation)
-    costs, stockTrajectories, _ = forward_simulations(model, param, problem, aleas)
-    return upper_bound(costs), costs
+    return estimate_upper_bound(model, param, aleas, problem)
 end
-
-
 function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 aleas::Array{Float64, 3},
                                 problem::Vector{JuMP.Model})
     costs = forward_simulations(model, param, problem, aleas)[1]
     return upper_bound(costs), costs
-end
-
-
-"""Build a collection of cuts initialized at 0"""
-function get_null_value_functions_array(model::SPModel)
-    return [PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1) for i in 1:model.stageNumber]
 end
 
 
@@ -280,10 +271,9 @@ function build_model(model, param, t)
         @constraint(m, model.inequalityConstraints(t, x, u, w) .<= 0)
     end
 
-    if typeof(model) == LinearDynamicLinearCostSPmodel
+    if isa(model.costFunctions, Function)
         @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
-
-    elseif typeof(model) == PiecewiseLinearCostSPmodel
+    elseif isa(model.costFunctions, Vector{Function})
         @variable(m, cost)
 
         for i in 1:length(model.costFunctions)
@@ -319,7 +309,7 @@ function initialize_value_functions(model::SPModel,
 
     solverProblems = build_models(model, param)
     V = PolyhedralFunction[
-                PolyhedralFunction([], Array{Float64}(0, model.dimStates), 0) for i in 1:model.stageNumber]
+                PolyhedralFunction(model.dimStates) for i in 1:model.stageNumber]
 
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises, param.forwardPassNumber)

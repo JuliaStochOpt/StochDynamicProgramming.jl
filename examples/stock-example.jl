@@ -58,7 +58,7 @@ end
 ######## Setting up the SPmodel
 s_bounds = [(0, 1)] # bounds on the state
 u_bounds = [(CONTROL_MIN, CONTROL_MAX)] # bounds on controls
-spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
+spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
 set_state_bounds(spmodel, s_bounds) # adding the bounds to the model
 println("Model set up")
 

@@ -19,8 +19,9 @@ type PolyhedralFunction
     numCuts::Int64
 end
 
+PolyhedralFunction(ndim) =  PolyhedralFunction([], Array{Float64}(0, ndim), 0)
 
-type LinearDynamicLinearCostSPmodel <: SPModel
+type LinearSPModel <: SPModel
     # problem dimension
     stageNumber::Int64
     dimControls::Int64
@@ -33,18 +34,21 @@ type LinearDynamicLinearCostSPmodel <: SPModel
 
     initialState::Array{Float64, 1}
 
-    costFunctions::Function
+    costFunctions::Union{Function, Vector{Function}}
     dynamics::Function
     noises::Vector{NoiseLaw}
 
     finalCost::Union{Function, PolyhedralFunction}
 
+    is_boolean::Vector{Bool}
     equalityConstraints::Union{Void, Function}
     inequalityConstraints::Union{Void, Function}
 
-    function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0,
-                                            cost, dynamic, aleas, Vfinal=nothing,
-                                            eqconstr=nothing, ineqconstr=nothing)
+    function LinearSPModel(nstage, ubounds, x0,
+                           cost, dynamic, aleas,
+                           Vfinal=nothing,
+                           eqconstr=nothing, ineqconstr=nothing,
+                           is_bool=nothing)
 
         dimStates = length(x0)
         dimControls = length(ubounds)
@@ -58,58 +62,15 @@ type LinearDynamicLinearCostSPmodel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
         end
 
+        isb = [true, true]
+
         xbounds = []
         for i = 1:dimStates
             push!(xbounds, (-Inf, Inf))
         end
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, eqconstr, ineqconstr)
-    end
-end
-
-
-type PiecewiseLinearCostSPmodel <: SPModel
-    # problem dimension
-    stageNumber::Int64
-    dimControls::Int64
-    dimStates::Int64
-    dimNoises::Int64
-
-    # Bounds of states and controls:
-    xlim::Array{Tuple{Float64,Float64},1}
-    ulim::Array{Tuple{Float64,Float64},1}
-
-    initialState::Array{Float64, 1}
-
-    costFunctions::Vector{Function}
-    dynamics::Function
-    noises::Vector{NoiseLaw}
-
-    finalCost::Union{Function, PolyhedralFunction}
-
-    equalityConstraints::Union{Void, Function}
-    inequalityConstraints::Union{Void, Function}
-
-    function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic,
-                                        aleas, Vfinal=nothing, eqconstr=nothing,
-                                        ineqconstr=nothing)
-        dimStates = length(x0)
-        dimControls = length(ubounds)
-        dimNoises = length(aleas[1].support[:, 1])
-
-        if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
-            Vf = Vfinal
-        else
-            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
-        end
-
-        xbounds = []
-        for i = 1:dimStates
-            push!(xbounds, (-Inf, Inf))
-        end
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, costs, dynamic, aleas, Vf, eqconstr, ineqconstr)
+                   x0, cost, dynamic, aleas, Vf, isb, eqconstr, ineqconstr)
     end
 end
 
@@ -143,23 +104,21 @@ type StochDynProgModel <: SPModel
     constraints::Function
     noises::Vector{NoiseLaw}
 
-    function StochDynProgModel(model::LinearDynamicLinearCostSPmodel, final, cons)
-        return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
-                 model.costFunctions, final, model.dynamics, cons,
-                 model.noises)
-    end
-
-    function StochDynProgModel(model::PiecewiseLinearCostSPmodel, final, cons)
-        function cost(t,x,u,w)
-            current_cost = -Inf
-            for aff_func in model.costFunctions
-                current_cost = aff_func(t,x,u,w)
-            end
+    function StochDynProgModel(model::LinearSPModel, final, cons)
+        if isa(model.costFunctions, Function)
+            cost = model.costFunctions
+        elseif isa(model.costFunctions, Vector{Function})
+            function cost(t,x,u,w)
+                current_cost = -Inf
+                for aff_func in model.costFunctions
+                    current_cost = aff_func(t,x,u,w)
+                end
             return current_cost
+            end
         end
-
         return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
-                 cost, final, model.dynamics, cons, model.noises)
+                 cost, final, model.dynamics, cons,
+                 model.noises)
     end
 
     function StochDynProgModel(TF, x_bounds, u_bounds, x0, cost_t,

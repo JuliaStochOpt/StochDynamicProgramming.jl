@@ -167,12 +167,12 @@ function init_problem()
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
 
-    model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                u_bounds,
-                                                x0,
-                                                cost_t,
-                                                dynamic,
-                                                aleas)
+    model = LinearSPModel(N_STAGES,
+                            u_bounds,
+                            x0,
+                            cost_t,
+                            dynamic,
+                            aleas)
 
     set_state_bounds(model, x_bounds)
 
