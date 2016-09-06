@@ -32,6 +32,8 @@ problem with respect to the initial state x
     current starting state
 * `xi::Array{float}`:
     current noise value
+* `relaxation::Bool`: default is false
+    If problem is MILP, specify if it is needed to relax integer constraints.
 * `init::Bool`:
     If specified, approximate future cost as 0
 
@@ -62,10 +64,8 @@ function solve_one_step_one_alea(model,
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
-    if (model.IS_SMIP) & relaxation
-        solved = solve_relaxed!(m, param)
-    elseif (model.IS_SMIP) & ~relaxation
-        solved = solve_mip!(m, param)
+    if model.IS_SMIP
+        solved = relaxation ? solve_relaxed!(m, param): solve_mip!(m, param)
     else
         status = solve(m)
         solved = (status == :Optimal)
@@ -74,7 +74,7 @@ function solve_one_step_one_alea(model,
     if solved
         optimalControl = getvalue(u)
         # Return object storing results:
-        λ = (~model.IS_SMIP || relaxation)?Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]:nothing
+        λ = (~model.IS_SMIP || relaxation)? Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]:nothing
 
         result = NextStep(
                           model.dynamics(t, xt, optimalControl, xi),
@@ -90,13 +90,16 @@ function solve_one_step_one_alea(model,
     return solved, result
 end
 
-function solve_relaxed!(m, model)
-    setsolver(m, model.LPSOLVER)
+"""Solve relaxed MILP problem."""
+function solve_relaxed!(m, param)
+    setsolver(m, param.LPSOLVER)
     status = solve(m, relaxation=true)
     return status == :Optimal
 end
-function solve_mip!(m, model)
-    setsolver(m, model.MIPSOLVER)
+
+"""Solve original MILP problem."""
+function solve_mip!(m, param)
+    setsolver(m, param.MIPSOLVER)
     status = solve(m, relaxation=false)
     return status == :Optimal
 end
