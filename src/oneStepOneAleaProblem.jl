@@ -62,8 +62,14 @@ function solve_one_step_one_alea(model,
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
-    status = solve(m, relaxation=relaxation)
-    solved = (status == :Optimal)
+    if (model.IS_SMIP) & relaxation
+        solved = solve_relaxed!(m, param)
+    elseif (model.IS_SMIP) & ~relaxation
+        solved = solve_mip!(m, param)
+    else
+        status = solve(m)
+        solved = (status == :Optimal)
+    end
 
     if solved
         optimalControl = getvalue(u)
@@ -82,5 +88,16 @@ function solve_one_step_one_alea(model,
     end
 
     return solved, result
+end
+
+function solve_relaxed!(m, model)
+    setsolver(m, model.LPSOLVER)
+    status = solve(m, relaxation=true)
+    return status == :Optimal
+end
+function solve_mip!(m, model)
+    setsolver(m, model.MIPSOLVER)
+    status = solve(m, relaxation=false)
+    return status == :Optimal
 end
 
