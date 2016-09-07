@@ -144,8 +144,7 @@ facts("SDDP algorithm: 1D case") do
                                                       u_bounds, x0,
                                                       cost,
                                                       dynamic, laws,
-                                                      nothing,nothing,nothing,
-                                                      controlCat)
+                                                      control_cat=controlCat)
         set_state_bounds(model2, x_bounds)
         @fact_throws solve_SDDP(model2, params, 0)
     end

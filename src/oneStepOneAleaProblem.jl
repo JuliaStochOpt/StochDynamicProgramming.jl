@@ -90,6 +90,22 @@ function solve_one_step_one_alea(model,
     return solved, result
 end
 
+function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
+                                 xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
+
+    pobj = m.obj
+    xf = getvariable(m, :xf)
+    rho = param.acceleration[:rho]
+    qexp = QuadExpr(rho*dot(xf - xp, xf - xp))
+    #= JuMP.setobjective(m, :Min, m.obj + qexp) =#
+    @objective(m, Min, m.obj + qexp)
+    res = solve_one_step_one_alea(model, param, m, t, xt, xi)
+    m.obj = pobj
+    JuMP.setobjective(m, :Min, pobj)
+
+    return res
+end
+
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param)
     setsolver(m, param.SOLVER)
