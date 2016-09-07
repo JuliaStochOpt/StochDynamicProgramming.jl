@@ -213,10 +213,13 @@ function backward_pass!(model::SPModel,
                 alea_t  = collect(law[t].support[:, w])
 
                 callsolver += 1
+
                 # We solve LP problem with current noise and position:
                 solved, nextstep = solve_one_step_one_alea(model, param,
                                                            solverProblems[t],
-                                                           t, state_t, alea_t)
+                                                           t, state_t, alea_t,
+                                                           relaxation=model.IS_SMIP)
+
                 if solved
                     # We catch the subgradient λ:
                     subgradient_array[:, w] = nextstep.sub_gradient

@@ -142,16 +142,19 @@ function init_problem()
 
     x_bounds = [(0, 100)]
     u_bounds = [(0, 7), (0, 7)]
-    model = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                u_bounds,
-                                                x0,
-                                                cost_t,
-                                                dynamic, aleas)
+    model = StochDynamicProgramming.LinearSPModel(N_STAGES,
+                                                  u_bounds,
+                                                  x0,
+                                                  cost_t,
+                                                  dynamic, aleas)
 
     set_state_bounds(model, x_bounds)
 
     solver = SOLVER
-    params = StochDynamicProgramming.SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    params = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=N_SCENARIOS,
+                                                    gap=EPSILON,
+                                                    max_iterations=MAX_ITER)
 
     return model, params
 end

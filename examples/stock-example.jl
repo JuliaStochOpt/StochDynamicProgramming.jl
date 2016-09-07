@@ -58,14 +58,18 @@ end
 ######## Setting up the SPmodel
 s_bounds = [(0, 1)] # bounds on the state
 u_bounds = [(CONTROL_MIN, CONTROL_MAX)] # bounds on controls
-spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
+spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws)
 set_state_bounds(spmodel, s_bounds) # adding the bounds to the model
 println("Model set up")
 
 ######### Solving the problem via SDDP
 if run_sddp
     println("Starting resolution by SDDP")
-    paramSDDP = SDDPparameters(SOLVER, 10, 0, MAX_ITER) # 10 forward pass, stop at MAX_ITER
+    # 10 forward pass, stop at MAX_ITER
+    paramSDDP = StochDynamicProgramming.SDDPparameters(SOLVER,
+                                                    passnumber=10,
+                                                    gap=0,
+                                                    max_iterations=MAX_ITER)
     V, pbs = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
     println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))

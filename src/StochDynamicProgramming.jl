@@ -10,12 +10,12 @@
 module StochDynamicProgramming
 include("SDPutils.jl")
 
-using JuMP, Distributions
+using MathProgBase, JuMP, Distributions
 
 export solve_SDDP,
         NoiseLaw, simulate_scenarios,
-        SDDPparameters, LinearDynamicLinearCostSPmodel, set_state_bounds,
-        PiecewiseLinearCostSPmodel, extensive_formulation,
+        SDDPparameters, LinearSPModel, set_state_bounds,
+         extensive_formulation,
         PolyhedralFunction, NextStep, forward_simulations,
         StochDynProgModel, SDPparameters, solve_DP,
         sdp_forward_simulation, sampling, get_control, get_bellman_value,
