@@ -38,7 +38,7 @@ problem with respect to the initial state x
     If specified, approximate future cost as 0
 
 # Returns
-* `Bool`:
+* `solved::Bool`:
     True if the solution is feasible, false otherwise
 * `NextStep`:
     Store solution of the problem
