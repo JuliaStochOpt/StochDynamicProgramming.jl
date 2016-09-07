@@ -83,15 +83,8 @@ facts("SDDP algorithm: 1D case") do
         # Test error if scenarios are not given in the right shape:
         @fact_throws forward_simulations(model, params, pbs, [1.])
 
-        # Compare sddp cost with those given by extensive formulation:
-        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
-        @fact typeof(ef_cost) --> Float64
-
-        # As SDDP result is suboptimal, cost must be greater than those of extensive formulation:
-        @fact mean(sddp_costs) > ef_cost --> true
-
         # Test computation of optimal control:
-        aleas = StochDynamicProgramming.extract_vector_from_3Dmatrix(noise_scenarios, 1, 1)
+        aleas = collect(noise_scenarios[1, 1, :])
         opt = StochDynamicProgramming.get_control(model, params, pbs, 1, model.initialState, aleas)
         @fact typeof(opt) --> Vector{Float64}
 
@@ -116,8 +109,8 @@ facts("SDDP algorithm: 1D case") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
         StochDynamicProgramming.prune_cuts!(model, params, V)
-        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.LPSOLVER)
-        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.LPSOLVER)
+        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.SOLVER)
+        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.SOLVER)
         @fact isactive1 --> true
         @fact isactive2 --> false
     end
@@ -137,11 +130,24 @@ facts("SDDP algorithm: 1D case") do
     context("Piecewise linear cost") do
         # Test Piecewise linear costs:
         model = StochDynamicProgramming.LinearSPModel(n_stages,
-        u_bounds, x0,
-        [cost],
-        dynamic, laws)
+                                                      u_bounds, x0,
+                                                      [cost],
+                                                      dynamic, laws)
         set_state_bounds(model, x_bounds)
         V, pbs = solve_SDDP(model, params, 0)
+    end
+
+    context("SMIP") do
+        controlCat = [:Bin, :Cont]
+        u_bounds = [(0., 1.), (0., Inf)]
+        model2 = StochDynamicProgramming.LinearSPModel(n_stages,
+                                                      u_bounds, x0,
+                                                      cost,
+                                                      dynamic, laws,
+                                                      nothing,nothing,nothing,
+                                                      controlCat)
+        set_state_bounds(model2, x_bounds)
+        @fact_throws solve_SDDP(model2, params, 0)
     end
 
     context("Stopping criterion") do
