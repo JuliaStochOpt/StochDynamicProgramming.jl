@@ -92,7 +92,7 @@ end
 
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param)
-    setsolver(m, param.LPSOLVER)
+    setsolver(m, param.SOLVER)
     status = solve(m, relaxation=true)
     return status == :Optimal
 end

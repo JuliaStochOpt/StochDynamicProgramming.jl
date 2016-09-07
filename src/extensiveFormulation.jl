@@ -29,7 +29,7 @@ function extensive_formulation(model, param; verbose=0)
 
     X_init = model.initialState
     T = model.stageNumber-1
-    mod = Model(solver=param.LPSOLVER)
+    mod = Model(solver=param.SOLVER)
 
     #Calculate the number of nodes n at each step on the scenario tree
     N = Array{Int64,2}(zeros(T+1,1))

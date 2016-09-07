@@ -37,6 +37,9 @@ fulfilled.
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
+    if model.IS_SMIP && isa(param.MIPSOLVER, Void)
+        error("MIP solver is not defined. Please set `param.MIPSOLVER`")
+    end
     # initialize value functions:
     V, problems = initialize_value_functions(model, param)
     (verbose > 0) && println("Initial value function loaded into memory.")
@@ -47,6 +50,9 @@ end
 
 
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
+    if model.IS_SMIP && isa(param.MIPSOLVER, Void)
+        error("MIP solver is not defined. Please set `param.MIPSOLVER`")
+    end
     # First step: process value functions if hotstart is called
     problems = hotstart_SDDP(model, param, V)
     sddp_stats = run_SDDP!(model, param, V, problems, verbose)
@@ -248,7 +254,7 @@ function build_models(model::SPModel, param::SDDPparameters)
 end
 
 function build_model(model, param, t)
-    m = Model(solver=param.LPSOLVER)
+    m = Model(solver=param.SOLVER)
 
     nx = model.dimStates
     nu = model.dimControls
@@ -287,8 +293,6 @@ function build_model(model, param, t)
 
     # Add binary variable if problem is a SMIP:
     if model.IS_SMIP
-        m.colCat[1:nx] = model.stateCat
-        m.colCat[nx+1:2*nx] = model.stateCat
         m.colCat[2*nx+1:2*nx+nu] = model.controlCat
     end
 
@@ -399,7 +403,7 @@ Bellman value (Float64)
 function get_bellman_value(model::SPModel, param::SDDPparameters,
                            t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
-    m = Model(solver=param.LPSOLVER)
+    m = Model(solver=param.SOLVER)
     @variable(m, alpha)
 
     for i in 1:Vt.numCuts
@@ -515,7 +519,7 @@ function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralF
     ncuts = V.numCuts
     # Find all active cuts:
     if ncuts > 1
-        active_cuts = Bool[is_cut_relevant(model, i, V, params.LPSOLVER) for i=1:ncuts]
+        active_cuts = Bool[is_cut_relevant(model, i, V, params.SOLVER) for i=1:ncuts]
         return PolyhedralFunction(V.betas[active_cuts], V.lambdas[active_cuts, :], sum(active_cuts))
     else
         return V

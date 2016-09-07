@@ -41,7 +41,6 @@ type LinearSPModel <: SPModel
 
     finalCost::Union{Function, PolyhedralFunction}
 
-    stateCat::Vector{Symbol}
     controlCat::Vector{Symbol}
     equalityConstraints::Union{Void, Function}
     inequalityConstraints::Union{Void, Function}
@@ -52,7 +51,6 @@ type LinearSPModel <: SPModel
                            cost, dynamic, aleas,
                            Vfinal=nothing,
                            eqconstr=nothing, ineqconstr=nothing,
-                           state_cat=nothing,
                            control_cat=nothing)
 
         dimStates = length(x0)
@@ -67,14 +65,13 @@ type LinearSPModel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
         end
 
-        isbx = isa(state_cat, Vector{Symbol})? state_cat: [:Cont for i in 1:dimStates]
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimStates]
-        is_smip = (:Int in isbx) || (:Int in isbu)||(:Bin in isbx)||(:Bin in isbu)
+        is_smip = (:Int in isbu)||(:Bin in isbu)
 
         xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isbx, isbu, eqconstr, ineqconstr, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, is_smip)
     end
 end
 
@@ -137,7 +134,7 @@ end
 
 type SDDPparameters
     # Solver used to solve LP
-    LPSOLVER::MathProgBase.AbstractMathProgSolver
+    SOLVER::MathProgBase.AbstractMathProgSolver
     # Solver used to solve MILP (default is nothing):
     MIPSOLVER::Union{Void, MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
@@ -154,8 +151,9 @@ type SDDPparameters
     monteCarloSize::Int64
 
     function SDDPparameters(solver; passnumber=10, gap=0.,
-                            max_iterations=20, prune_cuts=0, compute_ub=-1, montecarlo=10000)
-        return new(solver, nothing, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
+                            max_iterations=20, prune_cuts=0,
+                            compute_ub=-1, montecarlo=10000, mipsolver=nothing)
+        return new(solver, mipsolver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end
 
