@@ -100,12 +100,17 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # Forward pass
+        # If acceleration is ON, need to build a new array of problem to
+        # avoid side effect:
+        problems_fp = (param.IS_ACCELERATED)? hotstart_SDDP(model, param, V):problems
         _, stockTrajectories,_,callsolver_forward = forward_simulations(model,
                             param,
-                            problems,
+                            problems_fp,
                             noise_scenarios)
 
+        # we store these trajectories in model:
         model.refTrajectories = stockTrajectories
+
         ####################
         # Backward pass
         callsolver_backward = backward_pass!(model,
@@ -149,6 +154,7 @@ function run_SDDP!(model::SPModel,
         push!(stats.upper_bounds, upb)
 
         if param.IS_ACCELERATED
+            # If accelerated, need to update penalization coefficient:
             param.acceleration[:rho] *= param.acceleration[:alpha]
         end
 
@@ -168,7 +174,7 @@ function run_SDDP!(model::SPModel,
 
         if param.compute_upper_bound == 0
             println("Estimate upper-bound with Monte-Carlo ...")
-            upb, costs = estimate_upper_bound(model, param, V, problems)
+            upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         end
 
         println("Estimation of upper-bound: ", round(upb,4),

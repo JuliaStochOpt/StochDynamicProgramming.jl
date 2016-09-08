@@ -95,13 +95,14 @@ function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
 
     pobj = m.obj
     xf = getvariable(m, :xf)
+    # copy JuMP model to avoid side effect:
+    mm = m
     rho = param.acceleration[:rho]
+    # build quadratic penalty term:
     qexp = QuadExpr(rho*dot(xf - xp, xf - xp))
-    #= JuMP.setobjective(m, :Min, m.obj + qexp) =#
-    @objective(m, Min, m.obj + qexp)
-    res = solve_one_step_one_alea(model, param, m, t, xt, xi)
-    m.obj = pobj
-    JuMP.setobjective(m, :Min, pobj)
+    # and update model objective:
+    @objective(mm, :Min, m.obj + qexp)
+    res = solve_one_step_one_alea(model, param, mm, t, xt, xi)
 
     return res
 end
