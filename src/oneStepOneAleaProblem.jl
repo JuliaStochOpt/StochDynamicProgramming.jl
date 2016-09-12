@@ -90,9 +90,10 @@ function solve_one_step_one_alea(model,
     return solved, result
 end
 
+# Solve local problem with a quadratic penalization:
 function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
                                  xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
-
+    # store current objective:
     pobj = m.obj
     xf = getvariable(m, :xf)
     # copy JuMP model to avoid side effect:
@@ -103,6 +104,7 @@ function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
     # and update model objective:
     @objective(mm, :Min, m.obj + qexp)
     res = solve_one_step_one_alea(model, param, mm, t, xt, xi)
+    m.obj = pobj
 
     return res
 end
