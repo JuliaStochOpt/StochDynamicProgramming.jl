@@ -144,7 +144,7 @@ type SDDPparameters
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
     # Prune cuts every %% iterations:
-    compute_cuts_pruning::Int64
+    pruning::Dict{Symbol, Any}
     # Estimate upper-bound every %% iterations:
     compute_upper_bound::Int64
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
@@ -152,7 +152,9 @@ type SDDPparameters
 
     function SDDPparameters(solver; passnumber=10, gap=0.,
                             max_iterations=20, prune_cuts=0,
+                            pruning_algo="exact",
                             compute_ub=-1, montecarlo=10000, mipsolver=nothing)
+        prune_cuts = Dict(:period=>prune_cuts, :type=>pruning_algo)
         return new(solver, mipsolver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end

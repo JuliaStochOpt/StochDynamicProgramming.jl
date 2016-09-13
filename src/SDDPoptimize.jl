@@ -69,6 +69,7 @@ function run_SDDP!(model::SPModel,
 
     #Initialization of the counter
     stats = SDDPStat(0, [], [], [], 0)
+    territory = [Territories(model.dimStates) for i in 1:model.stageNumber-1]
 
     (verbose > 0) && println("Initialize cuts")
 
@@ -115,7 +116,7 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # If specified, prune cuts:
-        if (param.compute_cuts_pruning > 0) && (iteration_count%param.compute_cuts_pruning==0)
+        if (param.pruning[:period] > 0) && (iteration_count%param.pruning[:period]==0)
             (verbose > 0) && println("Prune cuts ...")
             remove_redundant_cuts!(V)
             prune_cuts!(model, param, V)
@@ -125,6 +126,11 @@ function run_SDDP!(model::SPModel,
         # Update estimation of lower bound:
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
         push!(stats.lower_bounds, lwb)
+
+        for t in 1:model.stageNumber-1
+            states = reshape(stockTrajectories[t, :, :], param.forwardPassNumber, model.dimStates)
+            find_territory!(territory[t], V[t], states)
+        end
 
         ####################
         # If specified, compute upper-bound:
@@ -149,6 +155,7 @@ function run_SDDP!(model::SPModel,
         end
 
     end
+    println([length(v) for v in territory[9].territories])
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:

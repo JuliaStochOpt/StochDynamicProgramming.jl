@@ -96,9 +96,9 @@ end
 ########################################
 # Territory algorithm
 ########################################
-function territory_prune_cuts(territory::Territories,
-                              V::PolyhedralFunction,
-                              states::Array{Float64, 2})
+function territory_prune_cuts!(territory::Territories,
+                               V::PolyhedralFunction,
+                               states::Array{Float64, 2})
     find_territory!(territory, V, states)
     return remove_empty_cuts(territory, V)
 end
@@ -109,12 +109,13 @@ function find_territory!(territory, V, states)
     nc = V.numCuts
     # get number of new positions to analyse:
     nx = size(states, 1)
+    nt = nc - territory.ncuts
 
-    for i in 1:V.numCuts
+    for i in 1:nt
         add_cut!(territory, V)
-        update_territory!(territory, V, nc - nx + i)
+        update_territory!(territory, V, nc - nt + i)
     end
-    #= assert(territory.ncuts == V.numCuts) =#
+    assert(territory.ncuts == V.numCuts)
 
     for i in 1:nx
         x = collect(states[i, :])
@@ -130,16 +131,19 @@ function update_territory!(territory, V, indcut)
         if k == indcut
             continue
         end
-        for (num, (ix, cost)) in enumerate(territory.territories[k])
+        terr = copy(territory.territories[k])
+        todelete = []
+        for (num, (ix, cost)) in enumerate(terr)
             x = collect(territory.states[ix, :])
 
             costnewcut = cutvalue(V, indcut, x)
 
             if costnewcut > cost
-                deleteat!(territory.territories[k], num)
+                push!(todelete, num)
                 push!(territory.territories[indcut], (ix, costnewcut))
             end
         end
+        deleteat!(territory.territories[k], todelete)
     end
 end
 
@@ -206,7 +210,7 @@ end
 function cutvalue(V, indc, x)
     cost = V.betas[indc]
     for j in 1:size(V.lambdas, 2)
-        cost += V.lambdas[indc, j]*xf[j]
+        cost += V.lambdas[indc, j]*x[j]
     end
     return cost
 end

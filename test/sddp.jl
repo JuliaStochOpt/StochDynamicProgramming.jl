@@ -153,7 +153,7 @@ facts("SDDP algorithm: 1D case") do
     context("Stopping criterion") do
         # Compute upper bound every %% iterations:
         params.compute_upper_bound = 1
-        params.compute_cuts_pruning = 1
+        params.pruning = Dict(:period=>1, :type=>"exact")
         params.maxItNumber = 30
         V, pbs = solve_SDDP(model, params, V, 0)
         V0 = StochDynamicProgramming.get_lower_bound(model, params, V)
