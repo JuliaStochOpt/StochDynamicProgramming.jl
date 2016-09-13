@@ -23,6 +23,7 @@ export solve_SDDP,
 
 include("objects.jl")
 include("utils.jl")
+include("pruning.jl")
 include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")

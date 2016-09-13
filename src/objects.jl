@@ -19,7 +19,7 @@ type PolyhedralFunction
     numCuts::Int64
 end
 
-PolyhedralFunction(ndim) =  PolyhedralFunction([], Array{Float64}(0, ndim), 0)
+PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0)
 
 
 type LinearSPModel <: SPModel
