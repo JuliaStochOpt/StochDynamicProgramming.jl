@@ -45,7 +45,8 @@ facts("SDDP algorithm: 1D case") do
     params = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
-                                                    max_iterations=max_iterations)
+                                                    max_iterations=max_iterations,
+                                                    compute_cuts_pruning=1)
 
     V = nothing
     model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
@@ -108,7 +109,7 @@ facts("SDDP algorithm: 1D case") do
     context("Cuts pruning") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
-        StochDynamicProgramming.prune_cuts!(model, params, V)
+        StochDynamicProgramming.prune_cuts!(model, params, V,1,0)
         isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.SOLVER)
         isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.SOLVER)
         @fact isactive1 --> true
@@ -161,7 +162,7 @@ facts("SDDP algorithm: 1D case") do
 
     context("Stopping criterion") do
         # Compute upper bound every %% iterations:
-        params.compute_upper_bound = 1
+        params.compute_ub = 1
         params.compute_cuts_pruning = 1
         params.maxItNumber = 30
         V, pbs = solve_SDDP(model, params, V, 0)
