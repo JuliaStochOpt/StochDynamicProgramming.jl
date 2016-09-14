@@ -108,7 +108,7 @@ function run_SDDP!(model::SPModel,
 
     #Initialization of the counter
     stats = SDDPStat()
-
+    territory = (param.pruning[:type]=="territory")? [Territories(model.dimStates) for i in 1:model.stageNumber-1]: nothing
     (verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built
@@ -136,7 +136,15 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # cut pruning
-        prune_cuts!(model,param,V,stats.niterations,verbose)
+        prune_cuts!(model, param, V, stockTrajectories, territory, stats.niterations, verbose)
+        ####################
+        # Cut pruning
+        #= prune_cuts!(model, param, V, stockTrajectories, territory, iteration_count, verbose) =#
+        #= if (param.pruning[:period] > 0) && (iteration_count%param.pruning[:period]==0) =#
+        #=     problems = hotstart_SDDP(model, param, V) =#
+        #= end =#
+
+
 
         ####################
         # In iteration upper bound estimation
@@ -149,7 +157,6 @@ function run_SDDP!(model::SPModel,
         updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
 
         print_current_stats(stats,verbose)
-
         ####################
         # Stopping test
         stopping_test = test_stopping_criterion(param,stats)
@@ -463,3 +470,4 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
     end
 end
+
