@@ -32,8 +32,7 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-* `count_callsolver::Int64`:
-    number of times the solver has been called
+* `sddp_stats::SDDPStat`:
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
@@ -46,7 +45,33 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
     return V, problems, sddp_stats
 end
 
+"""
+Solve SDDP algorithm with hotstart and return estimation of bellman functions.
 
+# Description
+Alternate forward and backward phase till the stopping criterion is
+fulfilled.
+
+# Arguments
+* `model::SPmodel`:
+    the stochastic problem we want to optimize
+* `param::SDDPparameters`:
+    the parameters of the SDDP algorithm
+* `V::Vector{PolyhedralFunction}`:
+    current lower approximation of Bellman functions
+* `verbose::Int64`:
+    Default is `0`
+    If non null, display progression in terminal every
+    `n` iterations, where `n` is the number specified by display.
+
+# Returns
+* `V::Array{PolyhedralFunction}`:
+    the collection of approximation of the bellman functions
+* `problems::Array{JuMP.Model}`:
+    the collection of linear problems used to approximate
+    each value function
+* `sddp_stats::SDDPStat`:
+"""
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
     check_SDDPparameters(model,param,verbose)
     # First step: process value functions if hotstart is called
@@ -134,12 +159,9 @@ function run_SDDP!(model::SPModel,
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
     sddp_finish(model, param,V,problems,stats,verbose)
-
-
     return stats
 end
 
-#TODO reprendre
 function sddp_finish(model::SPModel, param::SDDPparameters,V,problems,stats::SDDPStat,verbose::Int64)
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)

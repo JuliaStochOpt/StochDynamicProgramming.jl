@@ -175,6 +175,16 @@ type SDDPparameters
     end
 end
 
+"""
+Test compatibility of parameters.
+
+# Arguments
+* `model::SPModel`:
+    Parametrization of the problem
+* `param::SDDPparameters`:
+    Parameters of SDDP
+* `verbose:Int64`:
+"""
 function check_SDDPparameters(model::SPModel,param::SDDPparameters,verbose=0::Int64)
     if model.IS_SMIP && isa(param.MIPSOLVER, Void)
         error("MIP solver is not defined. Please set `param.MIPSOLVER`")
