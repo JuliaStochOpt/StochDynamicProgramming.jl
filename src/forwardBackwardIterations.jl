@@ -30,7 +30,7 @@ scenarios, with associated costs.
 * `callsolver_forward::Int64`:
     number of call to solver
 """
-function forward_path!(model::SPModel,
+function forward_pass!(model::SPModel,
                       param::SDDPparameters,
                       V::Vector{PolyhedralFunction},
                       problems::Vector{JuMP.Model})

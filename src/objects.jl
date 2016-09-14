@@ -155,6 +155,8 @@ type SDDPparameters
     compute_ub::Int64
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
     monteCarloSize::Int64
+    # Number of MonteCarlo simulation to estimate the upper bound during one iteration
+    in_iter_mc::Int64
     # specify whether SDDP is accelerated
     IS_ACCELERATED::Bool
     # ... and acceleration parameters:
@@ -162,14 +164,14 @@ type SDDPparameters
 
     function SDDPparameters(solver; passnumber=10, gap=0.,
                             max_iterations=20, compute_cuts_pruning=0,
-                            compute_ub=-1, montecarlo=10000,
+                            compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
                             mipsolver=nothing,
                             rho0=0., alpha=1.)
         is_acc = (rho0 > 0.)
         accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
 
         return new(solver, mipsolver, passnumber, gap,
-                   max_iterations, compute_cuts_pruning, compute_ub, montecarlo, is_acc, accparams)
+                   max_iterations, compute_cuts_pruning, compute_ub, montecarlo_final,montecarlo_in_iter, is_acc, accparams)
     end
 end
 
@@ -238,6 +240,14 @@ type SDDPStat
     exectime::Vector{Float64}
     # number of calls to solver:
     ncallsolver::Int64
+end
+
+function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
+    stats.ncallsolver += callsolver_at_it
+    stats.niterations += 1
+    push!(stats.lower_bounds, lwb)
+    push!(stats.upper_bounds, upb)
+    push!(stats.exectime, time)
 end
 
 

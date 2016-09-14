@@ -56,7 +56,25 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralF
 end
 
 
-"""Run SDDP iterations."""
+"""Run SDDP iterations.
+
+# Arguments
+* `model::SPmodel`:
+    the stochastic problem we want to optimize
+* `param::SDDPparameters`:
+    the parameters of the SDDP algorithm
+* `V::Vector{PolyhedralFunction}`:
+    Polyhedral lower approximation of Bellman functions
+* `problems::Vector{JuMP.Model}`:
+* `verbose::Int64`:
+    Default is `0`
+    If non null, display progression in terminal every
+    `n` iterations, where `n` is the number specified by display.
+
+# Returns
+* `stats:SDDPStats`:
+    contains statistics of the current algorithm
+"""
 function run_SDDP!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
@@ -70,23 +88,23 @@ function run_SDDP!(model::SPModel,
 
     # If computation of upper-bound is needed, a set of scenarios is built
     # to keep always the same realization for upper bound estimation:
-    #if param.compute_ub > 0
-    upperbound_scenarios = simulate_scenarios(model.noises, param.monteCarloSize)
+    #if param.compute_ub > 0 #TODO 
+    upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
     #end
 
     upb = Inf
     costs = nothing
     stopping_test::Bool = false
-    iteration_count::Int64 = 0
+    
 
     # Launch execution of forward and backward passes:
-    while (iteration_count < param.maxItNumber) & (~stopping_test)
+    while (~stopping_test)
         # Time execution of current pass:
         tic()
 
         ####################
         # Forward pass : compute stockTrajectories
-        costs, stockTrajectories, callsolver_forward = forward_path!(model,param,V,problems)
+        costs, stockTrajectories, callsolver_forward = forward_pass!(model,param,V,problems)
 
         ####################
         # Backward pass : update polyhedral approximation of Bellman functions
@@ -94,59 +112,51 @@ function run_SDDP!(model::SPModel,
         
         ####################
         # cut pruning
-        prune_cuts!(model,param,V,iteration_count,verbose)
+        prune_cuts!(model,param,V,stats.niterations,verbose)
  
         ####################
         # In iteration upper bound estimation
-        upb = in_iteration_upb_estimation(model,param,iteration_count,verbose,
+        upb = in_iteration_upb_estimation(model,param,stats.niterations,verbose,
                                             upperbound_scenarios,upb,problems)        
 
         ####################
-        # Stopping test #TODO a factoriser
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        if param.gap > 0.
-           stopping_test = test_stopping_criterion(lwb, upb, param.gap)
-        end
- 
+        # Update stats 
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)  
+        updateSDDPStat!(stats,callsolver_forward + callsolver_backward,lwb,upb,toq())
+        
+        print_current_stats(stats,verbose)
+        
         ####################
-        # Update stats #TODO a factoriser
-        
-        stats.ncallsolver += callsolver_forward + callsolver_backward
-        iteration_count += 1
-        stats.niterations += 1
- 
-        
-        push!(stats.lower_bounds, lwb)
-        push!(stats.exectime, toq())
-        push!(stats.upper_bounds, upb)
-
-        if (verbose > 0) && (iteration_count%verbose==0)
-            print("Pass number ", iteration_count)
-            (upb < Inf) && print("\tUpper-bound: ", upb)
-            println("\tLower-bound: ", round(stats.lower_bounds[end], 4),
-                "\tTime: ", round(stats.exectime[end], 2),"s")
-        end
-
+        # Stopping test
+        stopping_test = test_stopping_criterion(param,stats)
     end
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    if (verbose>0) && (param.compute_ub >= 0)
-        V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
+    sddp_finish(model, param,V,problems,stats,verbose)
 
+
+    return stats
+end
+
+#TODO reprendre
+function sddp_finish(model::SPModel, param::SDDPparameters,V,problems,stats::SDDPStat,verbose::Int64)
+    if (verbose>0) && (param.compute_ub >= 0)
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        
         if param.compute_ub == 0
             println("Estimate upper-bound with Monte-Carlo ...")
             upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
+        else
+            upb = stats.upperbounds[end]
         end
 
         println("Estimation of upper-bound: ", round(upb,4),
-                "\tExact lower bound: ", round(V0,4),
-                "\t Gap <  ", round(100*(upb-V0)/V0, 2) , "\%  with prob. > 97.5 \%")
+                "\tExact lower bound: ", round(lwb,4),
+                "\t Gap <  ", round(100*(upb-lwb)/lwb, 2) , "\%  with prob. > 97.5 \%")
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
     end
-
-    return stats
 end
 
 
