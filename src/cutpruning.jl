@@ -58,7 +58,7 @@ function prune_cuts!(model::SPModel,
 
     # If pruning is performed with territory heuristic, update territory
     # at given iteration:
-    if param.pruning[:type] == "territory"
+    if param.pruning[:type] ∈ ["territory", "mixed"]
         for t in 1:model.stageNumber-1
             states = reshape(trajectories[t, :, :], param.forwardPassNumber, model.dimStates)
             find_territory!(territory[t], V[t], states)
@@ -78,13 +78,16 @@ function prune_cuts!(model::SPModel,
             elseif param.pruning[:type] == "territory"
                 # apply heuristic to prune cuts:
                 V[i] = remove_empty_cuts!(territory[i], V[i])
+            elseif param.pruning[:type] == "mixed"
+                # apply mixed heuristic to prune cuts:
+                V[i] = remove_cuts_usefulness!(model, territory[i], V[i], param.SOLVER)
             end
         end
 
         # final number of cuts:
         ncuts_final = get_total_number_cuts(V)
 
-        (verbose > 0) && println(" Deflation: ", ncuts_final/ncuts_initial)
+        (verbose > 0) && @printf(" Deflation: %.3f \n", ncuts_final/ncuts_initial)
     end
 end
 
@@ -105,7 +108,7 @@ function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralF
     ncuts = V.numCuts
     # Find all active cuts:
     if ncuts > 1
-        active_cuts = Bool[is_cut_relevant(model, i, V, params.SOLVER) for i=1:ncuts]
+        active_cuts = Bool[is_cut_relevant(model, i, V, params.SOLVER)[1] for i=1:ncuts]
         return PolyhedralFunction(V.betas[active_cuts], V.lambdas[active_cuts, :], sum(active_cuts))
     else
         return V
@@ -146,7 +149,7 @@ function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver;
     @objective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
     solve(m)
     sol = getobjectivevalue(m)
-    return sol < epsilon
+    return (sol < epsilon), getvalue(x)
 end
 
 
@@ -223,13 +226,43 @@ function add_state!(territory::Territories, V::PolyhedralFunction, x::Array{Floa
 end
 
 
-"""Remove empty cuts in PolyhedralFunction"""
+"""Remove empty cuts with heuristic in PolyhedralFunction."""
 function remove_empty_cuts!(territory::Territories, V::PolyhedralFunction)
     assert(territory.ncuts == V.numCuts)
 
     nstates = [length(terr) for terr in territory.territories]
     active_cuts = nstates .> 0
 
+    territory.territories = territory.territories[active_cuts]
+    territory.ncuts = sum(active_cuts)
+    return PolyhedralFunction(V.betas[active_cuts],
+                              V.lambdas[active_cuts, :],
+                              sum(active_cuts))
+end
+
+
+"""Remove empty cuts in PolyhedralFunction with usefulness test."""
+function remove_cuts_usefulness!(model::SPModel, territory::Territories, V::PolyhedralFunction, solver)
+    assert(territory.ncuts == V.numCuts)
+
+    nstates = [length(terr) for terr in territory.territories]
+    # Set of inactive cuts:
+    inactive_cuts = nstates .== 0
+    # Set of active cuts:
+    active_cuts = nstates .> 0
+
+    # get index of inactive cuts:
+    index = collect(1:territory.ncuts)[inactive_cuts]
+
+    # Check if inactive cuts are useful or not:
+    for id in index
+        status, x = is_cut_relevant(model, id, V, solver)
+        if status
+            active_cuts[id] = true
+        end
+    end
+
+    # Remove useless cuts:
     territory.territories = territory.territories[active_cuts]
     territory.ncuts = sum(active_cuts)
     return PolyhedralFunction(V.betas[active_cuts],
