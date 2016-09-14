@@ -28,7 +28,7 @@ function test_stopping_criterion(param::SDDPparameters, stats::SDDPStat)
     lb = stats.lower_bounds[end]
     ub = stats.upper_bounds[end]
     check_gap = (abs((ub-lb)/lb) < param.gap)
-    check_iter = stats.niterations >= param.maxItNumber
+    check_iter = stats.niterations > param.maxItNumber
     return check_gap || check_iter
 end
 
