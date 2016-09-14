@@ -84,7 +84,7 @@ end
 const FORWARD_PASS = 10.
 const EPSILON = .05
 # Maximum number of iterations
-const MAX_ITER = 50
+const MAX_ITER = 10
 ##################################################
 
 """Build probability distribution at each timestep.
@@ -121,11 +121,17 @@ function init_problem()
     params = SDDPparameters(solver,
                             passnumber=FORWARD_PASS,
                             gap=EPSILON,
-                            max_iterations=MAX_ITER)
+                            pruning_algo="exact",
+                            max_iterations=20,
+                            prune_cuts=10)
     return model, params
 end
 
 # Solve the problem:
 model, params = init_problem()
-V, pbs = solve_SDDP(model, params, 1)
+V, pbs = @time solve_SDDP(model, params, 1)
+aleas = simulate_scenarios(model.noises, 100)
+c, x, u = forward_simulations(model, params, pbs, aleas);
 
+xx = reshape(x[5, :, :], 100, 5)
+v = V[5]

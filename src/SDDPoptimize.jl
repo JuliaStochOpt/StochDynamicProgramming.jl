@@ -135,32 +135,27 @@ function run_SDDP!(model::SPModel,
         callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
 
         ####################
-        # cut pruning
-        prune_cuts!(model, param, V, stockTrajectories, territory, stats.niterations, verbose)
+        # Update stats
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
+        print_current_stats(stats,verbose)
+
         ####################
-        # Cut pruning
-        #= prune_cuts!(model, param, V, stockTrajectories, territory, iteration_count, verbose) =#
-        #= if (param.pruning[:period] > 0) && (iteration_count%param.pruning[:period]==0) =#
-        #=     problems = hotstart_SDDP(model, param, V) =#
-        #= end =#
-
-
+        # cut pruning
+        (param.pruning[:pruning]) && prune_cuts!(model, param, V, stockTrajectories, territory, stats.niterations, verbose)
+        if param.pruning[:pruning] && (stats.niterations%param.pruning[:period]==0)
+            problems = hotstart_SDDP(model, param, V)
+        end
 
         ####################
         # In iteration upper bound estimation
         upb = in_iteration_upb_estimation(model, param, stats.niterations, verbose,
                                           upperbound_scenarios, upb, problems)
 
-        ####################
-        # Update stats
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
 
-        print_current_stats(stats,verbose)
         ####################
         # Stopping test
         stopping_test = test_stopping_criterion(param,stats)
-        stats.niterations += 1
     end
 
     ##########

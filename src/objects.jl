@@ -278,6 +278,7 @@ Update the SDDPStat object with the results of current iterations.
 """
 function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
     stats.ncallsolver += callsolver_at_it
+    stats.niterations += 1
     push!(stats.lower_bounds, lwb)
     push!(stats.upper_bounds, upb)
     push!(stats.exectime, time)
