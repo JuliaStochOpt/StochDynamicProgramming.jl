@@ -69,7 +69,7 @@ function run_SDDP!(model::SPModel,
 
     #Initialization of the counter
     stats = SDDPStat(0, [], [], [], 0)
-    territory = [Territories(model.dimStates) for i in 1:model.stageNumber-1]
+    territory = (param.pruning[:type]=="territory")? [Territories(model.dimStates) for i in 1:model.stageNumber-1]: nothing
 
     (verbose > 0) && println("Initialize cuts")
 
@@ -114,23 +114,28 @@ function run_SDDP!(model::SPModel,
         iteration_count += 1
         stats.niterations += 1
 
-        ####################
-        # If specified, prune cuts:
-        if (param.pruning[:period] > 0) && (iteration_count%param.pruning[:period]==0)
-            (verbose > 0) && println("Prune cuts ...")
-            remove_redundant_cuts!(V)
-            prune_cuts!(model, param, V)
-            problems = hotstart_SDDP(model, param, V)
-        end
 
         # Update estimation of lower bound:
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
         push!(stats.lower_bounds, lwb)
+        push!(stats.exectime, toq())
+        push!(stats.upper_bounds, upb)
 
-        for t in 1:model.stageNumber-1
-            states = reshape(stockTrajectories[t, :, :], param.forwardPassNumber, model.dimStates)
-            find_territory!(territory[t], V[t], states)
+        if (verbose > 0) && (iteration_count%verbose==0)
+            print("Pass number ", iteration_count)
+            (upb < Inf) && print("\tUpper-bound: ", upb)
+            println("\tLower-bound: ", round(stats.lower_bounds[end], 4),
+                "\tTime: ", round(stats.exectime[end], 2),"s")
         end
+
+        ####################
+        # Cut pruning
+        prune_cuts!(model, param, V, stockTrajectories, territory, iteration_count, verbose)
+        if (param.pruning[:period] > 0) && (iteration_count%param.pruning[:period]==0)
+            problems = hotstart_SDDP(model, param, V)
+        end
+
+
 
         ####################
         # If specified, compute upper-bound:
@@ -144,18 +149,8 @@ function run_SDDP!(model::SPModel,
             end
         end
 
-        push!(stats.exectime, toq())
-        push!(stats.upper_bounds, upb)
-
-        if (verbose > 0) && (iteration_count%verbose==0)
-            print("Pass number ", iteration_count)
-            (upb < Inf) && print("\tUpper-bound: ", upb)
-            println("\tLower-bound: ", round(stats.lower_bounds[end], 4),
-                "\tTime: ", round(stats.exectime[end], 2),"s")
-        end
 
     end
-    println([length(v) for v in territory[9].territories])
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:

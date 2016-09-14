@@ -70,8 +70,8 @@ facts("SDDP algorithm: 1D case") do
 
         # Test if the first subgradient has the same dimension as state:
         @fact size(V[1].lambdas, 2) --> model.dimStates
-        @fact V[1].numCuts --> n_scenarios*max_iterations + n_scenarios
-        @fact size(V[1].lambdas, 1) --> n_scenarios*max_iterations + n_scenarios
+        @fact V[1].numCuts < n_scenarios*max_iterations + n_scenarios --> true
+        @fact size(V[1].lambdas, 1) --> V[1].numCuts
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
@@ -108,7 +108,6 @@ facts("SDDP algorithm: 1D case") do
     context("Cuts pruning") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
-        StochDynamicProgramming.prune_cuts!(model, params, V)
         isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.SOLVER)
         isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.SOLVER)
         @fact isactive1 --> true
@@ -153,7 +152,7 @@ facts("SDDP algorithm: 1D case") do
     context("Stopping criterion") do
         # Compute upper bound every %% iterations:
         params.compute_upper_bound = 1
-        params.pruning = Dict(:period=>1, :type=>"exact")
+        params.pruning = Dict(:pruning=>true, :period=>1, :type=>"exact")
         params.maxItNumber = 30
         V, pbs = solve_SDDP(model, params, V, 0)
         V0 = StochDynamicProgramming.get_lower_bound(model, params, V)

@@ -154,7 +154,7 @@ type SDDPparameters
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="exact",
                             compute_ub=-1, montecarlo=10000, mipsolver=nothing)
-        prune_cuts = Dict(:period=>prune_cuts, :type=>pruning_algo)
+        prune_cuts = Dict(:pruning=>prune_cuts>0, :period=>prune_cuts, :type=>pruning_algo)
         return new(solver, mipsolver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
     end
 end
