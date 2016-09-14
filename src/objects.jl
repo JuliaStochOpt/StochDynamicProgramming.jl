@@ -166,13 +166,14 @@ type SDDPparameters
 
     function SDDPparameters(solver; passnumber=10, gap=0.,
                             max_iterations=20, prune_cuts=0,
-                            pruning_algo="exact",
+                            pruning_algo="none",
                             compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
                             mipsolver=nothing,
                             rho0=0., alpha=1.)
         is_acc = (rho0 > 0.)
         accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
 
+        pruning_algo = (prune_cuts>0)? pruning_algo: "none"
         prune_cuts = Dict(:pruning=>prune_cuts>0, :period=>prune_cuts, :type=>pruning_algo)
         return new(solver, mipsolver, passnumber, gap,
                    max_iterations, prune_cuts, compute_ub,

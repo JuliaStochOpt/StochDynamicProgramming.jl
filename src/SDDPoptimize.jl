@@ -108,7 +108,7 @@ function run_SDDP!(model::SPModel,
 
     #Initialization of the counter
     stats = SDDPStat()
-    territory = (param.pruning[:type]=="territory")? [Territories(model.dimStates) for i in 1:model.stageNumber-1]: nothing
+    territory = (param.pruning[:type] ∈ ["territory", "mixed"])? [Territories(model.dimStates) for i in 1:model.stageNumber-1]: nothing
     (verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built
@@ -142,9 +142,11 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # cut pruning
-        (param.pruning[:pruning]) && prune_cuts!(model, param, V, stockTrajectories, territory, stats.niterations, verbose)
-        if param.pruning[:pruning] && (stats.niterations%param.pruning[:period]==0)
-            problems = hotstart_SDDP(model, param, V)
+        if param.pruning[:pruning]
+            prune_cuts!(model, param, V, stockTrajectories, territory, stats.niterations, verbose)
+            if (stats.niterations%param.pruning[:period]==0)
+                problems = hotstart_SDDP(model, param, V)
+            end
         end
 
         ####################
