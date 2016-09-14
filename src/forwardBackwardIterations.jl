@@ -46,6 +46,7 @@ function forward_pass!(model::SPModel,
                         problems_fp,
                         noise_scenarios)
 
+    model.refTrajectories = stockTrajectories
     return costs, stockTrajectories, callsolver_forward
 end
 
