@@ -42,10 +42,11 @@ facts("SDDP algorithm: 1D case") do
     u_bounds = [(0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    params = StochDynamicProgramming.SDDPparameters(solver,
+    param = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
-                                                    max_iterations=max_iterations)
+                                                    max_iterations=max_iterations,
+                                                    compute_cuts_pruning=1)
 
     V = nothing
     model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
@@ -56,13 +57,13 @@ facts("SDDP algorithm: 1D case") do
     @fact_throws set_state_bounds(model, [(0,1), (0,1)])
 
     # Generate scenarios for forward simulations:
-    noise_scenarios = simulate_scenarios(model.noises,params.forwardPassNumber)
+    noise_scenarios = simulate_scenarios(model.noises,param.forwardPassNumber)
 
     sddp_costs = 0
 
     context("Linear cost") do
         # Compute bellman functions with SDDP:
-        V, pbs = solve_SDDP(model, params, 0)
+        V, pbs = solve_SDDP(model, param, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
         @fact length(pbs) --> n_stages - 1
@@ -75,44 +76,54 @@ facts("SDDP algorithm: 1D case") do
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
-        upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
+        upb = StochDynamicProgramming.estimate_upper_bound(model, param, V, pbs,
         n_simulations)[1]
         @fact typeof(upb) --> Float64
 
-        sddp_costs, stocks = forward_simulations(model, params, pbs, noise_scenarios)
+        sddp_costs, stocks = forward_simulations(model, param, pbs, noise_scenarios)
         # Test error if scenarios are not given in the right shape:
-        @fact_throws forward_simulations(model, params, pbs, [1.])
+        @fact_throws forward_simulations(model, param, pbs, [1.])
 
         # Test computation of optimal control:
         aleas = collect(noise_scenarios[1, 1, :])
-        opt = StochDynamicProgramming.get_control(model, params, pbs, 1, model.initialState, aleas)
+        opt = StochDynamicProgramming.get_control(model, param, pbs, 1, model.initialState, aleas)
         @fact typeof(opt) --> Vector{Float64}
 
         # Test display:
-        StochDynamicProgramming.set_max_iterations(params, 1)
-        V, pbs = solve_SDDP(model, params, V, 1)
+        StochDynamicProgramming.set_max_iterations(param, 1)
+        V, pbs, stats = solve_SDDP(model, param, V, 1)
     end
 
     context("Value functions calculation") do
-        V0 = StochDynamicProgramming.get_lower_bound(model, params, V)
+        V0 = StochDynamicProgramming.get_lower_bound(model, param, V)
     end
 
     context("Hotstart") do
         # Test hot start with previously computed value functions:
-        V, pbs = solve_SDDP(model, params, V, 0)
+        V, pbs = solve_SDDP(model, param, V, 0)
         # Test if costs are roughly the same:
-        sddp_costs2, stocks = forward_simulations(model, params, pbs, noise_scenarios)
+        sddp_costs2, stocks = forward_simulations(model, param, pbs, noise_scenarios)
         @fact mean(sddp_costs) --> roughly(mean(sddp_costs2))
     end
 
     context("Cuts pruning") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
-        StochDynamicProgramming.prune_cuts!(model, params, V)
-        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, params.SOLVER)
-        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, params.SOLVER)
+        StochDynamicProgramming.prune_cuts!(model, param, V,1,0)
+        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, param.SOLVER)
+        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, param.SOLVER)
         @fact isactive1 --> true
         @fact isactive2 --> false
+    end
+
+    context("Quadratic regularization") do
+        param2 = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    max_iterations=max_iterations,
+                                                    rho0=1.)
+        #TODO: fix solver, as Clp cannot solve QP
+        @fact_throws solve_SDDP(model, param2, 0)
     end
 
     # Test definition of final cost with a JuMP.Model:
@@ -123,8 +134,8 @@ facts("SDDP algorithm: 1D case") do
         end
         # Store final cost in model:
         model.finalCost = fcost
-        V, pbs = solve_SDDP(model, params, 0)
-        V, pbs = solve_SDDP(model, params, V, 0)
+        V, pbs = solve_SDDP(model, param, 0)
+        V, pbs = solve_SDDP(model, param, V, 0)
     end
 
     context("Piecewise linear cost") do
@@ -134,7 +145,7 @@ facts("SDDP algorithm: 1D case") do
                                                       [cost],
                                                       dynamic, laws)
         set_state_bounds(model, x_bounds)
-        V, pbs = solve_SDDP(model, params, 0)
+        V, pbs = solve_SDDP(model, param, 0)
     end
 
     context("SMIP") do
@@ -144,23 +155,22 @@ facts("SDDP algorithm: 1D case") do
                                                       u_bounds, x0,
                                                       cost,
                                                       dynamic, laws,
-                                                      nothing,nothing,nothing,
-                                                      controlCat)
+                                                      control_cat=controlCat)
         set_state_bounds(model2, x_bounds)
-        @fact_throws solve_SDDP(model2, params, 0)
+        @fact_throws solve_SDDP(model2, param, 0)
     end
 
     context("Stopping criterion") do
         # Compute upper bound every %% iterations:
-        params.compute_upper_bound = 1
-        params.compute_cuts_pruning = 1
-        params.maxItNumber = 30
-        V, pbs = solve_SDDP(model, params, V, 0)
-        V0 = StochDynamicProgramming.get_lower_bound(model, params, V)
+        param.compute_ub = 1
+        param.compute_cuts_pruning = 1
+        param.maxItNumber = 30
+        V, pbs = solve_SDDP(model, param, V, 0)
+        V0 = StochDynamicProgramming.get_lower_bound(model, param, V)
         n_simulations = 1000
-        upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
+        upb = StochDynamicProgramming.estimate_upper_bound(model, param, V, pbs,
                                                             n_simulations)[1]
-        @fact abs((V0 - upb)/V0) < params.gap --> true
+        @fact abs((V0 - upb)/V0) < param.gap --> true
     end
 
     context("Dump") do
@@ -175,9 +185,9 @@ facts("SDDP algorithm: 1D case") do
     end
 
     context("Compare parameters") do
-        paramSDDP = [params for i in 1:3]
+        paramDDP = [param for i in 1:3]
         scenarios = StochDynamicProgramming.simulate_scenarios(laws, 1000)
-        benchmark_parameters(model, paramSDDP, scenarios, 12)
+        benchmark_parameters(model, paramDDP, scenarios, 12)
     end
 end
 
@@ -221,7 +231,7 @@ facts("SDDP algorithm: 2D case") do
     u_bounds = [(0., 7.), (0., Inf), (0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    params = StochDynamicProgramming.SDDPparameters(solver,
+    param = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
                                                     max_iterations=max_iterations)
@@ -236,16 +246,17 @@ facts("SDDP algorithm: 2D case") do
 
 
         # Compute bellman functions with SDDP:
-        V, pbs = solve_SDDP(model, params, 0)
+        V, pbs, stats = solve_SDDP(model, param, 0)
         @fact typeof(V) --> Vector{StochDynamicProgramming.PolyhedralFunction}
         @fact typeof(pbs) --> Vector{JuMP.Model}
+        @fact typeof(stats) --> StochDynamicProgramming.SDDPStat
 
         # Test if the first subgradient has the same dimension as state:
         @fact length(V[1].lambdas[1, :]) --> model.dimStates
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
-        upb = StochDynamicProgramming.estimate_upper_bound(model, params, V, pbs,
+        upb = StochDynamicProgramming.estimate_upper_bound(model, param, V, pbs,
         n_simulations)[1]
         @fact typeof(upb) --> Float64
 
@@ -253,10 +264,10 @@ facts("SDDP algorithm: 2D case") do
         # Test a simulation upon given scenarios:
         noise_scenarios = simulate_scenarios(model.noises,n_simulations)
 
-        sddp_costs, stocks = forward_simulations(model, params, pbs, noise_scenarios)
+        sddp_costs, stocks = forward_simulations(model, param, pbs, noise_scenarios)
 
         # Compare sddp cost with those given by extensive formulation:
-        ef_cost = StochDynamicProgramming.extensive_formulation(model,params)[1]
+        ef_cost = StochDynamicProgramming.extensive_formulation(model,param)[1]
         @fact typeof(ef_cost) --> Float64
 
         @fact mean(sddp_costs) --> roughly(ef_cost)

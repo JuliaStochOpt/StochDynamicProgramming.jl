@@ -6,6 +6,50 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
+"""
+Make a forward pass of the algorithm
+
+# Description
+Simulate scenarios of noise and compute optimal trajectories on those
+scenarios, with associated costs.
+
+# Arguments
+* `model::SPmodel`: the stochastic problem we want to optimize
+* `param::SDDPparameters`: the parameters of the SDDP algorithm
+* `V::Vector{PolyhedralFunction}`:
+    Linear model used to approximate each value function
+* `problems::Vector{JuMP.Model}`:
+    Current linear problems
+
+# Returns
+* `costs::Array{float,1}`:
+    an array of the simulated costs
+* `stockTrajectories::Array{float}`:
+    the simulated stock trajectories. stocks(t,k,:) is the stock for
+    scenario k at time t.
+* `callsolver_forward::Int64`:
+    number of call to solver
+"""
+function forward_pass!(model::SPModel,
+                      param::SDDPparameters,
+                      V::Vector{PolyhedralFunction},
+                      problems::Vector{JuMP.Model})
+    # Draw a set of scenarios according to the probability
+    # law specified in model.noises:
+    noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
+
+    # If acceleration is ON, need to build a new array of problem to
+    # avoid side effect:
+    problems_fp = (param.IS_ACCELERATED)? hotstart_SDDP(model, param, V):problems
+    costs, stockTrajectories,_,callsolver_forward = forward_simulations(model,
+                        param,
+                        problems_fp,
+                        noise_scenarios)
+
+    model.refTrajectories = stockTrajectories
+    return costs, stockTrajectories, callsolver_forward
+end
+
 
 """
 Make a forward pass of the algorithm
@@ -27,7 +71,7 @@ scenario according to the current value functions.
 * `costs::Array{float,1}`:
     an array of the simulated costs
     If returnCosts=false, return nothing
-* `stocks::Array{float}`:
+* `stockTrajectories::Array{float}`:
     the simulated stock trajectories. stocks(t,k,:) is the stock for
     scenario k at time t.
 * `controls::Array{Float64, 3}`:
@@ -56,14 +100,13 @@ function forward_simulations(model::SPModel,
         end
      end
 
-    stocks = zeros(T, nb_forward, model.dimStates)
-    # We got T - 1 control, as terminal state is included into the total number
-    # of stages.
+    stockTrajectories = zeros(T, nb_forward, model.dimStates)
+    # We got T - 1 control, as terminal state is included into the total number of stages.
     controls = zeros(T - 1, nb_forward, model.dimControls)
 
     # Set first value of stocks equal to x0:
     for k in 1:nb_forward
-        stocks[1, k, :] = model.initialState
+        stockTrajectories[1, k, :] = model.initialState
     end
 
     # Store costs of different scenarios in an array:
@@ -72,22 +115,25 @@ function forward_simulations(model::SPModel,
     for t=1:T-1
         for k = 1:nb_forward
             # Collect current state and noise:
-            state_t = collect(stocks[t, k, :])
+            state_t = collect(stockTrajectories[t, k, :])
             alea_t = collect(xi[t, k, :])
 
             callsolver += 1
+
             # Solve optimization problem corresponding to current position:
-            status, nextstep = solve_one_step_one_alea(
-                                        model,
-                                        param,
-                                        solverProblems[t],
-                                        t,
-                                        state_t,
-                                        alea_t)
+            if param.IS_ACCELERATED &&  ~isa(model.refTrajectories, Void)
+                xp = collect(model.refTrajectories[t+1, k, :])
+                status, nextstep = solve_one_step_one_alea(model, param,
+                                                           solverProblems[t], t, state_t, alea_t, xp)
+            else
+                status, nextstep = solve_one_step_one_alea(model, param,
+                                                           solverProblems[t], t, state_t, alea_t)
+            end
+
             # Check if the problem is effectively solved:
             if status
                 # Get the next position:
-                stocks[t+1, k, :] = nextstep.next_state
+                stockTrajectories[t+1, k, :] = nextstep.next_state
                 # the optimal control just computed:
                 opt_control = nextstep.optimal_control
                 controls[t, k, :] = opt_control
@@ -99,11 +145,11 @@ function forward_simulations(model::SPModel,
             else
                 # if problem is not properly solved, next position if equal
                 # to current one:
-                stocks[t+1, k, :] = state_t
+                stockTrajectories[t+1, k, :] = state_t
             end
         end
     end
-    return costs, stocks, controls, callsolver
+    return costs, stockTrajectories, controls, callsolver
 end
 
 

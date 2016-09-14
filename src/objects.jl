@@ -45,13 +45,20 @@ type LinearSPModel <: SPModel
     equalityConstraints::Union{Void, Function}
     inequalityConstraints::Union{Void, Function}
 
+    refTrajectories::Union{Void, Array{Float64, 3}}
+
     IS_SMIP::Bool
 
-    function LinearSPModel(nstage, ubounds, x0,
-                           cost, dynamic, aleas,
-                           Vfinal=nothing,
-                           eqconstr=nothing, ineqconstr=nothing,
-                           control_cat=nothing)
+    function LinearSPModel(nstage,             # number of stages
+                           ubounds,            # bounds of control
+                           x0,                 # initial state
+                           cost,               # cost function
+                           dynamic,            # dynamic
+                           aleas;              # modelling of noises
+                           Vfinal=nothing,     # final cost
+                           eqconstr=nothing,   # equality constraints
+                           ineqconstr=nothing, # inequality constraints
+                           control_cat=nothing) # category of controls
 
         dimStates = length(x0)
         dimControls = length(ubounds)
@@ -71,7 +78,7 @@ type LinearSPModel <: SPModel
         xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, nothing, is_smip)
     end
 end
 
@@ -132,6 +139,7 @@ type StochDynProgModel <: SPModel
 end
 
 
+
 type SDDPparameters
     # Solver used to solve LP
     SOLVER::MathProgBase.AbstractMathProgSolver
@@ -146,15 +154,49 @@ type SDDPparameters
     # Prune cuts every %% iterations:
     compute_cuts_pruning::Int64
     # Estimate upper-bound every %% iterations:
-    compute_upper_bound::Int64
+    compute_ub::Int64
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
     monteCarloSize::Int64
+    # Number of MonteCarlo simulation to estimate the upper bound during one iteration
+    in_iter_mc::Int64
+    # specify whether SDDP is accelerated
+    IS_ACCELERATED::Bool
+    # ... and acceleration parameters:
+    acceleration::Dict{Symbol, Float64}
 
     function SDDPparameters(solver; passnumber=10, gap=0.,
-                            max_iterations=20, prune_cuts=0,
-                            compute_ub=-1, montecarlo=10000, mipsolver=nothing)
-        return new(solver, mipsolver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
+                            max_iterations=20, compute_cuts_pruning=0,
+                            compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
+                            mipsolver=nothing,
+                            rho0=0., alpha=1.)
+        is_acc = (rho0 > 0.)
+        accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
+
+        return new(solver, mipsolver, passnumber, gap,
+                   max_iterations, compute_cuts_pruning, compute_ub, montecarlo_final,montecarlo_in_iter, is_acc, accparams)
     end
+end
+
+"""
+Test compatibility of parameters.
+
+# Arguments
+* `model::SPModel`:
+    Parametrization of the problem
+* `param::SDDPparameters`:
+    Parameters of SDDP
+* `verbose:Int64`:
+
+# Return
+`Bool`
+"""
+function check_SDDPparameters(model::SPModel,param::SDDPparameters,verbose=0::Int64)
+    if model.IS_SMIP && isa(param.MIPSOLVER, Void)
+        error("MIP solver is not defined. Please set `param.MIPSOLVER`")
+    end
+    (model.IS_SMIP && param.IS_ACCELERATED) && error("Acceleration of SMIP not supported")
+    (verbose > 0) && (model.IS_SMIP) && println("SMIP SDDP")
+    (verbose > 0) && (param.IS_ACCELERATED) && println("Acceleration: ON")
 end
 
 
@@ -213,6 +255,29 @@ type SDDPStat
     exectime::Vector{Float64}
     # number of calls to solver:
     ncallsolver::Int64
+end
+
+SDDPStat() = SDDPStat(0, [], [], [], 0)
+
+"""
+Update the SDDPStat object with the results of current iterations.
+
+# Arguments
+* `stats::SDDPStat`:
+    statistics of the current algorithm
+* `call_solver_at_it::Int64`:
+    number of time a solver was called during the current iteration
+* `lwb::Float64`:
+    lowerbound obtained
+* `upb::Float64`:
+    upperbound estimated
+* `time`
+"""
+function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
+    stats.ncallsolver += callsolver_at_it
+    push!(stats.lower_bounds, lwb)
+    push!(stats.upper_bounds, upb)
+    push!(stats.exectime, time)
 end
 
 

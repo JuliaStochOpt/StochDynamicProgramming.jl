@@ -41,6 +41,8 @@ Import cuts from a dump text file.
 # Argument
 * `dump::String`:
     Name of file to import
+# Return
+`Vector{PolyhedralFunction}`
 """
 function read_polyhedral_functions(dump::AbstractString)
     # Store all values in a two dimensional array:
@@ -67,23 +69,6 @@ function read_polyhedral_functions(dump::AbstractString)
         end
     end
     return V
-end
-
-
-""" Remove redundant cuts in Polyhedral Value function `V`"""
-function remove_cuts(V::PolyhedralFunction)
-    Vf = hcat(V.lambdas, V.betas)
-    Vf = unique(Vf, 1)
-    return PolyhedralFunction(Vf[:, end], Vf[:, 1:end-1], size(Vf)[1])
-end
-
-
-""" Remove redundant cuts in a vector of Polyhedral Functions `Vts`."""
-function remove_redundant_cuts!(Vts::Vector{PolyhedralFunction})
-    n_functions = length(Vts)-1
-    for i in 1:n_functions
-        Vts[i] = remove_cuts(Vts[i])
-    end
 end
 
 
@@ -120,53 +105,25 @@ Generate a random state.
 `Vector{Float64}`, shape=`(model.dimStates,)`
 
 """
-function get_random_state(model)
+function get_random_state(model::SPModel)
     return [model.xlim[i][1] + rand()*(model.xlim[i][2] - model.xlim[i][1]) for i in 1:model.dimStates]
 end
 
 
 """
-Estimate the upper bound with a distribution of costs
-
-# Description
-Given a probability p, we have a confidence interval:
-[mu - alpha sigma/sqrt(n), mu + alpha sigma/sqrt(n)]
-where alpha depends upon p.
-
-Upper bound is the max of this interval.
-
+Print in terminal:
+Pass number     Upper bound     Lower bound     exectime
 # Arguments
-* `cost::Vector{Float64}`:
-    Costs values
-* `probability::Float`:
-    Probability to be inside the confidence interval
-
-# Return
-estimated-upper bound as `Float`
+* `stats::SDDPStat`:
+* `verbose::Int64`:
 """
-function upper_bound(cost::Vector{Float64}, probability=.975)
-    tol = sqrt(2) * erfinv(2*probability - 1)
-    return mean(cost) + tol*std(cost)/sqrt(length(cost))
+function print_current_stats(stats::SDDPStat, verbose::Int64)
+    if (verbose > 0) && (stats.niterations%verbose==0)
+        print("Pass number ", stats.niterations)
+        (stats.upper_bounds[end] < Inf) && print("\tUpper-bound: ", stats.upper_bounds[end])
+        println("\tLower-bound: ", round(stats.lower_bounds[end], 4),
+                "\tTime: ", round(stats.exectime[end], 2),"s")
+    end
 end
 
-
-"""
-Test if the stopping criteria is fulfilled.
-
-Return true if |V0 - upb|/V0 < epsilon
-
-# Arguments
-* `V0::Float`:
-    Approximation of initial cost
-* `upb::Float`:
-    Approximation of the upper bound given by Monte-Carlo estimation
-*  `epsilon::Float`:
-    Sensibility
-
-# Return
-`Bool`
-"""
-function test_stopping_criterion(V0::Float64, upb::Float64, epsilon::Float64)
-    return abs((V0-upb)/V0) < epsilon
-end
 
