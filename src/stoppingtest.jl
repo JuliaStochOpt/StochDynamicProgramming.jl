@@ -16,7 +16,7 @@ Return true if |upper_bound - lower_bound|/lower_bound < epsilon
 or iteration_count > maxItNumber
 
 # Arguments
-*`SDDPparameters`:
+*`param::SDDPparameters`:
     stopping test type defined in SDDPparameters
 * `stats::SDDPStat`:
     statistics of the current algorithm
@@ -28,7 +28,7 @@ function test_stopping_criterion(param::SDDPparameters, stats::SDDPStat)
     lb = stats.lower_bounds[end]
     ub = stats.upper_bounds[end]
     check_gap = (abs((ub-lb)/lb) < param.gap)
-    check_iter = stats.niterations > param.maxItNumber
+    check_iter = stats.niterations >= param.maxItNumber
     return check_gap || check_iter
 end
 

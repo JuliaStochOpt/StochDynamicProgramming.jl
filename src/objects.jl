@@ -186,6 +186,9 @@ Test compatibility of parameters.
 * `param::SDDPparameters`:
     Parameters of SDDP
 * `verbose:Int64`:
+
+# Return
+`Bool`
 """
 function check_SDDPparameters(model::SPModel,param::SDDPparameters,verbose=0::Int64)
     if model.IS_SMIP && isa(param.MIPSOLVER, Void)
@@ -256,9 +259,22 @@ end
 
 SDDPStat() = SDDPStat(0, [], [], [], 0)
 
+"""
+Update the SDDPStat object with the results of current iterations.
+
+# Arguments
+* `stats::SDDPStat`:
+    statistics of the current algorithm
+* `call_solver_at_it::Int64`:
+    number of time a solver was called during the current iteration
+* `lwb::Float64`:
+    lowerbound obtained
+* `upb::Float64`:
+    upperbound estimated
+* `time`
+"""
 function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
     stats.ncallsolver += callsolver_at_it
-    stats.niterations += 1
     push!(stats.lower_bounds, lwb)
     push!(stats.upper_bounds, upb)
     push!(stats.exectime, time)

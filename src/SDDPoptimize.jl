@@ -153,6 +153,7 @@ function run_SDDP!(model::SPModel,
         ####################
         # Stopping test
         stopping_test = test_stopping_criterion(param,stats)
+        stats.niterations += 1
     end
 
     ##########
