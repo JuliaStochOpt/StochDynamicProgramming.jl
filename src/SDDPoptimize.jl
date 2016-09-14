@@ -107,20 +107,19 @@ function run_SDDP!(model::SPModel,
                     verbose=0::Int64)
 
     #Initialization of the counter
-    stats = SDDPStat(0, [], [], [], 0)
+    stats = SDDPStat()
 
     (verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built
     # to keep always the same realization for upper bound estimation:
-    #if param.compute_ub > 0 #TODO 
+    #if param.compute_ub > 0 #TODO
     upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
-    #end
 
     upb = Inf
     costs = nothing
     stopping_test::Bool = false
-    
+
 
     # Launch execution of forward and backward passes:
     while (~stopping_test)
@@ -129,28 +128,28 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # Forward pass : compute stockTrajectories
-        costs, stockTrajectories, callsolver_forward = forward_pass!(model,param,V,problems)
+        costs, stockTrajectories, callsolver_forward = forward_pass!(model, param, V, problems)
 
         ####################
         # Backward pass : update polyhedral approximation of Bellman functions
-        callsolver_backward = backward_pass!(model,param,V,problems,stockTrajectories,model.noises)
-        
+        callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
+
         ####################
         # cut pruning
         prune_cuts!(model,param,V,stats.niterations,verbose)
- 
-        ####################
-        # In iteration upper bound estimation
-        upb = in_iteration_upb_estimation(model,param,stats.niterations,verbose,
-                                            upperbound_scenarios,upb,problems)        
 
         ####################
-        # Update stats 
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)  
-        updateSDDPStat!(stats,callsolver_forward + callsolver_backward,lwb,upb,toq())
-        
+        # In iteration upper bound estimation
+        upb = in_iteration_upb_estimation(model, param, stats.niterations, verbose,
+                                          upperbound_scenarios, upb, problems)
+
+        ####################
+        # Update stats
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
+
         print_current_stats(stats,verbose)
-        
+
         ####################
         # Stopping test
         stopping_test = test_stopping_criterion(param,stats)
@@ -158,14 +157,16 @@ function run_SDDP!(model::SPModel,
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    sddp_finish(model, param,V,problems,stats,verbose)
+    display_final_solution(model, param,V,problems,stats,verbose)
     return stats
 end
 
-function sddp_finish(model::SPModel, param::SDDPparameters,V,problems,stats::SDDPStat,verbose::Int64)
+
+"""Display final results once SDDP iterations are finished."""
+function display_final_solution(model::SPModel, param::SDDPparameters, V, problems, stats::SDDPStat, verbose::Int64)
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        
+
         if param.compute_ub == 0
             println("Estimate upper-bound with Monte-Carlo ...")
             upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)

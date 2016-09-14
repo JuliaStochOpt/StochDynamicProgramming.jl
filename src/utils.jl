@@ -109,6 +109,7 @@ function get_random_state(model::SPModel)
     return [model.xlim[i][1] + rand()*(model.xlim[i][2] - model.xlim[i][1]) for i in 1:model.dimStates]
 end
 
+
 """
 Print in terminal:
 Pass number     Upper bound     Lower bound     exectime
@@ -116,12 +117,12 @@ Pass number     Upper bound     Lower bound     exectime
 * `stats::SDDPStat`:
 * `verbose::Int64`:
 """
-function print_current_stats(stats::SDDPStat,verbose::Int64)
+function print_current_stats(stats::SDDPStat, verbose::Int64)
     if (verbose > 0) && (stats.niterations%verbose==0)
         print("Pass number ", stats.niterations)
         (stats.upper_bounds[end] < Inf) && print("\tUpper-bound: ", stats.upper_bounds[end])
         println("\tLower-bound: ", round(stats.lower_bounds[end], 4),
-            "\tTime: ", round(stats.exectime[end], 2),"s")
+                "\tTime: ", round(stats.exectime[end], 2),"s")
     end
 end
 

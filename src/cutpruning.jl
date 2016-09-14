@@ -19,8 +19,8 @@ Exact pruning of all polyhedral functions in input array.
     current iteration number
 * `verbose::Int64`
 """
-function prune_cuts!(model::SPModel, 
-                    param::SDDPparameters, 
+function prune_cuts!(model::SPModel,
+                    param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     iteration_count::Int64,
                     verbose::Int64)
@@ -30,7 +30,7 @@ function prune_cuts!(model::SPModel,
         remove_redundant_cuts!(V)
         for i in 1:length(V)-1
             V[i] = exact_prune_cuts(model, param, V[i])
-        end        
+        end
         problems = hotstart_SDDP(model, param, V)
     end
 end

@@ -252,6 +252,8 @@ type SDDPStat
     ncallsolver::Int64
 end
 
+SDDPStat() = SDDPStat(0, [], [], [], 0)
+
 function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
     stats.ncallsolver += callsolver_at_it
     stats.niterations += 1

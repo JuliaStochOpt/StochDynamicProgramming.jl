@@ -29,6 +29,6 @@ include("SDDPoptimize.jl")
 include("extensiveFormulation.jl")
 include("SDPoptimize.jl")
 include("compare.jl")
-include("cutPruning.jl")
-include("stoppingTest.jl")
+include("cutpruning.jl")
+include("stoppingtest.jl")
 end

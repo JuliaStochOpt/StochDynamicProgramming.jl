@@ -1,3 +1,14 @@
+#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  This Source Code Form is subject to the terms of the Mozilla Public
+#  License, v. 2.0. If a copy of the MPL was not distributed with this
+#  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+#############################################################################
+#  Implement the SDDP solver and initializers:
+#  - functions to initialize value functions
+#  - functions to build terminal cost
+#############################################################################
+
+
 """
 Test if the stopping criteria is fulfilled.
 
@@ -17,9 +28,10 @@ function test_stopping_criterion(param::SDDPparameters, stats::SDDPStat)
     lb = stats.lower_bounds[end]
     ub = stats.upper_bounds[end]
     check_gap = (abs((ub-lb)/lb) < param.gap)
-    check_iter = stats.niterations > param.maxItNumber
+    check_iter = stats.niterations >= param.maxItNumber
     return check_gap || check_iter
 end
+
 
 """
 Estimate upperbound during SDDP iterations.
@@ -38,24 +50,24 @@ Estimate upperbound during SDDP iterations.
 * `upb::Float64`:
     estimation of upper bound
 """
-#TODO à reprendre
-function in_iteration_upb_estimation(model::SPModel, 
-                    param::SDDPparameters,
-                    iteration_count::Int64,
-                    verbose::Int64,
-                    upperbound_scenarios,
-                    current_upb,
-                    problems)
-        upb = current_upb
-        # If specified, compute upper-bound:
-        if (param.compute_ub > 0) && (iteration_count%param.compute_ub==0)
-            (verbose > 0) && println("Compute upper-bound with ",
-                                      param.in_iter_mc, " scenarios...")
-            # estimate upper-bound with Monte-Carlo estimation:
-            upb, costs = estimate_upper_bound(model, param, upperbound_scenarios, problems)
-        end
-        return upb
+function in_iteration_upb_estimation(model::SPModel,
+                                     param::SDDPparameters,
+                                     iteration_count::Int64,
+                                     verbose::Int64,
+                                     upperbound_scenarios,
+                                     current_upb,
+                                     problems)
+    upb = current_upb
+    # If specified, compute upper-bound:
+    if (param.compute_ub > 0) && (iteration_count%param.compute_ub==0)
+        (verbose > 0) && println("Compute upper-bound with ",
+                                    param.in_iter_mc, " scenarios...")
+        # estimate upper-bound with Monte-Carlo estimation:
+        upb, costs = estimate_upper_bound(model, param, upperbound_scenarios, problems)
+    end
+    return upb
 end
+
 
 """
 Estimate upper bound with Monte Carlo.
@@ -85,6 +97,8 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
     aleas = simulate_scenarios(model.noises, n_simulation)
     return estimate_upper_bound(model, param, aleas, problem)
 end
+
+
 function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 aleas::Array{Float64, 3},
                                 problem::Vector{JuMP.Model})
@@ -116,3 +130,4 @@ function upper_bound(cost::Vector{Float64}, probability=.975)
     tol = sqrt(2) * erfinv(2*probability - 1)
     return mean(cost) + tol*std(cost)/sqrt(length(cost))
 end
+

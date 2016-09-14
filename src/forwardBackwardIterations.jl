@@ -11,7 +11,7 @@ Make a forward pass of the algorithm
 
 # Description
 Simulate scenarios of noise and compute optimal trajectories on those
-scenarios, with associated costs. 
+scenarios, with associated costs.
 
 # Arguments
 * `model::SPmodel`: the stochastic problem we want to optimize
@@ -37,7 +37,7 @@ function forward_pass!(model::SPModel,
     # Draw a set of scenarios according to the probability
     # law specified in model.noises:
     noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
-    
+
     # If acceleration is ON, need to build a new array of problem to
     # avoid side effect:
     problems_fp = (param.IS_ACCELERATED)? hotstart_SDDP(model, param, V):problems
