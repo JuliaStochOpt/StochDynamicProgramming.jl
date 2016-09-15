@@ -5,7 +5,7 @@
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
 
-type Territories
+type ActiveCutsContainer
     ncuts::Int
     territories::Array{Array}
     nstates::Int
@@ -40,7 +40,7 @@ Exact pruning of all polyhedral functions in input array.
     Polyhedral functions where cuts will be removed
 * `trajectories::Array{Float64, 3}`
     Previous trajectories
-* `territory::Array{Territories}`
+* `territory::Array{ActiveCutsContainer}`
     Container storing the territory for each cuts
 * `it::Int64`:
     current iteration number
@@ -50,7 +50,7 @@ function prune_cuts!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     trajectories::Array{Float64, 3},
-                    territory::Union{Void, Array{Territories}},
+                    territory::Union{Void, Array{ActiveCutsContainer}},
                     it::Int64,
                     verbose::Int64)
     # Basic pruning: remove redundant cuts
@@ -58,10 +58,10 @@ function prune_cuts!(model::SPModel,
 
     # If pruning is performed with territory heuristic, update territory
     # at given iteration:
-    if param.pruning[:type] ∈ ["territory", "mixed"]
+    if param.pruning[:type] ∈ ["level1", "exact+"]
         for t in 1:model.stageNumber-1
             states = reshape(trajectories[t, :, :], param.forwardPassNumber, model.dimStates)
-            find_territory!(territory[t], V[t], states)
+            find_level1_cuts!(territory[t], V[t], states)
         end
     end
 
@@ -74,13 +74,13 @@ function prune_cuts!(model::SPModel,
         for i in 1:length(V)-1
             if param.pruning[:type] == "exact"
                 # apply exact cuts pruning:
-                V[i] = exact_prune_cuts(model, param, V[i])
-            elseif param.pruning[:type] == "territory"
+                V[i] = exact_cuts_pruning(model, param, V[i])
+            elseif param.pruning[:type] == "level1"
                 # apply heuristic to prune cuts:
-                V[i] = remove_empty_cuts!(territory[i], V[i])
-            elseif param.pruning[:type] == "mixed"
+                V[i] = level1_cuts_pruning!(territory[i], V[i])
+            elseif param.pruning[:type] == "exact+"
                 # apply mixed heuristic to prune cuts:
-                V[i] = remove_cuts_usefulness!(model, territory[i], V[i], param.SOLVER)
+                V[i] = exact_cuts_pruning_accelerated!(model, territory[i], V[i], param.SOLVER)
             end
         end
 
@@ -104,7 +104,7 @@ Remove useless cuts in PolyhedralFunction.
 # Return
 * `PolyhedralFunction`: pruned polyhedral function
 """
-function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
+function exact_cuts_pruning(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
     ncuts = V.numCuts
     # Find all active cuts:
     if ncuts > 1
@@ -157,84 +157,83 @@ end
 # Territory algorithm
 ########################################
 
-Territories(ndim) = Territories(0, [], 0, Array{Float64}(0, ndim))
+ActiveCutsContainer(ndim) = ActiveCutsContainer(0, [], 0, Array{Float64}(0, ndim))
 
 
-""" Update territories with cuts previously computed during backward pass.  """
-function find_territory!(territory, V, states)
+"""Update territories with cuts previously computed during backward pass."""
+function find_level1_cuts!(cutscontainer, V, states)
     nc = V.numCuts
     # get number of new positions to analyse:
     nx = size(states, 1)
-    nt = nc - territory.ncuts
+    nt = nc - cutscontainer.ncuts
 
     for i in 1:nt
-        add_cut!(territory)
-        update_territory!(territory, V, nc - nt + i)
+        add_cut!(cutscontainer)
+        update_territory!(cutscontainer, V, nc - nt + i)
     end
 
     # ensure that territory has the same number of cuts as V!
-    assert(territory.ncuts == V.numCuts)
+    assert(cutscontainer.ncuts == V.numCuts)
 
     for i in 1:nx
         x = collect(states[i, :])
-        add_state!(territory, V, x)
+        add_state!(cutscontainer, V, x)
     end
-
 end
 
 
 """Update territories considering new cut with index `indcut`."""
-function update_territory!(territory, V, indcut)
-    for k in 1:territory.ncuts
+function update_territory!(cutscontainer, V, indcut)
+    for k in 1:cutscontainer.ncuts
         if k == indcut
             continue
         end
         todelete = []
-        for (num, (ix, cost)) in enumerate(territory.territories[k])
-            x = collect(territory.states[ix, :])
+        for (num, (ix, cost)) in enumerate(cutscontainer.territories[k])
+            x = collect(cutscontainer.states[ix, :])
 
             costnewcut = cutvalue(V, indcut, x)
 
             if costnewcut > cost
                 push!(todelete, num)
-                push!(territory.territories[indcut], (ix, costnewcut))
+                push!(cutscontainer.territories[indcut], (ix, costnewcut))
             end
         end
-        deleteat!(territory.territories[k], todelete)
+        deleteat!(cutscontainer.territories[k], todelete)
     end
 end
 
 
 """Add cut to `territory`."""
-function add_cut!(territory)
-    push!(territory.territories, [])
-    territory.ncuts += 1
+function add_cut!(cutscontainer)
+    push!(cutscontainer.territories, [])
+    cutscontainer.ncuts += 1
 end
 
 
 """Add a new state and update territories."""
-function add_state!(territory::Territories, V::PolyhedralFunction, x::Array{Float64})
+function add_state!(cutscontainer::ActiveCutsContainer, V::PolyhedralFunction, x::Array{Float64})
     # Get cut which is the supremum at point `x`:
     bcost, bcuts = optimalcut(x, V)
 
     # Add `x` to the territory of cut `bcuts`:
-    territory.nstates += 1
-    push!(territory.territories[bcuts], (territory.nstates, bcost))
+    cutscontainer.nstates += 1
+    push!(cutscontainer.territories[bcuts], (cutscontainer.nstates, bcost))
 
     # Add `x` to the list of visited state:
-    territory.states = vcat(territory.states, x')
+    cutscontainer.states = vcat(cutscontainer.states, x')
 end
 
 
-"""Remove empty cuts with heuristic in PolyhedralFunction."""
-function remove_empty_cuts!(territory::Territories, V::PolyhedralFunction)
-    assert(territory.ncuts == V.numCuts)
+"""Remove inactive cuts in PolyhedralFunction with territory heuristic."""
+function level1_cuts_pruning!(cutscontainer::ActiveCutsContainer, V::PolyhedralFunction)
+    assert(cutscontainer.ncuts == V.numCuts)
 
-    nstates = [length(terr) for terr in territory.territories]
+    nstates = [length(terr) for terr in cutscontainer.territories]
     active_cuts = nstates .> 0
 
-    territory.territories = territory.territories[active_cuts]
-    territory.ncuts = sum(active_cuts)
+    cutscontainer.territories = cutscontainer.territories[active_cuts]
+    cutscontainer.ncuts = sum(active_cuts)
     return PolyhedralFunction(V.betas[active_cuts],
                               V.lambdas[active_cuts, :],
                               sum(active_cuts))
@@ -242,17 +241,19 @@ end
 
 
 """Remove empty cuts in PolyhedralFunction with usefulness test."""
-function remove_cuts_usefulness!(model::SPModel, territory::Territories, V::PolyhedralFunction, solver)
-    assert(territory.ncuts == V.numCuts)
+function exact_cuts_pruning_accelerated!(model::SPModel,
+                                         cutscontainer::ActiveCutsContainer,
+                                         V::PolyhedralFunction, solver)
+    assert(cutscontainer.ncuts == V.numCuts)
 
-    nstates = [length(terr) for terr in territory.territories]
+    nstates = [length(terr) for terr in cutscontainer.territories]
     # Set of inactive cuts:
     inactive_cuts = nstates .== 0
     # Set of active cuts:
     active_cuts = nstates .> 0
 
     # get index of inactive cuts:
-    index = collect(1:territory.ncuts)[inactive_cuts]
+    index = collect(1:cutscontainer.ncuts)[inactive_cuts]
 
     # Check if inactive cuts are useful or not:
     for id in index
@@ -263,15 +264,15 @@ function remove_cuts_usefulness!(model::SPModel, territory::Territories, V::Poly
     end
 
     # Remove useless cuts:
-    territory.territories = territory.territories[active_cuts]
-    territory.ncuts = sum(active_cuts)
+    cutscontainer.territories = cutscontainer.territories[active_cuts]
+    cutscontainer.ncuts = sum(active_cuts)
     return PolyhedralFunction(V.betas[active_cuts],
                               V.lambdas[active_cuts, :],
                               sum(active_cuts))
 end
 
 
-"""Get cut which approximate the best value function at point `x`."""
+"""Find active cut at point `xf`."""
 function optimalcut(xf::Vector{Float64}, V::PolyhedralFunction)
     bestcost = -Inf::Float64
     bestcut = -1
@@ -293,7 +294,7 @@ end
 
 
 """
-Get approximation of value function at given point `x`.
+Get value of cut with index `indc` at point `x`.
 
 # Arguments
 - `V::PolyhedralFunction`

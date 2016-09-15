@@ -118,15 +118,15 @@ facts("SDDP algorithm: 1D case") do
         # Check computation of optimal cut:
         @fact StochDynamicProgramming.optimalcut([0., 0.], vt)[2] --> 1
 
-        terr = StochDynamicProgramming.Territories(2)
-        StochDynamicProgramming.find_territory!(terr, vt, [0. 0.; 1. 0.])
+        terr = StochDynamicProgramming.ActiveCutsContainer(2)
+        StochDynamicProgramming.find_level1_cuts!(terr, vt, [0. 0.; 1. 0.])
         @fact terr.ncuts --> 2
         @fact terr.nstates --> 2
         @fact length(terr.territories[1]) --> 2
         @fact length(terr.territories[2]) --> 0
 
         # Check heuristic removal:
-        vt2 = StochDynamicProgramming.remove_empty_cuts!(terr, vt)
+        vt2 = StochDynamicProgramming.level1_cuts_pruning!(terr, vt)
         @fact isa(vt2, StochDynamicProgramming.PolyhedralFunction) --> true
         @fact vt2.numCuts --> 1
         @fact vt2.betas[1] --> vt.betas[1]
@@ -145,20 +145,20 @@ facts("SDDP algorithm: 1D case") do
                                                     prune_cuts=1,
                                                     max_iterations=1)
         V1 = solve_SDDP(model, param1, 0)[1]
-        param1 = StochDynamicProgramming.SDDPparameters(solver,
+        param2 = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
-                                                    pruning_algo="territory",
+                                                    pruning_algo="level1",
                                                     prune_cuts=1,
                                                     max_iterations=1)
-        V2 = solve_SDDP(model, param1, 0)[1]
-        param1 = StochDynamicProgramming.SDDPparameters(solver,
+        V2 = solve_SDDP(model, param2, 0)[1]
+        param3 = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
-                                                    pruning_algo="mixed",
+                                                    pruning_algo="exact+",
                                                     prune_cuts=1,
                                                     max_iterations=1)
-        V3 = solve_SDDP(model, param1, 0)[1]
+        V3 = solve_SDDP(model, param3, 0)[1]
 
         n1 = StochDynamicProgramming.get_total_number_cuts(V1)
         n2 = StochDynamicProgramming.get_total_number_cuts(V2)

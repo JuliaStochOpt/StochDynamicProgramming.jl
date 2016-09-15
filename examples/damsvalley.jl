@@ -110,7 +110,7 @@ function init_problem()
     model = LinearSPModel(N_STAGES, u_bounds,
                           X0, cost_t,
                           dynamic, aleas,
-                          final_cost_dams)
+                          Vfinal=final_cost_dams)
 
     # Add bounds for stocks:
     set_state_bounds(model, x_bounds)
@@ -121,17 +121,11 @@ function init_problem()
     params = SDDPparameters(solver,
                             passnumber=FORWARD_PASS,
                             gap=EPSILON,
-                            pruning_algo="exact",
-                            max_iterations=20,
-                            prune_cuts=10)
+                            max_iterations=MAX_ITER)
     return model, params
 end
 
 # Solve the problem:
 model, params = init_problem()
 V, pbs = @time solve_SDDP(model, params, 1)
-aleas = simulate_scenarios(model.noises, 100)
-c, x, u = forward_simulations(model, params, pbs, aleas);
 
-xx = reshape(x[5, :, :], 100, 5)
-v = V[5]
