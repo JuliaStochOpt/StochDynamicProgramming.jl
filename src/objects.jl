@@ -170,6 +170,10 @@ type SDDPparameters
                             compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
                             mipsolver=nothing,
                             rho0=0., alpha=1.)
+
+        if ~(pruning_algo ∈ ["none", "mixed", "territory", "exact"])
+            throw(ArgumentError("`pruning_algo` must be `none`, `mixed`, `territory`, `exact`"))
+        end
         is_acc = (rho0 > 0.)
         accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
 
