@@ -541,6 +541,9 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
     #Compute cartesian product spaces
     product_states, product_controls = generate_grid(model, param)
 
+    product_states = collect(product_states)
+    product_controls = collect(product_controls)
+
     controls = Inf*ones(TF-1, 1, model.dimControls)
     states = Inf*ones(TF, 1, model.dimStates)
 
