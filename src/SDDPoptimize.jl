@@ -108,7 +108,14 @@ function run_SDDP!(model::SPModel,
 
     #Initialization of the counter
     stats = SDDPStat()
-    activecuts = (param.pruning[:type] ∈ ["level1", "exact+"])? [ActiveCutsContainer(model.dimStates) for i in 1:model.stageNumber-1]: nothing
+
+    # Initialize cuts container for cuts pruning:
+    if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
+        activecuts = [ActiveCutsContainer(model.dimStates) for i in 1:model.stageNumber-1]
+    else
+        activecuts = [nothing for i in 1:model.stageNumber-1]
+    end
+
     (verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built

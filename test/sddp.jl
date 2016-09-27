@@ -120,13 +120,13 @@ facts("SDDP algorithm: 1D case") do
 
         terr = StochDynamicProgramming.ActiveCutsContainer(2)
         StochDynamicProgramming.find_level1_cuts!(terr, vt, [0. 0.; 1. 0.])
-        @fact terr.ncuts --> 2
+        @fact terr.numCuts --> 2
         @fact terr.nstates --> 2
         @fact length(terr.territories[1]) --> 2
         @fact length(terr.territories[2]) --> 0
 
         # Check heuristic removal:
-        vt2 = StochDynamicProgramming.level1_cuts_pruning!(terr, vt)
+        vt2 = StochDynamicProgramming.level1_cuts_pruning!(model, param, vt, terr)
         @fact isa(vt2, StochDynamicProgramming.PolyhedralFunction) --> true
         @fact vt2.numCuts --> 1
         @fact vt2.betas[1] --> vt.betas[1]

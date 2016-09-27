@@ -138,7 +138,11 @@ type StochDynProgModel <: SPModel
 
 end
 
-
+# Define alias for cuts pruning algorithm:
+typealias LevelOne Val{:LevelOne}
+typealias ExactPruning Val{:Exact}
+typealias Territory Val{:Exact_Plus}
+typealias NoPruning Val{:none}
 
 type SDDPparameters
     # Solver used to solve LP
@@ -178,7 +182,15 @@ type SDDPparameters
         accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
 
         pruning_algo = (prune_cuts>0)? pruning_algo: "none"
-        prune_cuts = Dict(:pruning=>prune_cuts>0, :period=>prune_cuts, :type=>pruning_algo)
+        prune_cuts = (pruning_algo != "none")? prune_cuts: 0
+
+        corresp = Dict("none"=>NoPruning,
+                       "level1"=>LevelOne,
+                       "exact+"=>Territory,
+                       "exact"=>ExactPruning)
+        prune_cuts = Dict(:pruning=>prune_cuts>0,
+                          :period=>prune_cuts,
+                          :type=>corresp[pruning_algo])
         return new(solver, mipsolver, passnumber, gap,
                    max_iterations, prune_cuts, compute_ub,
                    montecarlo_final, montecarlo_in_iter, is_acc, accparams)
