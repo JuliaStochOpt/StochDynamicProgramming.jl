@@ -3,7 +3,8 @@ import StochDynamicProgramming
 
 
 """
-Solve SDDP in parallel.
+Solve SDDP in parallel, dispatching both forward and backward passes to process, 
+which is not the most standard parallelization of SDDP.
 
 # Arguments
 * `model::SPmodel`:
@@ -15,7 +16,7 @@ Solve SDDP in parallel.
 * `n_parallel_pass::Int`: default is 4
     Number of parallel pass to compute
 * `synchronize::Int`: default is 5
-    Set when to synchronize the cuts between the different processes.
+    Synchronize the cuts between the different processes every "synchronise" iterations
 * `display::Int`: default is 0
     Says whether to display results or not
 
