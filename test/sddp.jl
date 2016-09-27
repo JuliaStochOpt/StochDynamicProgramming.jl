@@ -214,14 +214,14 @@ facts("SDDP algorithm: 1D case") do
     context("Stopping criterion") do
         # Compute upper bound every %% iterations:
         param.compute_ub = 1
-        param.pruning = Dict(:pruning=>true, :period=>1, :type=>"exact")
         param.maxItNumber = 30
+        param.gap = .1
         V, pbs = solve_SDDP(model, param, V, 0)
         V0 = StochDynamicProgramming.get_lower_bound(model, param, V)
         n_simulations = 1000
         upb = StochDynamicProgramming.estimate_upper_bound(model, param, V, pbs,
                                                             n_simulations)[1]
-        @fact abs((V0 - upb)/V0) < param.gap --> true
+        @fact abs((V0 - upb)) < param.gap --> true
     end
 
     context("Dump") do
