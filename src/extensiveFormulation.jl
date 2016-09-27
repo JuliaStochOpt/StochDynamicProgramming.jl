@@ -13,12 +13,14 @@ measurability constraints.
 # Arguments:
 * `model::SPModel`
 * `param::SDDPparameters`
+* `verbose`::Int`
+    Optionnal, default is 0
 # Returns
 * `objective value`
-* `first control` 
+* `first control`
 * `status of optimization problem`
 """
-function extensive_formulation(model, param)
+function extensive_formulation(model, param; verbose=0)
 
     #Recover all the constant in the model or in param
     laws = model.noises
@@ -27,7 +29,7 @@ function extensive_formulation(model, param)
 
     X_init = model.initialState
     T = model.stageNumber-1
-    mod = Model(solver=param.solver)
+    mod = Model(solver=param.SOLVER)
 
     #Calculate the number of nodes n at each step on the scenario tree
     N = Array{Int64,2}(zeros(T+1,1))
@@ -91,10 +93,10 @@ function extensive_formulation(model, param)
     @constraint(mod, [x[1,k] for k = 1:DIM_STATE] .== X_init)
 
     #Define the objective of the function
-    @objective(mod, Min, 
-    sum{ 
+    @objective(mod, Min,
+    sum{
         sum{    proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k],
-            k = 1:laws[t].supportSize}, 
+            k = 1:laws[t].supportSize},
         t = 1:T, n=1:div(N[t+1],laws[t].supportSize)}
     )
 
@@ -102,7 +104,7 @@ function extensive_formulation(model, param)
     solved = (status == :Optimal)
 
     if solved
-        println("EF value: "*string(getobjectivevalue(mod)))
+        (verbose > 0) && println("EF value: "*string(getobjectivevalue(mod)))
         firstControl = collect(values(getvalue(u)))[1:DIM_CONTROL*laws[1].supportSize]
         return getobjectivevalue(mod), firstControl, status
     else

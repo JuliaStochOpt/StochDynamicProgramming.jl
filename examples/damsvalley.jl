@@ -84,7 +84,7 @@ end
 const FORWARD_PASS = 10.
 const EPSILON = .05
 # Maximum number of iterations
-const MAX_ITER = 50
+const MAX_ITER = 10
 ##################################################
 
 """Build probability distribution at each timestep.
@@ -107,25 +107,25 @@ function init_problem()
 
     x_bounds = [(VOLUME_MIN, VOLUME_MAX) for i in 1:N_DAMS]
     u_bounds = vcat([(CONTROL_MIN, CONTROL_MAX) for i in 1:N_DAMS], [(0., 200) for i in 1:N_DAMS]);
-    model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                u_bounds,
-                                                X0,
-                                                cost_t,
-                                                dynamic,
-                                                aleas,
-                                                final_cost_dams)
+    model = LinearSPModel(N_STAGES, u_bounds,
+                          X0, cost_t,
+                          dynamic, aleas,
+                          Vfinal=final_cost_dams)
 
     # Add bounds for stocks:
     set_state_bounds(model, x_bounds)
 
     # We need to use CPLEX to solve QP at final stages:
     solver = CPLEX.CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_BARDISPLAY=0)
-    params = SDDPparameters(solver, FORWARD_PASS, EPSILON, MAX_ITER)
 
+    params = SDDPparameters(solver,
+                            passnumber=FORWARD_PASS,
+                            gap=EPSILON,
+                            max_iterations=MAX_ITER)
     return model, params
 end
 
 # Solve the problem:
 model, params = init_problem()
-V, pbs = solve_SDDP(model, params, 1)
+V, pbs = @time solve_SDDP(model, params, 1)
 

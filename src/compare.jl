@@ -25,20 +25,26 @@ of calls to the solver
 * `seeds::Int`
     The random number generator seeds
 
-# Output
-* `Display in the terminal`
-    Print information in the terminal
+# Returns
+Return for different benchmark the following parameters:
+    solver_calls, solving_times, solving_mem, gap_sols
 """
 function benchmark_parameters(model,
                                SDDParametersCollection,
                                scenarios::Array{Float64,3},
-                               seeds::Int)
+                               seeds::Int;
+                               verbose=0)
 
     #Execute a first time each function to compile them
     (V, pbs, callsolver), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0)
      V0, t2, m2 = @timed get_bellman_value(model, SDDParametersCollection[1], 1, V[1], model.initialState)
     (upb, costs), t3, m3 = @timed estimate_upper_bound(model, SDDParametersCollection[1], scenarios, pbs)
 
+    # Define arrays to store results of benchmark
+    solver_calls = []
+    solving_times = []
+    solving_mem = []
+    gap_sols = []
 
     for sddpparams in SDDParametersCollection
 
@@ -52,13 +58,22 @@ function benchmark_parameters(model,
         simulationtime = t2+t3
         solvingmemory = m1
         simulationmemory = m2+m3
+        g = round(100*(upb-V0)/V0)
 
-        print("Instance \t")
-        print("Solving time = ",round(solvingtime,4),"\t")
-        print("Solving memory = ", solvingmemory,"\t")
-        print("Simulation time = ",round(simulationtime,4),"\t")
-        print("Simulation memory = ", simulationmemory,"\t")
-        print("Gap < ", round(100*(upb-V0)/V0),"% with prob 97.5%\t")
-        println("number external solver call = ", sddpstats.ncallsolver)
+        push!(solver_calls, sddpstats.ncallsolver)
+        push!(solving_times, t1)
+        push!(solving_mem, m1)
+        push!(gap_sols, g)
+
+        if verbose > 0
+            print("Instance \t")
+            print("Solving time = ",round(solvingtime,4),"\t")
+            print("Solving memory = ", solvingmemory,"\t")
+            print("Simulation time = ",round(simulationtime,4),"\t")
+            print("Simulation memory = ", simulationmemory,"\t")
+            print("Gap < ", g,"% with prob 97.5%\t")
+            println("number external solver call = ", sddpstats.ncallsolver)
+        end
     end
+    return solver_calls, solving_times, solving_mem, gap_sols
 end

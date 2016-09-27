@@ -77,7 +77,7 @@ println("library loaded")
     end
 
     function constraint(t, x, u, xi)
-    	return( (x[1] <= s_bounds[1][2] )&(x[1] >= s_bounds[1][1]))
+    	return true
     end
 
     function finalCostFunction(x)

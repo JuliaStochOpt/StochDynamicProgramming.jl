@@ -167,12 +167,12 @@ function init_problem()
     x_bounds = [(VOLUME_MIN, VOLUME_MAX), (VOLUME_MIN, VOLUME_MAX)]
     u_bounds = [(CONTROL_MIN, CONTROL_MAX), (CONTROL_MIN, CONTROL_MAX), (0, Inf), (0, Inf)]
 
-    model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                u_bounds,
-                                                x0,
-                                                cost_t,
-                                                dynamic,
-                                                aleas)
+    model = LinearSPModel(N_STAGES,
+                            u_bounds,
+                            x0,
+                            cost_t,
+                            dynamic,
+                            aleas)
 
     set_state_bounds(model, x_bounds)
 
@@ -180,7 +180,10 @@ function init_problem()
     EPSILON = .05
     MAX_ITER = 20
     solver = SOLVER
-    params = SDDPparameters(solver, N_SCENARIOS, EPSILON, MAX_ITER)
+    params = SDDPparameters(solver,
+                            passnumber=N_SCENARIOS,
+                            gap=EPSILON,
+                            max_iterations=MAX_ITER)
 
     return model, params
 end
@@ -259,7 +262,7 @@ function benchmark_sdp()
     end
 
     function constraints(t, x, u, w)
-        return (VOLUME_MIN<=x[1]<=VOLUME_MAX)&(VOLUME_MIN<=x[2]<=VOLUME_MAX)
+        return true
     end
 
     function finalCostFunction(x)

@@ -2,7 +2,7 @@
 # Test SDDP functions
 ################################################################################
 using FactCheck, StochDynamicProgramming
-
+using StochDynamicProgramming.SDPutils
 
 facts("Indexation for SDP") do
 
@@ -14,12 +14,16 @@ facts("Indexation for SDP") do
     ind = SDPutils.index_from_variable(var, bounds, steps)
     ind2 = SDPutils.real_index_from_variable(vart, bounds, steps)
 
+    checkFalse = SDPutils.is_next_state_feasible([0,1,2],3,bounds)
+    checkTrue = SDPutils.is_next_state_feasible([0.12,1.3,1.3],3,bounds)
+
 
     @fact ind --> (4,51,141)
     @fact ind2[1] --> roughly(4.2)
     @fact ind2[2] --> roughly(52.6)
     @fact ind2[3] --> roughly(144.2)
-
+    @fact checkFalse --> false
+    @fact checkTrue --> true
 
 end
 
@@ -62,17 +66,9 @@ facts("SDP algorithm") do
     end
 
     # Define cost corresponding to each timestep:
-    function cost_t(t, x, u, w)
-        return COST[t] * (u[1])
-    end
-
-    function constraints(t, x, u, w)
-        return (x[1]<=VOLUME_MAX)&(x[1]>=VOLUME_MIN)&(x[2]<=VOLUME_MAX)&(x[2]>=VOLUME_MIN)
-    end
-
-    function finalCostFunction(x)
-        return 0.
-    end
+    cost_t(t, x, u, w) = COST[t] * (u[1])
+    constraints(t, x, u, w) = true
+    finalCostFunction(x) = 0.
 
     """Build admissible scenarios for water inflow over the time horizon."""
     function build_scenarios(n_scenarios::Int64, N_STAGES)
@@ -134,16 +130,16 @@ facts("SDP algorithm") do
         context("Compare StochDynProgModel constructors") do
 
 
-            modelSDPPiecewise = StochDynamicProgramming.PiecewiseLinearCostSPmodel(TF,
+            modelSDPPiecewise = StochDynamicProgramming.LinearSPModel(TF,
             u_bounds, x0,
             [cost_t],
             dynamic, aleas)
             set_state_bounds(modelSDPPiecewise, x_bounds)
 
-            modelSDPLinear = StochDynamicProgramming.LinearDynamicLinearCostSPmodel(TF,
-            u_bounds, x0,
-            cost_t,
-            dynamic, aleas)
+            modelSDPLinear = StochDynamicProgramming.LinearSPModel(TF,
+                                                                   u_bounds, x0,
+                                                                   cost_t,
+                                                                   dynamic, aleas)
 
             set_state_bounds(modelSDPLinear, x_bounds)
 

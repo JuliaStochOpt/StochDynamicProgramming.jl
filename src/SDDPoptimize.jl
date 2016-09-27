@@ -21,10 +21,10 @@ fulfilled.
     the stochastic problem we want to optimize
 * `param::SDDPparameters`:
     the parameters of the SDDP algorithm
-* `display::Int64`:
+* `verbose::Int64`:
     Default is `0`
     If non null, display progression in terminal every
-    `n` iterations, where `n` is number specified by display.
+    `n` iterations, where `n` is the number specified by display.
 
 # Returns
 * `V::Array{PolyhedralFunction}`:
@@ -32,181 +32,168 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-* `count_callsolver::Int64`:
-    number of times the solver has been called
+* `sddp_stats::SDDPStat`:
 
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, display=0::Int64)
+function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
+    check_SDDPparameters(model,param,verbose)
     # initialize value functions:
     V, problems = initialize_value_functions(model, param)
-    (display > 0) && println("Initial value function loaded into memory.")
-    # Run SDDP upon example:
-    sddp_stats = run_SDDP!(model, param, V, problems, display)
+    (verbose > 0) && println("Initial value function loaded into memory.")
+    # Run SDDP:
+    sddp_stats = run_SDDP!(model, param, V, problems, verbose)
     return V, problems, sddp_stats
 end
-
-
-function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, display=0::Int64)
-    # First step: process value functions if hotstart is called
-    problems = hotstart_SDDP(model, param, V)
-    sddp_stats = run_SDDP!(model, param, V, problems, display)
-    return V, problems, sddp_stats
-end
-
-
-"""Run SDDP iterations."""
-function run_SDDP!(model::SPModel,
-                    param::SDDPparameters,
-                    V::Vector{PolyhedralFunction},
-                    problems::Vector{JuMP.Model},
-                    display=0::Int64)
-
-    #Initialization of the counter
-    stats = SDDPStat(0, [], [], [], 0)
-
-    if display > 0
-      println("Initialize cuts")
-    end
-
-    if param.compute_upper_bound > 0
-        upperbound_scenarios = simulate_scenarios(model.noises, param.monteCarloSize)
-    end
-
-    upb = Inf
-    costs = nothing
-    stopping_test::Bool = false
-    iteration_count::Int64 = 0
-
-    while (iteration_count < param.maxItNumber) & (~stopping_test)
-
-        # Time execution of current pass:
-        tic()
-
-        # Build given number of scenarios according to distribution
-        # law specified in model.noises:
-        noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
-
-        # Forward pass
-        _, stockTrajectories,_,callsolver_forward = forward_simulations(model,
-                            param,
-                            problems,
-                            noise_scenarios)
-
-
-        # Backward pass
-        callsolver_backward = backward_pass!(model,
-                      param,
-                      V,
-                      problems,
-                      stockTrajectories,
-                      model.noises)
-
-        #Update the number of call
-        stats.ncallsolver += callsolver_forward + callsolver_backward
-
-        iteration_count += 1
-        stats.niterations += 1
-
-        if (param.compute_cuts_pruning > 0) && (iteration_count%param.compute_cuts_pruning==0)
-            (display > 0) && println("Prune cuts ...")
-            remove_redundant_cuts!(V)
-            prune_cuts!(model, param, V)
-            problems = hotstart_SDDP(model, param, V)
-        end
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        push!(stats.lower_bounds, lwb)
-
-        if (param.compute_upper_bound > 0) && (iteration_count%param.compute_upper_bound==0)
-            (display > 0) && println("Compute upper-bound with ",
-                                      param.monteCarloSize, " scenarios...")
-            upb, costs = estimate_upper_bound(model, param, upperbound_scenarios, problems)
-            if param.gap > 0.
-                stopping_test = test_stopping_criterion(lwb, upb, param.gap)
-            end
-        end
-
-        push!(stats.exectime, toq())
-        push!(stats.upper_bounds, upb)
-
-        if (display > 0) && (iteration_count%display==0)
-            if upb < Inf
-                println("Pass number ", iteration_count,
-                    "\tUpper-bound: ", upb,
-                    "\tLower-bound: ", round(stats.lower_bounds[end], 4),
-                    "\tTime: ", round(stats.exectime[end], 2),"s")
-             else
-                println("Pass number ", iteration_count,
-                    "\tLower-bound: ", round(stats.lower_bounds[end], 4),
-                    "\tTime: ", round(stats.exectime[end], 2),"s")
-             end
-        end
-
-    end
-
-    # Estimate upper bound with a great number of simulations:
-    if (display>0) && (param.compute_upper_bound != 0)
-        V0 = get_bellman_value(model, param, 1, V[1], model.initialState)
-
-        if param.compute_upper_bound == -1
-            println("Estimate upper-bound with Monte-Carlo ...")
-            upb, costs = estimate_upper_bound(model, param, V, problems)
-        end
-
-        println("Estimation of upper-bound: ", round(upb,4),
-                "\tExact lower bound: ", round(V0,4),
-                "\t Gap <  ", round(100*(upb-V0)/V0, 2) , "\%  with prob. > 97.5 \%")
-        println("Estimation of cost of the solution (fiability 95\%):",
-                 round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
-    end
-
-    return stats
-end
-
 
 """
-Estimate upper bound with Monte Carlo.
+Solve SDDP algorithm with hotstart and return estimation of bellman functions.
+
+# Description
+Alternate forward and backward phase till the stopping criterion is
+fulfilled.
 
 # Arguments
 * `model::SPmodel`:
     the stochastic problem we want to optimize
 * `param::SDDPparameters`:
     the parameters of the SDDP algorithm
+* `V::Vector{PolyhedralFunction}`:
+    current lower approximation of Bellman functions
+* `verbose::Int64`:
+    Default is `0`
+    If non null, display progression in terminal every
+    `n` iterations, where `n` is the number specified by display.
+
+# Returns
 * `V::Array{PolyhedralFunction}`:
-    the current estimation of Bellman's functions
+    the collection of approximation of the bellman functions
 * `problems::Array{JuMP.Model}`:
-    Linear model used to approximate each value function
-* `n_simulation::Float64`:
-    Number of scenarios to use to compute Monte-Carlo estimation
-
-# Return
-* `upb::Float64`:
-    estimation of upper bound
-* `costs::Vector{Float64}`:
-    Costs along different trajectories
+    the collection of linear problems used to approximate
+    each value function
+* `sddp_stats::SDDPStat`:
 """
-function estimate_upper_bound(model::SPModel, param::SDDPparameters,
-                                V::Vector{PolyhedralFunction},
-                                problem::Vector{JuMP.Model},
-                                n_simulation=1000::Int)
-
-    aleas = simulate_scenarios(model.noises, n_simulation)
-    costs, stockTrajectories, _ = forward_simulations(model, param, problem, aleas)
-    return upper_bound(costs), costs
+function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
+    check_SDDPparameters(model,param,verbose)
+    # First step: process value functions if hotstart is called
+    problems = hotstart_SDDP(model, param, V)
+    sddp_stats = run_SDDP!(model, param, V, problems, verbose)
+    return V, problems, sddp_stats
 end
 
 
-function estimate_upper_bound(model::SPModel, param::SDDPparameters,
-                                aleas::Array{Float64, 3},
-                                problem::Vector{JuMP.Model})
-    costs = forward_simulations(model, param, problem, aleas)[1]
-    return upper_bound(costs), costs
+"""Run SDDP iterations.
+
+# Arguments
+* `model::SPmodel`:
+    the stochastic problem we want to optimize
+* `param::SDDPparameters`:
+    the parameters of the SDDP algorithm
+* `V::Vector{PolyhedralFunction}`:
+    Polyhedral lower approximation of Bellman functions
+* `problems::Vector{JuMP.Model}`:
+* `verbose::Int64`:
+    Default is `0`
+    If non null, display progression in terminal every
+    `n` iterations, where `n` is the number specified by display.
+
+# Returns
+* `stats:SDDPStats`:
+    contains statistics of the current algorithm
+"""
+function run_SDDP!(model::SPModel,
+                    param::SDDPparameters,
+                    V::Vector{PolyhedralFunction},
+                    problems::Vector{JuMP.Model},
+                    verbose=0::Int64)
+
+    #Initialization of the counter
+    stats = SDDPStat()
+
+    # Initialize cuts container for cuts pruning:
+    if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
+        activecuts = [ActiveCutsContainer(model.dimStates) for i in 1:model.stageNumber-1]
+    else
+        activecuts = [nothing for i in 1:model.stageNumber-1]
+    end
+
+    (verbose > 0) && println("Initialize cuts")
+
+    # If computation of upper-bound is needed, a set of scenarios is built
+    # to keep always the same realization for upper bound estimation:
+    #if param.compute_ub > 0 #TODO
+    upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
+
+    upb = Inf
+    costs = nothing
+    stopping_test::Bool = false
+
+
+    # Launch execution of forward and backward passes:
+    while (~stopping_test)
+        # Time execution of current pass:
+        tic()
+
+        ####################
+        # Forward pass : compute stockTrajectories
+        costs, stockTrajectories, callsolver_forward = forward_pass!(model, param, V, problems)
+
+        ####################
+        # Backward pass : update polyhedral approximation of Bellman functions
+        callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
+
+        ####################
+        # Update stats
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
+        print_current_stats(stats,verbose)
+
+        ####################
+        # cut pruning
+        if param.pruning[:pruning]
+            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations, verbose)
+            if (stats.niterations%param.pruning[:period]==0)
+                problems = hotstart_SDDP(model, param, V)
+            end
+        end
+
+        ####################
+        # In iteration upper bound estimation
+        upb = in_iteration_upb_estimation(model, param, stats.niterations, verbose,
+                                          upperbound_scenarios, upb, problems)
+
+
+        ####################
+        # Stopping test
+        stopping_test = test_stopping_criterion(param,stats)
+    end
+
+    ##########
+    # Estimate final upper bound with param.monteCarloSize simulations:
+    display_final_solution(model, param,V,problems,stats,verbose)
+    return stats
 end
 
 
-"""Build a collection of cuts initialized at 0"""
-function get_null_value_functions_array(model::SPModel)
-    return [PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1) for i in 1:model.stageNumber]
+"""Display final results once SDDP iterations are finished."""
+function display_final_solution(model::SPModel, param::SDDPparameters, V, problems, stats::SDDPStat, verbose::Int64)
+    if (verbose>0) && (param.compute_ub >= 0)
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+
+        if param.compute_ub == 0
+            println("Estimate upper-bound with Monte-Carlo ...")
+            upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
+        else
+            upb = stats.upperbounds[end]
+        end
+
+        println("Estimation of upper-bound: ", round(upb,4),
+                "\tExact lower bound: ", round(lwb,4),
+                "\t Gap <  ", round(100*(upb-lwb)/lwb, 2) , "\%  with prob. > 97.5 \%")
+        println("Estimation of cost of the solution (fiability 95\%):",
+                 round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
+    end
 end
+
 
 
 """
@@ -252,49 +239,53 @@ linear problem.
 * `Array::JuMP.Model`:
 """
 function build_models(model::SPModel, param::SDDPparameters)
+    return JuMP.Model[build_model(model, param, t) for t=1:model.stageNumber-1]
+end
 
-    models = Vector{JuMP.Model}(model.stageNumber-1)
+function build_model(model, param, t)
+    m = Model(solver=param.SOLVER)
 
-    for t = 1:model.stageNumber-1
-        m = Model(solver=param.solver)
+    nx = model.dimStates
+    nu = model.dimControls
+    nw = model.dimNoises
 
-        nx = model.dimStates
-        nu = model.dimControls
-        nw = model.dimNoises
+    # define variables in JuMP:
+    @variable(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+    @variable(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
+    @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+    @variable(m, alpha)
 
-        @variable(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-        @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
-        @variable(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
-        @variable(m, alpha)
+    @variable(m, w[1:nw] == 0)
+    m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
 
-        @variable(m, w[1:nw] == 0)
-        m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
+    @constraint(m, xf .== model.dynamics(t, x, u, w))
 
-        @constraint(m, xf .== model.dynamics(t, x, u, w))
-
-        if model.equalityConstraints != nothing
-            @constraint(m, model.equalityConstraints(t, x, u, w) .== 0)
-        end
-        if model.inequalityConstraints != nothing
-            @constraint(m, model.inequalityConstraints(t, x, u, w) .<= 0)
-        end
-
-        if typeof(model) == LinearDynamicLinearCostSPmodel
-            @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
-
-        elseif typeof(model) == PiecewiseLinearCostSPmodel
-            @variable(m, cost)
-
-            for i in 1:length(model.costFunctions)
-                @constraint(m, cost >= model.costFunctions[i](t, x, u, w))
-            end
-            @objective(m, Min, cost + alpha)
-        end
-
-        models[t] = m
-
+    # Add equality and inequality constraints:
+    if model.equalityConstraints != nothing
+        @constraint(m, model.equalityConstraints(t, x, u, w) .== 0)
     end
-    return models
+    if model.inequalityConstraints != nothing
+        @constraint(m, model.inequalityConstraints(t, x, u, w) .<= 0)
+    end
+
+    # Define objective function (could be linear or piecewise linear)
+    if isa(model.costFunctions, Function)
+        @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+    elseif isa(model.costFunctions, Vector{Function})
+        @variable(m, cost)
+
+        for i in 1:length(model.costFunctions)
+            @constraint(m, cost >= model.costFunctions[i](t, x, u, w))
+        end
+        @objective(m, Min, cost + alpha)
+    end
+
+    # Add binary variable if problem is a SMIP:
+    if model.IS_SMIP
+        m.colCat[2*nx+1:2*nx+nu] = model.controlCat
+    end
+
+    return m
 end
 
 
@@ -321,7 +312,7 @@ function initialize_value_functions(model::SPModel,
 
     solverProblems = build_models(model, param)
     V = PolyhedralFunction[
-                PolyhedralFunction([], Array{Float64}(0, model.dimStates), 0) for i in 1:model.stageNumber]
+                PolyhedralFunction(model.dimStates) for i in 1:model.stageNumber]
 
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises, param.forwardPassNumber)
@@ -331,6 +322,8 @@ function initialize_value_functions(model::SPModel,
         V[end] = model.finalCost
         build_terminal_cost!(model, solverProblems[end], V[end])
     elseif isa(model.finalCost, Function)
+        # In this case, define a trivial value functions for final cost to avoid problem:
+        V[end] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
         model.finalCost(model, solverProblems[end])
     end
 
@@ -339,13 +332,8 @@ function initialize_value_functions(model::SPModel,
         stockTrajectories[i, j, :] = get_random_state(model)
     end
 
-
-    callsolver = backward_pass!(model,
-                  param,
-                  V,
-                  solverProblems,
-                  stockTrajectories,
-                  model.noises)
+    callsolver = backward_pass!(model, param, V, solverProblems,
+                                stockTrajectories, model.noises)
 
     return V, solverProblems
 end
@@ -370,6 +358,7 @@ function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{Polyhedr
 
     solverProblems = build_models(model, param)
 
+    # Add corresponding cuts to each problem:
     for t in 1:model.stageNumber-2
         add_cuts_to_model!(model, t, solverProblems[t], V[t+1])
     end
@@ -405,7 +394,7 @@ Bellman value (Float64)
 function get_bellman_value(model::SPModel, param::SDDPparameters,
                            t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
-    m = Model(solver=param.solver)
+    m = Model(solver=param.SOLVER)
     @variable(m, alpha)
 
     for i in 1:Vt.numCuts
@@ -486,82 +475,5 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         lambda = vec(V.lambdas[i, :])
         @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
     end
-end
-
-
-"""
-Exact pruning of all polyhedral functions in input array.
-
-# Arguments
-* `model::SPModel`:
-* `params::SDDPparameters`:
-* `Vector{PolyhedralFunction}`:
-    Polyhedral functions where cuts will be removed
-"""
-function prune_cuts!(model::SPModel, params::SDDPparameters, V::Vector{PolyhedralFunction})
-    for i in 1:length(V)-1
-        V[i] = exact_prune_cuts(model, params, V[i])
-    end
-end
-
-
-"""
-Remove useless cuts in PolyhedralFunction.
-
-# Arguments
-* `model::SPModel`:
-* `params::SDDPparameters`:
-* `V::PolyhedralFunction`:
-    Polyhedral function where cuts will be removed
-
-# Return
-* `PolyhedralFunction`: pruned polyhedral function
-"""
-function exact_prune_cuts(model::SPModel, params::SDDPparameters, V::PolyhedralFunction)
-    ncuts = V.numCuts
-    # Find all active cuts:
-    if ncuts > 1
-        active_cuts = Bool[is_cut_relevant(model, i, V, params.solver) for i=1:ncuts]
-        return PolyhedralFunction(V.betas[active_cuts], V.lambdas[active_cuts, :], sum(active_cuts))
-    else
-        return V
-    end
-end
-
-
-"""
-Test whether the cut number k is relevant to define polyhedral function Vt.
-
-# Arguments
-* `model::SPModel`:
-* `k::Int`:
-    Position of cut to test in PolyhedralFunction object
-* `Vt::PolyhedralFunction`:
-    Object storing all cuts
-* `solver`:
-    Solver to use to solve linear problem
-* `epsilon::Float64`: default is `1e-5`
-    Acceptable tolerance to test cuts relevantness
-
-# Return
-* `Bool`: true if the cut is useful in the definition, false otherwise
-"""
-function is_cut_relevant(model::SPModel, k::Int, Vt::PolyhedralFunction, solver; epsilon=1e-5)
-    m = Model(solver=solver)
-    @variable(m, alpha)
-    @variable(m, model.xlim[i][1] <= x[i=1:model.dimStates] <= model.xlim[i][2])
-
-    for i in 1:Vt.numCuts
-        if i!=k
-            lambda = vec(Vt.lambdas[i, :])
-            @constraint(m, Vt.betas[i] + dot(lambda, x) <= alpha)
-        end
-    end
-
-    λ_k = vec(Vt.lambdas[k, :])
-    @objective(m, Min, alpha - dot(λ_k, x) - Vt.betas[k])
-    solve(m)
-    sol = getobjectivevalue(m)
-    return sol < epsilon
 end
 

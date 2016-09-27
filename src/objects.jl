@@ -19,8 +19,10 @@ type PolyhedralFunction
     numCuts::Int64
 end
 
+PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0)
 
-type LinearDynamicLinearCostSPmodel <: SPModel
+
+type LinearSPModel <: SPModel
     # problem dimension
     stageNumber::Int64
     dimControls::Int64
@@ -33,18 +35,31 @@ type LinearDynamicLinearCostSPmodel <: SPModel
 
     initialState::Array{Float64, 1}
 
-    costFunctions::Function
+    #FIXME: add a correct typage for costFunctions that dont break in 0.5
+    costFunctions
     dynamics::Function
     noises::Vector{NoiseLaw}
 
-    finalCost
+    finalCost::Union{Function, PolyhedralFunction}
 
-    equalityConstraints
-    inequalityConstraints
+    controlCat::Vector{Symbol}
+    equalityConstraints::Union{Void, Function}
+    inequalityConstraints::Union{Void, Function}
 
-    function LinearDynamicLinearCostSPmodel(nstage, ubounds, x0,
-                                            cost, dynamic, aleas, Vfinal=nothing,
-                                            eqconstr=nothing, ineqconstr=nothing)
+    refTrajectories::Union{Void, Array{Float64, 3}}
+
+    IS_SMIP::Bool
+
+    function LinearSPModel(nstage,             # number of stages
+                           ubounds,            # bounds of control
+                           x0,                 # initial state
+                           cost,               # cost function
+                           dynamic,            # dynamic
+                           aleas;              # modelling of noises
+                           Vfinal=nothing,     # final cost
+                           eqconstr=nothing,   # equality constraints
+                           ineqconstr=nothing, # inequality constraints
+                           control_cat=nothing) # category of controls
 
         dimStates = length(x0)
         dimControls = length(ubounds)
@@ -58,57 +73,13 @@ type LinearDynamicLinearCostSPmodel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
         end
 
-        xbounds = []
-        for i = 1:dimStates
-            push!(xbounds, (-Inf, Inf))
-        end
+        isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimStates]
+        is_smip = (:Int in isbu)||(:Bin in isbu)
+
+        xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, eqconstr, ineqconstr)
-    end
-end
-
-
-type PiecewiseLinearCostSPmodel <: SPModel
-    # problem dimension
-    stageNumber::Int64
-    dimControls::Int64
-    dimStates::Int64
-    dimNoises::Int64
-
-    # Bounds of states and controls:
-    xlim::Array{Tuple{Float64,Float64},1}
-    ulim::Array{Tuple{Float64,Float64},1}
-
-    initialState::Array{Float64, 1}
-
-    costFunctions::Vector{Function}
-    dynamics::Function
-    noises::Vector{NoiseLaw}
-    finalCost
-
-    equalityConstraints
-    inequalityConstraints
-
-    function PiecewiseLinearCostSPmodel(nstage, ubounds, x0, costs, dynamic,
-                                        aleas, Vfinal=nothing, eqconstr=nothing,
-                                        ineqconstr=nothing)
-        dimStates = length(x0)
-        dimControls = length(ubounds)
-        dimNoises = length(aleas[1].support[:, 1])
-
-        if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
-            Vf = Vfinal
-        else
-            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
-        end
-
-        xbounds = []
-        for i = 1:dimStates
-            push!(xbounds, (-Inf, Inf))
-        end
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, costs, dynamic, aleas, Vf, eqconstr, ineqconstr)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, nothing, is_smip)
     end
 end
 
@@ -142,23 +113,22 @@ type StochDynProgModel <: SPModel
     constraints::Function
     noises::Vector{NoiseLaw}
 
-    function StochDynProgModel(model::LinearDynamicLinearCostSPmodel, final, cons)
-        return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
-                 model.costFunctions, final, model.dynamics, cons,
-                 model.noises)
-    end
-
-    function StochDynProgModel(model::PiecewiseLinearCostSPmodel, final, cons)
-        function cost(t,x,u,w)
-            current_cost = -Inf
-            for aff_func in model.costFunctions
-                current_cost = aff_func(t,x,u,w)
-            end
+    function StochDynProgModel(model::LinearSPModel, final, cons)
+        if isa(model.costFunctions, Function)
+            cost = model.costFunctions
+        #FIXME: broken test since 0.5 release
+        else
+            function cost(t,x,u,w)
+                current_cost = -Inf
+                for aff_func in model.costFunctions
+                    current_cost = aff_func(t,x,u,w)
+                end
             return current_cost
+            end
         end
-
         return StochDynProgModel(model.stageNumber, model.xlim, model.ulim, model.initialState,
-                 cost, final, model.dynamics, cons, model.noises)
+                 cost, final, model.dynamics, cons,
+                 model.noises)
     end
 
     function StochDynProgModel(TF, x_bounds, u_bounds, x0, cost_t,
@@ -170,10 +140,17 @@ type StochDynProgModel <: SPModel
 
 end
 
+# Define alias for cuts pruning algorithm:
+typealias LevelOne Val{:LevelOne}
+typealias ExactPruning Val{:Exact}
+typealias Territory Val{:Exact_Plus}
+typealias NoPruning Val{:none}
 
 type SDDPparameters
     # Solver used to solve LP
-    solver
+    SOLVER::MathProgBase.AbstractMathProgSolver
+    # Solver used to solve MILP (default is nothing):
+    MIPSOLVER::Union{Void, MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # Admissible gap between lower and upper-bound:
@@ -181,16 +158,67 @@ type SDDPparameters
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
     # Prune cuts every %% iterations:
-    compute_cuts_pruning::Int64
+    pruning::Dict{Symbol, Any}
     # Estimate upper-bound every %% iterations:
-    compute_upper_bound::Int64
+    compute_ub::Int64
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
     monteCarloSize::Int64
+    # Number of MonteCarlo simulation to estimate the upper bound during one iteration
+    in_iter_mc::Int64
+    # specify whether SDDP is accelerated
+    IS_ACCELERATED::Bool
+    # ... and acceleration parameters:
+    acceleration::Dict{Symbol, Float64}
 
-    function SDDPparameters(solver, passnumber=10, gap=0.,
-                            max_iterations=20, prune_cuts=0, compute_ub=0, montecarlo=10000)
-        return new(solver, passnumber, gap, max_iterations, prune_cuts, compute_ub, montecarlo)
+    function SDDPparameters(solver; passnumber=10, gap=0.,
+                            max_iterations=20, prune_cuts=0,
+                            pruning_algo="none",
+                            compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
+                            mipsolver=nothing,
+                            rho0=0., alpha=1.)
+
+        if ~(pruning_algo ∈ ["none", "exact+", "level1", "exact"])
+            throw(ArgumentError("`pruning_algo` must be `none`, `level1`, `exact` or `exact+`"))
+        end
+        is_acc = (rho0 > 0.)
+        accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
+
+        pruning_algo = (prune_cuts>0)? pruning_algo: "none"
+        prune_cuts = (pruning_algo != "none")? prune_cuts: 0
+
+        corresp = Dict("none"=>NoPruning,
+                       "level1"=>LevelOne,
+                       "exact+"=>Territory,
+                       "exact"=>ExactPruning)
+        prune_cuts = Dict(:pruning=>prune_cuts>0,
+                          :period=>prune_cuts,
+                          :type=>corresp[pruning_algo])
+        return new(solver, mipsolver, passnumber, gap,
+                   max_iterations, prune_cuts, compute_ub,
+                   montecarlo_final, montecarlo_in_iter, is_acc, accparams)
     end
+end
+
+"""
+Test compatibility of parameters.
+
+# Arguments
+* `model::SPModel`:
+    Parametrization of the problem
+* `param::SDDPparameters`:
+    Parameters of SDDP
+* `verbose:Int64`:
+
+# Return
+`Bool`
+"""
+function check_SDDPparameters(model::SPModel,param::SDDPparameters,verbose=0::Int64)
+    if model.IS_SMIP && isa(param.MIPSOLVER, Void)
+        error("MIP solver is not defined. Please set `param.MIPSOLVER`")
+    end
+    (model.IS_SMIP && param.IS_ACCELERATED) && error("Acceleration of SMIP not supported")
+    (verbose > 0) && (model.IS_SMIP) && println("SMIP SDDP")
+    (verbose > 0) && (param.IS_ACCELERATED) && println("Acceleration: ON")
 end
 
 
@@ -249,6 +277,30 @@ type SDDPStat
     exectime::Vector{Float64}
     # number of calls to solver:
     ncallsolver::Int64
+end
+
+SDDPStat() = SDDPStat(0, [], [], [], 0)
+
+"""
+Update the SDDPStat object with the results of current iterations.
+
+# Arguments
+* `stats::SDDPStat`:
+    statistics of the current algorithm
+* `call_solver_at_it::Int64`:
+    number of time a solver was called during the current iteration
+* `lwb::Float64`:
+    lowerbound obtained
+* `upb::Float64`:
+    upperbound estimated
+* `time`
+"""
+function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
+    stats.ncallsolver += callsolver_at_it
+    stats.niterations += 1
+    push!(stats.lower_bounds, lwb)
+    push!(stats.upper_bounds, upb)
+    push!(stats.exectime, time)
 end
 
 
