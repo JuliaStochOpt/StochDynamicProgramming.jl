@@ -35,7 +35,8 @@ type LinearSPModel <: SPModel
 
     initialState::Array{Float64, 1}
 
-    costFunctions::Union{Function, Vector{Function}}
+    #FIXME: add a correct typage for costFunctions that dont break in 0.5
+    costFunctions
     dynamics::Function
     noises::Vector{NoiseLaw}
 
@@ -115,7 +116,8 @@ type StochDynProgModel <: SPModel
     function StochDynProgModel(model::LinearSPModel, final, cons)
         if isa(model.costFunctions, Function)
             cost = model.costFunctions
-        elseif isa(model.costFunctions, Vector{Function})
+        #FIXME: broken test since 0.5 release
+        else
             function cost(t,x,u,w)
                 current_cost = -Inf
                 for aff_func in model.costFunctions

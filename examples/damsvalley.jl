@@ -110,7 +110,7 @@ function init_problem()
     model = LinearSPModel(N_STAGES, u_bounds,
                           X0, cost_t,
                           dynamic, aleas,
-                          final_cost_dams)
+                          Vfinal=final_cost_dams)
 
     # Add bounds for stocks:
     set_state_bounds(model, x_bounds)

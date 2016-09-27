@@ -66,17 +66,9 @@ facts("SDP algorithm") do
     end
 
     # Define cost corresponding to each timestep:
-    function cost_t(t, x, u, w)
-        return COST[t] * (u[1])
-    end
-
-    function constraints(t, x, u, w)
-        return true
-    end
-
-    function finalCostFunction(x)
-        return 0.
-    end
+    cost_t(t, x, u, w) = COST[t] * (u[1])
+    constraints(t, x, u, w) = true
+    finalCostFunction(x) = 0.
 
     """Build admissible scenarios for water inflow over the time horizon."""
     function build_scenarios(n_scenarios::Int64, N_STAGES)
@@ -145,9 +137,9 @@ facts("SDP algorithm") do
             set_state_bounds(modelSDPPiecewise, x_bounds)
 
             modelSDPLinear = StochDynamicProgramming.LinearSPModel(TF,
-            u_bounds, x0,
-            cost_t,
-            dynamic, aleas)
+                                                                   u_bounds, x0,
+                                                                   cost_t,
+                                                                   dynamic, aleas)
 
             set_state_bounds(modelSDPLinear, x_bounds)
 
