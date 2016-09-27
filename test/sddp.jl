@@ -46,7 +46,7 @@ facts("SDDP algorithm: 1D case") do
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
                                                     max_iterations=max_iterations,
-                                                    compute_cuts_pruning=1)
+                                                    prune_cuts=0)
 
     V = nothing
     model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
@@ -71,8 +71,8 @@ facts("SDDP algorithm: 1D case") do
 
         # Test if the first subgradient has the same dimension as state:
         @fact size(V[1].lambdas, 2) --> model.dimStates
-        @fact V[1].numCuts --> n_scenarios*max_iterations + n_scenarios
-        @fact size(V[1].lambdas, 1) --> n_scenarios*max_iterations + n_scenarios
+        @fact V[1].numCuts <= n_scenarios*max_iterations + n_scenarios --> true
+        @fact size(V[1].lambdas, 1) --> V[1].numCuts
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
@@ -109,11 +109,62 @@ facts("SDDP algorithm: 1D case") do
     context("Cuts pruning") do
         v = V[1]
         vt = PolyhedralFunction([v.betas[1]; v.betas[1] - 1.], v.lambdas[[1,1],:],  2)
-        StochDynamicProgramming.prune_cuts!(model, param, V,1,0)
-        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, param.SOLVER)
-        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, param.SOLVER)
+        # Check cuts counting:
+        @fact StochDynamicProgramming.get_total_number_cuts([vt]) --> 2
+
+        # Check computation of cut value:
+        @fact StochDynamicProgramming.cutvalue(vt, 1, [0., 0.]) --> v.betas[1]
+
+        # Check computation of optimal cut:
+        @fact StochDynamicProgramming.optimalcut([0., 0.], vt)[2] --> 1
+
+        terr = StochDynamicProgramming.ActiveCutsContainer(2)
+        StochDynamicProgramming.find_level1_cuts!(terr, vt, [0. 0.; 1. 0.])
+        @fact terr.numCuts --> 2
+        @fact terr.nstates --> 2
+        @fact length(terr.territories[1]) --> 2
+        @fact length(terr.territories[2]) --> 0
+
+        # Check heuristic removal:
+        vt2 = StochDynamicProgramming.level1_cuts_pruning!(model, param, vt, terr)
+        @fact isa(vt2, StochDynamicProgramming.PolyhedralFunction) --> true
+        @fact vt2.numCuts --> 1
+        @fact vt2.betas[1] --> vt.betas[1]
+
+        # Check exact dominance test:
+        isactive1 = StochDynamicProgramming.is_cut_relevant(model, 1, vt, param.SOLVER)[1]
+        isactive2 = StochDynamicProgramming.is_cut_relevant(model, 2, vt, param.SOLVER)[1]
         @fact isactive1 --> true
         @fact isactive2 --> false
+
+        # Check insertion of pruning algorithms into SDDP solver:
+        param1 = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    pruning_algo="exact",
+                                                    prune_cuts=1,
+                                                    max_iterations=1)
+        V1 = solve_SDDP(model, param1, 0)[1]
+        param2 = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    pruning_algo="level1",
+                                                    prune_cuts=1,
+                                                    max_iterations=1)
+        V2 = solve_SDDP(model, param2, 0)[1]
+        param3 = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    pruning_algo="exact+",
+                                                    prune_cuts=1,
+                                                    max_iterations=1)
+        V3 = solve_SDDP(model, param3, 0)[1]
+
+        n1 = StochDynamicProgramming.get_total_number_cuts(V1)
+        n2 = StochDynamicProgramming.get_total_number_cuts(V2)
+        n3 = StochDynamicProgramming.get_total_number_cuts(V3)
+        @fact n1 > n2 --> true
+        @fact n3 > n2 --> true
     end
 
     context("Quadratic regularization") do
@@ -163,14 +214,14 @@ facts("SDDP algorithm: 1D case") do
     context("Stopping criterion") do
         # Compute upper bound every %% iterations:
         param.compute_ub = 1
-        param.compute_cuts_pruning = 1
         param.maxItNumber = 30
+        param.gap = .1
         V, pbs = solve_SDDP(model, param, V, 0)
         V0 = StochDynamicProgramming.get_lower_bound(model, param, V)
         n_simulations = 1000
         upb = StochDynamicProgramming.estimate_upper_bound(model, param, V, pbs,
                                                             n_simulations)[1]
-        @fact abs((V0 - upb)/V0) < param.gap --> true
+        @fact abs((V0 - upb)) < param.gap --> true
     end
 
     context("Dump") do

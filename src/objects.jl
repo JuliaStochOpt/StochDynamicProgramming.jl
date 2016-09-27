@@ -19,7 +19,7 @@ type PolyhedralFunction
     numCuts::Int64
 end
 
-PolyhedralFunction(ndim) =  PolyhedralFunction([], Array{Float64}(0, ndim), 0)
+PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0)
 
 
 type LinearSPModel <: SPModel
@@ -140,7 +140,11 @@ type StochDynProgModel <: SPModel
 
 end
 
-
+# Define alias for cuts pruning algorithm:
+typealias LevelOne Val{:LevelOne}
+typealias ExactPruning Val{:Exact}
+typealias Territory Val{:Exact_Plus}
+typealias NoPruning Val{:none}
 
 type SDDPparameters
     # Solver used to solve LP
@@ -154,7 +158,7 @@ type SDDPparameters
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
     # Prune cuts every %% iterations:
-    compute_cuts_pruning::Int64
+    pruning::Dict{Symbol, Any}
     # Estimate upper-bound every %% iterations:
     compute_ub::Int64
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
@@ -167,15 +171,31 @@ type SDDPparameters
     acceleration::Dict{Symbol, Float64}
 
     function SDDPparameters(solver; passnumber=10, gap=0.,
-                            max_iterations=20, compute_cuts_pruning=0,
+                            max_iterations=20, prune_cuts=0,
+                            pruning_algo="none",
                             compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
                             mipsolver=nothing,
                             rho0=0., alpha=1.)
+
+        if ~(pruning_algo ∈ ["none", "exact+", "level1", "exact"])
+            throw(ArgumentError("`pruning_algo` must be `none`, `level1`, `exact` or `exact+`"))
+        end
         is_acc = (rho0 > 0.)
         accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
 
+        pruning_algo = (prune_cuts>0)? pruning_algo: "none"
+        prune_cuts = (pruning_algo != "none")? prune_cuts: 0
+
+        corresp = Dict("none"=>NoPruning,
+                       "level1"=>LevelOne,
+                       "exact+"=>Territory,
+                       "exact"=>ExactPruning)
+        prune_cuts = Dict(:pruning=>prune_cuts>0,
+                          :period=>prune_cuts,
+                          :type=>corresp[pruning_algo])
         return new(solver, mipsolver, passnumber, gap,
-                   max_iterations, compute_cuts_pruning, compute_ub, montecarlo_final,montecarlo_in_iter, is_acc, accparams)
+                   max_iterations, prune_cuts, compute_ub,
+                   montecarlo_final, montecarlo_in_iter, is_acc, accparams)
     end
 end
 
@@ -277,6 +297,7 @@ Update the SDDPStat object with the results of current iterations.
 """
 function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
     stats.ncallsolver += callsolver_at_it
+    stats.niterations += 1
     push!(stats.lower_bounds, lwb)
     push!(stats.upper_bounds, upb)
     push!(stats.exectime, time)

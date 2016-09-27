@@ -109,6 +109,13 @@ function run_SDDP!(model::SPModel,
     #Initialization of the counter
     stats = SDDPStat()
 
+    # Initialize cuts container for cuts pruning:
+    if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
+        activecuts = [ActiveCutsContainer(model.dimStates) for i in 1:model.stageNumber-1]
+    else
+        activecuts = [nothing for i in 1:model.stageNumber-1]
+    end
+
     (verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built
@@ -135,25 +142,29 @@ function run_SDDP!(model::SPModel,
         callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
 
         ####################
+        # Update stats
+        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
+        print_current_stats(stats,verbose)
+
+        ####################
         # cut pruning
-        prune_cuts!(model,param,V,stats.niterations,verbose)
+        if param.pruning[:pruning]
+            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations, verbose)
+            if (stats.niterations%param.pruning[:period]==0)
+                problems = hotstart_SDDP(model, param, V)
+            end
+        end
 
         ####################
         # In iteration upper bound estimation
         upb = in_iteration_upb_estimation(model, param, stats.niterations, verbose,
                                           upperbound_scenarios, upb, problems)
 
-        ####################
-        # Update stats
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
-
-        print_current_stats(stats,verbose)
 
         ####################
         # Stopping test
         stopping_test = test_stopping_criterion(param,stats)
-        stats.niterations += 1
     end
 
     ##########
@@ -465,3 +476,4 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
     end
 end
+
