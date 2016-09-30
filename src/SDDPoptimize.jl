@@ -169,13 +169,14 @@ function run_SDDP!(model::SPModel,
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    display_final_solution(model, param,V,problems,stats,verbose)
+    display_final_solution(model, param, V, problems, costs, stats, verbose)
     return stats
 end
 
 
 """Display final results once SDDP iterations are finished."""
-function display_final_solution(model::SPModel, param::SDDPparameters, V, problems, stats::SDDPStat, verbose::Int64)
+function display_final_solution(model::SPModel, param::SDDPparameters, V,
+                                problems, costs, stats::SDDPStat, verbose::Int64)
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
 
@@ -183,7 +184,7 @@ function display_final_solution(model::SPModel, param::SDDPparameters, V, proble
             println("Estimate upper-bound with Monte-Carlo ...")
             upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else
-            upb = stats.upperbounds[end]
+            upb = stats.upper_bounds[end]
         end
 
         println("Estimation of upper-bound: ", round(upb,4),

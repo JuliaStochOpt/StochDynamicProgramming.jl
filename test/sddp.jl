@@ -90,8 +90,9 @@ facts("SDDP algorithm: 1D case") do
         @fact typeof(opt) --> Vector{Float64}
 
         # Test display:
-        StochDynamicProgramming.set_max_iterations(param, 1)
-        V, pbs, stats = solve_SDDP(model, param, V, 1)
+        StochDynamicProgramming.set_max_iterations(param, 2)
+        param.compute_ub = 0
+        V, pbs, stats = solve_SDDP(model, param, V, 2)
     end
 
     context("Value functions calculation") do
