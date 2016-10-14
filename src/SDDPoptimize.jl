@@ -120,10 +120,9 @@ function run_SDDP!(model::SPModel,
 
     # If computation of upper-bound is needed, a set of scenarios is built
     # to keep always the same realization for upper bound estimation:
-    #if param.compute_ub > 0 #TODO
     upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
 
-    upb = Inf
+    upb = [Inf, Inf, Inf]
     costs = nothing
     stopping_test::Bool = false
 
@@ -182,13 +181,13 @@ function display_final_solution(model::SPModel, param::SDDPparameters, V,
 
         if param.compute_ub == 0
             println("Estimate upper-bound with Monte-Carlo ...")
-            upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
+            upb, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else
             upb = stats.upper_bounds[end]
         end
 
-        println("Estimation of upper-bound: ", round(upb,4),
-                "\tExact lower bound: ", round(lwb,4),
+        @printf("Estimation of upper-bound: %.4e", round(upb,4))
+        println("\tExact lower bound: ", round(lwb,4),
                 "\t Gap <  ", round(100*(upb-lwb)/lwb, 2) , "\%  with prob. > 97.5 \%")
         println("Estimation of cost of the solution (fiability 95\%):",
                  round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
@@ -271,7 +270,13 @@ function build_model(model, param, t)
 
     # Define objective function (could be linear or piecewise linear)
     if isa(model.costFunctions, Function)
-        @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        try
+            @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        catch
+            #FIXME: hacky redefinition of costs as JuMP Model
+            @objective(m, Min, model.costFunctions(m, t, x, u, w) + alpha)
+        end
+
     elseif isa(model.costFunctions, Vector{Function})
         @variable(m, cost)
 

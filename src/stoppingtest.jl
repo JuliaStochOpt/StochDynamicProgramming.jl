@@ -26,7 +26,7 @@ or iteration_count > maxItNumber
 """
 function test_stopping_criterion(param::SDDPparameters, stats::SDDPStat)
     lb = stats.lower_bounds[end]
-    ub = stats.upper_bounds[end]
+    ub = stats.upper_bounds[end] + stats.upper_bounds_tol[end]
     check_gap = (abs((ub-lb)/lb) < param.gap)
     check_iter = stats.niterations >= param.maxItNumber
     return check_gap || check_iter
@@ -57,15 +57,15 @@ function in_iteration_upb_estimation(model::SPModel,
                                      upperbound_scenarios,
                                      current_upb,
                                      problems)
-    upb = current_upb
+    upb, tol = current_upb
     # If specified, compute upper-bound:
     if (param.compute_ub > 0) && (iteration_count%param.compute_ub==0)
         (verbose > 0) && println("Compute upper-bound with ",
                                     param.in_iter_mc, " scenarios...")
         # estimate upper-bound with Monte-Carlo estimation:
-        upb, costs = estimate_upper_bound(model, param, upperbound_scenarios, problems)
+        upb, tol = estimate_upper_bound(model, param, upperbound_scenarios, problems)
     end
-    return upb
+    return [upb, tol]
 end
 
 
@@ -103,7 +103,9 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 aleas::Array{Float64, 3},
                                 problem::Vector{JuMP.Model})
     costs = forward_simulations(model, param, problem, aleas)[1]
-    return upper_bound(costs), costs
+    μ = mean(costs)
+    tol = upper_bound_confidence(costs)
+    return μ, tol
 end
 
 
@@ -126,8 +128,8 @@ Upper bound is the max of this interval.
 # Return
 estimated-upper bound as `Float`
 """
-function upper_bound(cost::Vector{Float64}, probability=.975)
+function upper_bound_confidence(cost::Vector{Float64}, probability=.975)
     tol = sqrt(2) * erfinv(2*probability - 1)
-    return mean(cost) + tol*std(cost)/sqrt(length(cost))
+    return tol*std(cost)/sqrt(length(cost))
 end
 

@@ -273,13 +273,15 @@ type SDDPStat
     lower_bounds::Vector{Float64}
     # evolution of upper bound:
     upper_bounds::Vector{Float64}
+    # tolerance of upper-bounds estimation:
+    upper_bounds_tol::Vector{Float64}
     # evolution of execution time:
     exectime::Vector{Float64}
     # number of calls to solver:
     ncallsolver::Int64
 end
 
-SDDPStat() = SDDPStat(0, [], [], [], 0)
+SDDPStat() = SDDPStat(0, [], [], [], [], 0)
 
 """
 Update the SDDPStat object with the results of current iterations.
@@ -295,11 +297,16 @@ Update the SDDPStat object with the results of current iterations.
     upperbound estimated
 * `time`
 """
-function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
+function updateSDDPStat!(stats::SDDPStat,
+                         callsolver_at_it::Int64,
+                         lwb::Float64,
+                         upb::Vector{Float64},
+                         time)
     stats.ncallsolver += callsolver_at_it
     stats.niterations += 1
     push!(stats.lower_bounds, lwb)
-    push!(stats.upper_bounds, upb)
+    push!(stats.upper_bounds, upb[1])
+    push!(stats.upper_bounds_tol, upb[2])
     push!(stats.exectime, time)
 end
 
