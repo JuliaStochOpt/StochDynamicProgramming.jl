@@ -7,13 +7,15 @@
 StochDynamicProgramming
 =======================
 
-This package implements the Stochastic Dual Dynamic Programming (SDDP) algorithm with Julia. It relies upon MathProgBase_ and JuMP_.
+This package implements the Stochastic Dual Dynamic Programming (SDDP)
+algorithm with Julia. It relies upon MathProgBase_ and JuMP_, and is compatible
+with both Julia v0.4 and v0.5.
 
 A complete overview of this algorithm could be found here_.
 
-At the moment the plan is to create a type such that :
+At the moment:
 
-- you can fix linear time :math:`t` cost function (then convex piecewise linear)
+- you can fix linear or quadratic time :math:`t` cost function (then convex piecewise linear)
 - you can fix linear dynamic (with a physical state :math:`x` and a control :math:`u`)
 - the scenarios are created by assuming that the noise :math:`\xi_t` is independent in time, each given by a table (value, probability)
 
@@ -38,8 +40,6 @@ We have a lot of ideas to implement further :
 - noise as AR (eventually with fitting on historic datas)
 - convex solvers
 - refined stopping rules
-- cut pruning
-- paralellization
 
 
 
@@ -49,7 +49,9 @@ Contents:
 .. toctree::
    install
    quickstart
+   sddp_api
    tutorial
+   quickstart_sdp
    install_windows
 
 .. _MathProgBase: http://mathprogbasejl.readthedocs.org/en/latest/
