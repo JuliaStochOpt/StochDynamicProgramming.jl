@@ -13,6 +13,9 @@ with both Julia v0.4 and v0.5.
 
 A complete overview of this algorithm could be found here_.
 
+Description of SDDP
+^^^^^^^^^^^^^^^^^^^
+
 At the moment:
 
 - you can fix linear or quadratic time :math:`t` cost function (then convex piecewise linear)
@@ -29,10 +32,27 @@ Then it is standard SDDP :
 
 Once solved the SDDP model should be able to :
 
-- give the lower bound on the cost
+- give the lower bound on the cost and its evolution along iterations
 - simulate trajectories to evaluate expected cost
 - give the optimal control given current time state and noise
 
+
+Supported features
+^^^^^^^^^^^^^^^^^^
+
+.. .. table:
+.. ======  =========== ===============
+.. Solver  Is working? Quadratic costs
+.. ======  =========== ===============
+.. Linear Cost     Yes         No
+.. Quadratic Cost   Yes         Yes
+.. Integer controls
+.. Quadratic regularization
+.. Cuts pruning
+
+
+Ongoing developments
+^^^^^^^^^^^^^^^^^^^^
 
 We have a lot of ideas to implement further :
 
