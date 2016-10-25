@@ -137,7 +137,7 @@ Pass number     Upper bound     Lower bound     exectime
 """
 function print_current_stats(stats::SDDPStat, verbose::Int64)
     if (verbose > 0) && (stats.niterations%verbose==0)
-        print("Pass number ", stats.niterations)
+        print("Pass n\° ", stats.niterations)
         (stats.upper_bounds[end] < Inf) && @printf("\tUpper-bound: %.4e", stats.upper_bounds[end])
         @printf("\tLower-bound: %.4e", stats.lower_bounds[end])
         println("\tTime: ", round(stats.exectime[end], 2),"s")

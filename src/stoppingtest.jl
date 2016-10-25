@@ -57,15 +57,15 @@ function in_iteration_upb_estimation(model::SPModel,
                                      upperbound_scenarios,
                                      current_upb,
                                      problems)
-    upb, tol = current_upb
+    upb, σ, tol = current_upb
     # If specified, compute upper-bound:
     if (param.compute_ub > 0) && (iteration_count%param.compute_ub==0)
         (verbose > 0) && println("Compute upper-bound with ",
                                     param.in_iter_mc, " scenarios...")
         # estimate upper-bound with Monte-Carlo estimation:
-        upb, tol = estimate_upper_bound(model, param, upperbound_scenarios, problems)
+        upb, σ, tol = estimate_upper_bound(model, param, upperbound_scenarios, problems)
     end
-    return [upb, tol]
+    return [upb, σ, tol]
 end
 
 
@@ -104,8 +104,9 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 problem::Vector{JuMP.Model})
     costs = forward_simulations(model, param, problem, aleas)[1]
     μ = mean(costs)
-    tol = upper_bound_confidence(costs)
-    return μ, tol
+    σ = std(costs)
+    tol = upper_bound_confidence(costs, param.confidence_level)
+    return μ, σ, tol
 end
 
 

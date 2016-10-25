@@ -123,9 +123,7 @@ function run_SDDP!(model::SPModel,
     upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
 
     upb = [Inf, Inf, Inf]
-    costs = nothing
     stopping_test::Bool = false
-
 
     # Launch execution of forward and backward passes:
     while (~stopping_test)
@@ -141,15 +139,14 @@ function run_SDDP!(model::SPModel,
         callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
 
         ####################
-        # Update stats
+        # Time execution of current pass
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
-        print_current_stats(stats,verbose)
+        time_pass = toq()
 
         ####################
         # cut pruning
         if param.pruning[:pruning]
-            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations, verbose)
+            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations+1, verbose)
             if (stats.niterations%param.pruning[:period]==0)
                 problems = hotstart_SDDP(model, param, V)
             end
@@ -157,9 +154,11 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # In iteration upper bound estimation
-        upb = in_iteration_upb_estimation(model, param, stats.niterations, verbose,
+        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, verbose,
                                           upperbound_scenarios, upb, problems)
 
+        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, time_pass)
+        print_current_stats(stats,verbose)
 
         ####################
         # Stopping test
@@ -168,29 +167,36 @@ function run_SDDP!(model::SPModel,
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    display_final_solution(model, param, V, problems, costs, stats, verbose)
+    display_final_solution(model, param, V, problems, stats, verbose)
     return stats
 end
 
 
 """Display final results once SDDP iterations are finished."""
 function display_final_solution(model::SPModel, param::SDDPparameters, V,
-                                problems, costs, stats::SDDPStat, verbose::Int64)
+                                problems, stats::SDDPStat, verbose::Int64)
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
 
         if param.compute_ub == 0
-            println("Estimate upper-bound with Monte-Carlo ...")
-            upb, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
+            (verbose > 0) && println("Compute upper-bound with ",
+                                    param.monteCarloSize, " scenarios...")
+            upb, σ, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else
             upb = stats.upper_bounds[end]
+            tol = stats.upper_bounds_tol[end]
+            σ = stats.upper_bounds_std[end]
         end
 
-        @printf("Estimation of upper-bound: %.4e", round(upb,4))
-        println("\tExact lower bound: ", round(lwb,4),
-                "\t Gap <  ", round(100*(upb-lwb)/lwb, 2) , "\%  with prob. > 97.5 \%")
-        println("Estimation of cost of the solution (fiability 95\%):",
-                 round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
+        println("\n############################################################")
+        println("SDDP CONVERGENCE")
+        @printf("- Exact lower bound:          %.4e [Gap < %.2f%s]\n",
+                lwb, 100*(upb+tol-lwb)/lwb, '%')
+        @printf("- Estimation of upper-bound:  %.4e\n", upb)
+        @printf("- Upper-bound's s.t.d:        %.4e\n", σ)
+        @printf("- Confidence interval (%d%s):  [%.4e , %.4e]",
+                100*(1- 2*(1-param.confidence_level)), '\%',upb-tol, upb+tol)
+        println("\n############################################################")
     end
 end
 
