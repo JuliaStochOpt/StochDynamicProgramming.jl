@@ -38,7 +38,7 @@ const CONTROL_MIN = 0
 
 const XI_MAX = 0.3              # bounds on the noise
 const XI_MIN = 0
-const N_XI = 10                 # discretization of the noise
+const N_XI = 3                 # discretization of the noise
 
 const r = 0.4                   # bound on cumulative state : \sum_{i=1}^N x_i < rN 
 
@@ -52,7 +52,7 @@ xi_laws = NoiseLaw[xi_law for t in 1:N_STAGES-1]
 
 # Define dynamic of the stock:
 function dynamic(t, x, u, xi)
-    return [x + u - xi]
+    return x + u - xi
 end
 
 # Define cost corresponding to each timestep:
