@@ -178,8 +178,8 @@ function display_final_solution(model::SPModel, param::SDDPparameters, V,
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
 
-        if param.compute_ub == 0
-            (verbose > 0) && println("Compute upper-bound with ",
+        if (param.compute_ub == 0) || (param.monteCarloSize != param.in_iter_mc)
+            (verbose > 0) && println("Compute final upper-bound with ",
                                     param.monteCarloSize, " scenarios...")
             upb, σ, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else

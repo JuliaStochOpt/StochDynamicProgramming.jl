@@ -146,6 +146,8 @@ function forward_simulations(model::SPModel,
                 # if problem is not properly solved, next position if equal
                 # to current one:
                 stockTrajectories[t+1, k, :] = state_t
+                # this trajectory is unvalid, the cost is set to Inf to discard it:
+                costs[k] += Inf
             end
         end
     end
