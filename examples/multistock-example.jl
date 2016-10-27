@@ -40,7 +40,7 @@ const XI_MAX = 0.3              # bounds on the noise
 const XI_MIN = 0
 const N_XI = 3                 # discretization of the noise
 
-const r = 0.4                   # bound on cumulative state : \sum_{i=1}^N x_i < rN 
+const r = 0.4                   # bound on cumulative state : \sum_{i=1}^N x_i < rN
 
 const S0 = [0.5*r/N_STOCKS for i=1:N_STOCKS]     # initial stock
 
@@ -52,7 +52,7 @@ xi_laws = NoiseLaw[xi_law for t in 1:N_STAGES-1]
 
 # Define dynamic of the stock:
 function dynamic(t, x, u, xi)
-    return x + u - xi
+    return [x[i] + u[i] - xi[i] for i in N_STOCKS]
 end
 
 # Define cost corresponding to each timestep:
@@ -73,9 +73,9 @@ if run_sddp
     println("Starting resolution by SDDP")
     # 10 forward pass, stop at MAX_ITER
     paramSDDP = SDDPparameters(SOLVER,
-                                                    passnumber=10,
-                                                    gap=0,
-                                                    max_iterations=MAX_ITER)
+                               passnumber=10,
+                               gap=0,
+                               max_iterations=MAX_ITER)
     V, pbs = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
     println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
@@ -106,7 +106,7 @@ if run_ef
     toc(); println();
 end
 
-run_ef && run_sdp && println("Relative error of SDP value: "*string(100*round(value_sdp/value_ef-1,4))*"%") 
+run_ef && run_sdp && println("Relative error of SDP value: "*string(100*round(value_sdp/value_ef-1,4))*"%")
 run_ef && run_sddp && println("Relative error of SDDP lower bound: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
 
 ######### Comparing the solutions on simulated scenarios.
