@@ -14,7 +14,7 @@
 using StochDynamicProgramming, Clp
 println("library loaded")
 
-run_sddp = true # false if you don't want to run sddp
+run_sddp = false # false if you don't want to run sddp
 run_sdp  = true # false if you don't want to run sdp
 run_ef   = true # false if you don't want to run extensive formulation
 
@@ -27,7 +27,7 @@ const SOLVER = ClpSolver() 			   # require "using Clp"
 const MAX_ITER = 10 # number of iterations of SDDP
 
 ######## Stochastic Model  Parameters  ########
-const N_STAGES = 6              # number of stages of the SP problem
+const N_STAGES = 3              # number of stages of the SP problem
 const N_STOCKS = 3              # number of stocks of the SP problem
 const COSTS = [sin(3*t)-1 for t in 1:N_STAGES]
 #const COSTS = rand(N_STAGES)    # randomly generating deterministic costs
@@ -87,8 +87,8 @@ if run_sdp
     tic()
     step = 0.01
     println("Starting resolution by SDP")
-    stateSteps = [step] # discretization step of the state
-    controlSteps = [step] # discretization step of the control
+    stateSteps = [step for i=1:N_STOCKS] # discretization step of the state
+    controlSteps = [step for i=1:N_STOCKS] # discretization step of the control
     infoStruct = "HD" # noise at time t is known before taking the decision at time t
     paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
     Vs = solve_DP(spmodel,paramSDP, 1)
@@ -103,25 +103,20 @@ if run_ef
     println("Starting resolution by Extensive Formulation")
     value_ef = extensive_formulation(spmodel, paramSDDP)[1]
     println("Value obtained by Extensive Formulation: "*string(round(value_ef,4)))
-    println("Relative error of SDP value: "*string(100*round(value_sdp/value_ef-1,4))*"%")
-    println("Relative error of SDDP lower bound: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
     toc(); println();
 end
 
-######### Comparing the solutions on simulated scenarios.
+run_ef && run_sdp && println("Relative error of SDP value: "*string(100*round(value_sdp/value_ef-1,4))*"%") 
+run_ef && run_sddp && println("Relative error of SDDP lower bound: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
 
+######### Comparing the solutions on simulated scenarios.
 #srand(1234) # to fix the random seed accross runs
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 if run_sddp
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
-    #println(mean(costsddp)/value_ef-1)
 end
 if run_sdp
     costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
-    #println(mean(costsdp)/value_ef-1)
 end
-
-if run_sddp && run_sdp
-    println("Simulated relative difference between sddp and sdp: "
+run_sddp && run_sdp && println("Simulated relative difference between sddp and sdp: "
             *string(round(200*mean(costsddp-costsdp)/mean(costsddp+costsdp),3))*"%")
-end
