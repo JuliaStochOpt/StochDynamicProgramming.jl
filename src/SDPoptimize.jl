@@ -9,7 +9,6 @@
 #############################################################################
 
 using ProgressMeter
-using Iterators
 using Interpolations
 
 
@@ -36,7 +35,7 @@ end
 
 
 """
-Compute the cartesian products of discretized state and control spaces
+Compute the cartesian products of discretized state spaces
 
 # Arguments
 * `model::SPmodel`:
@@ -45,14 +44,42 @@ Compute the cartesian products of discretized state and control spaces
     the parameters of the problem
 
 # Return
+* Iterators: product_states
+    the cartesian product iterators for states
+
+"""
+function generate_state_grid(model::SPModel, param::SDPparameters, w = nothing)
+    product_states = Base.product([model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2] for i in 1:model.dimStates]...)
+
+    return collect(product_states)
+end
+
+"""
+Compute the cartesian products of discretized control spaces or more complex space if provided
+
+# Arguments
+* `model::SPmodel`:
+    the model of the problem
+* `param::SDPparameters`:
+    the parameters of the problem
+* `t::Int`:
+    time step of the value function computation
+* `x::Array{Float64}`:
+    the  current state explored
+
+# Return
 * Iterators: product_states and product_controls
     the cartesian product iterators for both states and controls
 
 """
-function generate_grid(model::SPModel, param::SDPparameters)
-    product_states = product([model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2] for i in 1:model.dimStates]...)
-    product_controls = product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
-    return product_states, product_controls
+function generate_control_grid(model::SPModel, param::SDPparameters, t::Union{Int, Void} = nothing, x::Union{Array{Float64}, Void} = nothing, w = nothing)
+
+    if (typeof(model.build_search_space) == Function)&&(typeof(t)!=Void)&&(typeof(x)!=Void)
+        product_controls = model.build_search_space(t, x, w)
+    else
+        product_controls = Base.product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
+    end
+    return collect(product_controls)
 end
 
 
@@ -166,7 +193,7 @@ and knowing value function at time t+1
 """
 function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 x_steps, x_dim, product_states, product_controls,
-                                dynamics, constraints, cost, V, Vitp, t, info_struc)
+                                dynamics, constraints, cost, V, Vitp, t, info_struc, u_space_builder)
 
     if info_struc == "DH"
         @sync @parallel for indx in 1:length(product_states)
@@ -174,7 +201,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                             probas, u_bounds, x_bounds,
                                             x_steps, x_dim, product_controls,
                                             dynamics, constraints, cost, V, Vitp,
-                                            t, product_states[indx])
+                                            t, product_states[indx], u_space_builder)
         end
     elseif info_struc == "HD"
         @sync @parallel for indx in 1:length(product_states)
@@ -182,7 +209,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                             u_bounds, x_bounds, x_steps, x_dim,
                                             product_controls, dynamics,
                                             constraints, cost, V, Vitp,
-                                            t, product_states[indx])
+                                            t, product_states[indx], u_space_builder)
         end
     else
         error("Information structure should be HD or DH")
@@ -225,11 +252,12 @@ function sdp_compute_value_functions(model::StochDynProgModel,
 
     law = model.noises
 
-    #Compute cartesian product spaces
-    product_states, product_controls = generate_grid(model, param)
+    u_space_builder = model.build_search_space
 
-    product_states = collect(product_states)
-    product_controls = collect(product_controls)
+    #Compute cartesian product spaces
+    product_states = generate_state_grid(model, param)
+
+    product_controls = generate_control_grid(model, param)
 
     V = SharedArray{Float64}(zeros(Float64, param.stateVariablesSizes..., TF))
 
@@ -273,7 +301,7 @@ function sdp_compute_value_functions(model::StochDynProgModel,
         compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 x_steps, x_dim, product_states, product_controls,
                                 dynamics, constraints, cost, V, Vitp, t
-                                , param.infoStructure)
+                                , param.infoStructure, u_space_builder)
 
     end
     return V
@@ -379,7 +407,7 @@ function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array)
     end
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
-    product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
+    product_controls = generate_control_grid(model, param, t, x)
 
     law = SDPmodel.noises
     best_control = tuple()
@@ -460,7 +488,7 @@ function get_control(model::SPModel,param::SDPparameters,V, t::Int64, x::Array, 
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
-    product_controls = product([SDPmodel.ulim[i][1]:param.controlSteps[i]:SDPmodel.ulim[i][2] for i in 1:SDPmodel.dimControls]...)
+    product_controls = generate_control_grid(model, param, t, x, w)
 
     law = SDPmodel.noises
     best_control = tuple()
@@ -537,12 +565,8 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
     x_steps = param.stateSteps
 
     #Compute cartesian product spaces
-    p_states, p_controls = generate_grid(model, param)
-    product_states = collect(p_states)
-    product_controls = collect(p_controls)
-
-    product_states = collect(product_states)
-    product_controls = collect(product_controls)
+    product_states= generate_state_grid(model, param)
+    product_controls= generate_control_grid(model, param)
 
     controls = Inf*ones(TF-1, 1, model.dimControls)
     states = Inf*ones(TF, 1, model.dimStates)
@@ -566,6 +590,10 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
             best_V = Inf
             Vitp = value_function_interpolation(model.dimStates, V, t+1)
+
+            if typeof(model.build_search_space) == Function 
+                product_controls = build_search_space(model, param, t, x)
+            end
 
             for u in product_controls
 
@@ -627,6 +655,10 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
             Vitp = value_function_interpolation(model.dimStates, V, t+1)
 
             best_V = Inf
+
+            if typeof(model.build_search_space) == Function 
+                product_controls = build_search_space(model, param, t, x, w)
+            end
 
             for u = product_controls
 
