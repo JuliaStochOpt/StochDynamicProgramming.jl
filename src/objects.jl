@@ -175,7 +175,7 @@ type SDDPparameters
     function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="none",
-                            compute_ub=-1, montecarlo_final=100, montecarlo_in_iter=100,
+                            compute_ub=-1, montecarlo_final=-1, montecarlo_in_iter=100,
                             mipsolver=nothing,
                             rho0=0., alpha=1.)
 
