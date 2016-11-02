@@ -117,12 +117,12 @@ hazard setting
 """
 function compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds,
                                 x_bounds, x_steps, x_dim, product_controls,
-                                dynamics, constraints, cost, V, Vitp, t, x, u_space_builder)
+                                dynamics, constraints, cost, V, Vitp, t, x, u_space_builder = nothing)
     expected_V = Inf
     optimal_u = tuple()
     current_cost = 0
     #Loop over controls
-    if typeof(u_space_builder) == Function
+    if typeof(u_space_builder) != Void
         controls_search_space = u_space_builder(t,x)
     else
         controls_search_space = product_controls
@@ -207,7 +207,7 @@ decision setting
 """
 function compute_V_given_x_t_HD(sampling_size, samples, probas, u_bounds,
                                 x_bounds, x_steps, x_dim, product_controls,
-                                dynamics, constraints, cost, V, Vitp, t, x, u_space_builder)
+                                dynamics, constraints, cost, V, Vitp, t, x, u_space_builder = nothing)
 
     expected_V = 0.
     current_cost = 0.

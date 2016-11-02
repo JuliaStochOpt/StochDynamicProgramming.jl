@@ -74,7 +74,7 @@ Compute the cartesian products of discretized control spaces or more complex spa
 """
 function generate_control_grid(model::SPModel, param::SDPparameters, t::Union{Int, Void} = nothing, x::Union{Array{Float64}, Void} = nothing, w = nothing)
 
-    if (typeof(model.build_search_space) == Function)&&(typeof(t)!=Void)&&(typeof(x)!=Void)
+    if (typeof(model.build_search_space) != Void)&&(typeof(t)!=Void)&&(typeof(x)!=Void)
         product_controls = model.build_search_space(t, x, w)
     else
         product_controls = Base.product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
@@ -565,8 +565,8 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
     x_steps = param.stateSteps
 
     #Compute cartesian product spaces
-    product_states= generate_state_grid(model, param)
-    product_controls= generate_control_grid(model, param)
+    product_states = generate_state_grid(model, param)
+    product_controls = generate_control_grid(model, param)
 
     controls = Inf*ones(TF-1, 1, model.dimControls)
     states = Inf*ones(TF, 1, model.dimStates)
@@ -591,8 +591,8 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
             best_V = Inf
             Vitp = value_function_interpolation(model.dimStates, V, t+1)
 
-            if typeof(model.build_search_space) == Function 
-                product_controls = build_search_space(model, param, t, x)
+            if typeof(model.build_search_space) != Void
+                product_controls = model.build_search_space(t, x)
             end
 
             for u in product_controls
@@ -643,7 +643,13 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
                 index_state = index_state +1
                 states[t+1,1,index_state] = xj
             end
-            J += model.costFunctions(t, x, best_control, scenario[t,:])
+            if best_control == tuple()
+                println(t, x)
+                println(product_controls)
+                error("No u admissible")
+            else
+                J += model.costFunctions(t, x, best_control, scenario[t,:])
+            end
         end
 
     else
@@ -656,8 +662,8 @@ function sdp_forward_single_simulation(model::StochDynProgModel,
 
             best_V = Inf
 
-            if typeof(model.build_search_space) == Function 
-                product_controls = build_search_space(model, param, t, x, w)
+            if typeof(model.build_search_space) == Function
+                product_controls = model.build_search_space(t, x, w)
             end
 
             for u = product_controls
