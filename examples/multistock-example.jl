@@ -7,6 +7,7 @@
 # Min   E [\sum_{t=1}^TF \sum_{i=1}^N c^i_t u^i_t]
 # s.t.    s^i_{t+1} = s^i_t + u^i_t - xi^i_t, s_0 given
 #         0 <= s^i_t <= 1
+#         \sum_{i=1}^N u^i_t <= rN
 #         u_min <= u^i_t <= u_max
 #         u^i_t choosen knowing xi_1 .. xi_t
 #############################################################################
@@ -16,7 +17,7 @@ println("library loaded")
 
 run_sddp = true # false if you don't want to run sddp
 run_sdp  = true # false if you don't want to run sdp
-run_ef   = false # false if you don't want to run extensive formulation
+run_ef   = true # false if you don't want to run extensive formulation
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -40,9 +41,9 @@ const XI_MAX = 0.3              # bounds on the noise
 const XI_MIN = 0
 const N_XI = 3                 # discretization of the noise
 
-const r = 0.4                   # bound on cumulative state : \sum_{i=1}^N x_i < rN
+const r = 0.5                   # bound on cumulative state : \sum_{i=1}^N x_i < rN
 
-const S0 = [0.5*r/N_STOCKS for i=1:N_STOCKS]     # initial stock
+const S0 = [0.5*r for i=1:N_STOCKS]     # initial stock
 
 # create law of noises
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
@@ -61,12 +62,12 @@ end
 
 # Define cost corresponding to each timestep:
 function cost_t(t, x, u, w)
-    return COSTS[t] *sum( u)
+    return COSTS[t] *sum(u)
 end
 
 # constraint function
-constraints_dp(t, x, u, w) = sum(x) <= r*N_STOCKS
-constraints_sddp(t, x, u, w) = [sum(x) - r*N_STOCKS]
+constraints_dp(t, x, u, w) = sum(u) <= r*N_STOCKS
+constraints_sddp(t, x, u, w) = [sum(u) - r*N_STOCKS]
 
 ######## Setting up the SPmodel
 s_bounds = [(0, 1) for i = 1:N_STOCKS]			# bounds on the state
@@ -127,13 +128,14 @@ run_ef && run_sdp && println("Relative error of SDP value: "*string(100*round(va
 run_ef && run_sddp && println("Relative error of SDDP lower bound: "*string(100*round(lb_sddp/value_ef-1,4))*"%")
 
 ######### Comparing the solutions on simulated scenarios.
-#srand(1234) # to fix the random seed accross runs
+srand(1234) # to fix the random seed accross runs
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 if run_sddp
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
+    costsddp, stocks_sddp = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
 end
 if run_sdp
-    costsdp, states, stocks = sdp_forward_simulation(spmodel_sdp,paramSDP,scenarios,Vs)
+    costsdp, stocks_sdp, controls = sdp_forward_simulation(spmodel_sdp,paramSDP,scenarios,Vs)
 end
+
 run_sddp && run_sdp && println("Simulated relative difference between sddp and sdp: "
             *string(round(200*mean(costsddp-costsdp)/mean(costsddp+costsdp),3))*"%")

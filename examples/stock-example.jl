@@ -114,7 +114,7 @@ if run_sddp
     #println(mean(costsddp)/value_ef-1)
 end
 if run_sdp
-    costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
+    costsdp, states, controls =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
     #println(mean(costsdp)/value_ef-1)
 end
 
