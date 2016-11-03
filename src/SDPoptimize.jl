@@ -8,8 +8,7 @@
 #
 #############################################################################
 
-using ProgressMeter
-using Interpolations
+using ProgressMeter, Interpolations, Gallium
 
 
 """
@@ -196,15 +195,15 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
                                 dynamics, constraints, cost, V, Vitp, t, info_struc, u_space_builder)
 
     if info_struc == "DH"
-        @sync @parallel for indx in 1:length(product_states)
-            SDPutils.compute_V_given_x_t_DH(sampling_size, samples,
+        for indx in 1:length(product_states)
+            @enter SDPutils.compute_V_given_x_t_DH(sampling_size, samples,
                                             probas, u_bounds, x_bounds,
                                             x_steps, x_dim, product_controls,
                                             dynamics, constraints, cost, V, Vitp,
                                             t, product_states[indx], u_space_builder)
         end
     elseif info_struc == "HD"
-        @sync @parallel for indx in 1:length(product_states)
+        for indx in 1:length(product_states)
             SDPutils.compute_V_given_x_t_HD(sampling_size, samples, probas,
                                             u_bounds, x_bounds, x_steps, x_dim,
                                             product_controls, dynamics,

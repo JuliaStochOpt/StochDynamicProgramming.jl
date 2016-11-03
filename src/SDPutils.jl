@@ -2,7 +2,7 @@ module SDPutils
 using Interpolations
 
 export index_from_variable, real_index_from_variable,
-        compute_V_given_t_DH, compute_V_given_t_HD
+        compute_V_given_t_DH, compute_V_given_t_HD, Gallium
 
 """
 Convert the state and control float tuples (stored as arrays or tuples) of the
@@ -160,7 +160,7 @@ function compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds,
                 optimal_u = u
 
             end
-         end
+        end
     end
     ind_x = index_from_variable(x, x_bounds, x_steps)
 
