@@ -72,8 +72,8 @@ function final_cost_dams(model, m)
     @JuMP.constraint(m, z1 >= 40 - xf[1])
     @JuMP.constraint(m, z2 >= 40 - xf[2])
     @JuMP.constraint(m, z3 >= 40 - xf[3])
-    @JuMP.constraint(m, z4 >= 40 - xf[3])
-    @JuMP.constraint(m, z5 >= 40 - xf[3])
+    @JuMP.constraint(m, z4 >= 40 - xf[4])
+    @JuMP.constraint(m, z5 >= 40 - xf[5])
     @JuMP.objective(m, Min, model.costFunctions(model.stageNumber-1, x, u, w) + 500.*(z1*z1+z2*z2+z3*z3+z4*z4+z5*z5))
 end
 
@@ -82,9 +82,9 @@ end
 ##################################################
 # Number of forward pass:
 const FORWARD_PASS = 10.
-const EPSILON = .05
+const EPSILON = .01
 # Maximum number of iterations
-const MAX_ITER = 10
+const MAX_ITER = 40
 ##################################################
 
 """Build probability distribution at each timestep.
@@ -120,6 +120,7 @@ function init_problem()
 
     params = SDDPparameters(solver,
                             passnumber=FORWARD_PASS,
+                            compute_ub=10,
                             gap=EPSILON,
                             max_iterations=MAX_ITER)
     return model, params
