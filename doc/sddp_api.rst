@@ -6,8 +6,8 @@ SDDP: SPModel and solver
 
 We detail here the interface with:
 
-- the object `SPModel` that stores the implementation of the stochastic problem,
-- the SDDP solver `SDDPparameters`.
+- the object `SPModel` that stores the dynamics, constraints and costs of the stochastic system,
+- the parameter of the SDDP algorithm `SDDPparameters`.
 
 
 LinearSPModel
@@ -30,25 +30,24 @@ To define a `LinearSPModel`, the constructor is::
                         eqconstr=nothing,   # equality constraints
                         ineqconstr=nothing, # inequality constraints
                         control_cat=nothing # category of controls
-                           )
+                        )
 
 Default parameters
 ^^^^^^^^^^^^^^^^^^
 You should at least specify these parameters to define a `LinearSPModel`:
 
-- `nstage` (Int): number of stage in our stochastic multistage problem
-- `ubounds` (list of tuple): the bounds upon control, defined as a sequence of tuple :code:`(umin, umax)`.
-- `x0` (`Vec{Float64}`): initial position
-- `cost` (`Function`): cost function
-- `dynamic` (`Function`): system's dynamic
-- `aleas` (`Vector{NoiseLaw}`): modelling of perturbations
+- `nstage` (Int): number of stages in the stochastic multistage problem
+- `ubounds` (list of tuple): bounds upon control, defined as a sequence of tuple :code:`(umin, umax)`.
+- `x0` (`Vec{Float64}`): initial state
+- `cost` (`Function`): cost function as a function of time, state, control and noise returning a Float
+- `dynamic` (`Function`): system's dynamic as a function of time, state, control and noise returning a vector
+- `aleas` (`Vector{NoiseLaw}`): law of the random noise
 
 
 State bound
 ^^^^^^^^^^^
 
-By default, the state is not bounded. If it is needed to add some constraints upon
-it, just call::
+By default, the state is not bounded. You can add bouns on states with ::
 
     set_state_bounds(spmodel, s_bounds)
 
@@ -75,14 +74,14 @@ Mixed-Integer SDDP
 ^^^^^^^^^^^^^^^^^^
 
 By default, SDDP handles only continuous controls. But a great deal of problem
-must adress integer or binary controls. If so, you could specify to SDDP
+must address integer or binary controls. If so, you could specify to SDDP
 to handle integer controls with this argument:
 
 - `control_cat` (`Vec{Union{:Cont, :Bin}`): specify if necessary if some controls are binary
 
 If integer controls are found, then forward passes will be computed ensuring that
 specified controls are integer whereas these integrity
-constraints is relaxed during backward passes.
+constraints is relaxed during backward passes. This is an heuristic not an exact resolution.
 
 
 
@@ -121,26 +120,26 @@ By default, no upper-bound is computed as this computation is costly.
 You can specify three different means to compute upper-bound:
 
 - `compute_ub` is set to -1 if you do not want to compute upper-bound.
-- If you want to compute upper-bound at the end of iteration, set it to 0.
+- If you do not want to compute upper-bound at the end of any iteration, set it to 0.
 - Otherwise, if you want to compute upper-bound every `n` iteration, set it to `n`.
 
-  You can also specify the number of simulation
+You can specify the number of simulation
 to use to compute upper-bound.
 - `compute_ub`: specify when to compute upper-bounds
-- `montecarlo_final`
-- `montecarlo_in_iter`
+- `montecarlo_final`: number of random scenario generated to compute the upper bound at the end of the algorithm
+- `montecarlo_in_iter`: number of random scenario generated to compute the upper bound at each iteration
 
 
 Cuts pruning
 ^^^^^^^^^^^^
 
-The more iterations are runned, the more cuts are stored. Sometime, it could be useful to remove
-useless cuts to remove constraints in LP problems. Three different kind of cuts
+With iterations more and more cuts are stored. Sometimes it is useful to remove
+some cuts and decrease LP problems size. Three different kind of cuts
 prunings are implemented currently:
 
-- exact cuts pruning
-- level1 cuts pruning
-- mixed level1/exact cuts pruning
+- exact cuts pruning: only prune irrelevant cut
+- level1 cuts pruning: heuristic that keep cut useful on past realizations
+- mixed level1/exact cuts pruning: faster exact pruning, that might prune less cuts
 
 To define how to use cuts pruning in `SDDPparameters`:
 - `prune_cuts`
@@ -153,9 +152,11 @@ an array.
 
 Quadratic regularization
 ^^^^^^^^^^^^^^^^^^^^^^^^
+Add a quadratic regularization term in the forward phase yielding better testing points,
+and hence requiring less iterations to reach a given gap.
 
-- `rho0`
-- `alpha`
+- `rho0`: Float in (0,1) decreasing the impact of the quadratic regularization with each step
+- `alpha`:
 
 
 Mixed-Integer SDDP
