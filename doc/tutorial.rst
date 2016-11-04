@@ -1,11 +1,14 @@
 
 ========
-Advanced functions
+SDDP: Advanced functions
 ========
 
 This page gives an overview of the functions implemented in the package.
 
-In the following, :code:`model` will design a :code:`SPModel` storing the definition of a stochastic problem, and :code:`param` a SDDPparameters instance which stores the parameters specified for SDDP. See quickstart_ for more information about these two objects.
+In the following, :code:`model` will design a :code:`SPModel` storing the
+definition of a stochastic problem, and :code:`param` a SDDPparameters instance
+which stores the SDDP's parameters. See quickstart_ for more
+information about these two objects.
 
 Work with PolyhedralFunction
 ============================
@@ -16,7 +19,7 @@ To estimate the Bellman value at a given position :code:`xt` with a :code:`Polyh
 
     vx = get_bellman_value(model, param, t, Vt, xt)
 
-This is a lower bound of the true value.
+This is a lower bound of the true expectation cost.
 
 Get optimal control at a given point
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -25,14 +28,16 @@ To get optimal control at a given point :code:`xt` and for a given alea :code:`x
 
     get_control(model, param, lpproblem, t, xt, xi)
 
-where :code:`lpproblem` is the linear problem storing the evaluation of Bellman function at time :math:`t`.
+where :code:`lpproblem` is the linear problem storing the evaluation of
+Bellman function at time :math:`t`.
 
 
 
 Save and load pre-computed cuts
 ===============================
 
-Assume that we have computed Bellman functions with SDDP. These functions are stored in a vector of :code:`PolyhedralFunctions` denoted :code:`V`
+Assume that we have computed Bellman functions with SDDP. These functions are
+stored in a vector of :code:`PolyhedralFunctions` denoted :code:`V`
 
 These functions can be stored in a text file with the command::
 
@@ -47,7 +52,8 @@ And then be loaded with the function::
 Build LP Models with PolyhedralFunctions
 =======================================
 
-We can build a vector of :code:`JuMP.Model` with a vector of :code:`PolyhedralFunction` to perform simulation. For this, use the function::
+We can build a vector of :code:`JuMP.Model` with a vector of
+:code:`PolyhedralFunction` to perform simulation. For this, use the function::
 
     problems = StochDynamicProgramming.hotstart_SDDP(model, param, V)
 
@@ -63,7 +69,8 @@ If cuts are already available, we can hotstart SDDP while overloading the functi
 Cuts pruning
 ============
 
-The more SDDP run, the more cuts you need to store. It is sometimes useful to delete cuts which are useless for the computation of the approximated Bellman functions.
+The more SDDP run, the more cuts you need to store. It is sometimes useful to
+delete cuts which are useless for the computation of the approximated Bellman functions.
 
 
 To clean a single :code:`PolyhedralFunction` :code:`Vt`::
