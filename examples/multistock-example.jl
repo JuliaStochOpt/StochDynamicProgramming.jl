@@ -17,6 +17,7 @@ println("library loaded")
 
 run_sddp = true # false if you don't want to run sddp
 run_sdp  = true # false if you don't want to run sdp
+test_simulation = true # false if you don't want to test your strategies
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -25,6 +26,8 @@ const SOLVER = ClpSolver() 			   # require "using Clp"
 
 # convergence test
 const MAX_ITER = 10 # number of iterations of SDDP
+
+const step = 0.1   # discretization step of SDP
 
 ######## Stochastic Model  Parameters  ########
 const N_STAGES = 6              # number of stages of the SP problem
@@ -40,9 +43,9 @@ const XI_MAX = 0.3              # bounds on the noise
 const XI_MIN = 0
 const N_XI = 3                 # discretization of the noise
 
-const r = 1                  # bound on cumulative control : \sum_{i=1}^N u_i < rN
+const r = 0.5                  # bound on cumulative control : \sum_{i=1}^N u_i < rN
 
-const S0 = [0.5*r for i=1:N_STOCKS]     # initial stock
+const S0 = [0.5 for i=1:N_STOCKS]     # initial stock
 
 # create law of noises
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
@@ -79,7 +82,6 @@ if run_sddp
     # 10 forward pass, stop at MAX_ITER
     paramSDDP = SDDPparameters(SOLVER,
                                passnumber=10,
-                               gap=0,
                                max_iterations=MAX_ITER)
     V, pbs = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
@@ -90,7 +92,6 @@ end
 ######### Solving the problem via Dynamic Programming
 if run_sdp
     tic()
-    step = 0.1
     println("Starting resolution by SDP")
     stateSteps = [step for i=1:N_STOCKS] # discretization step of the state
     controlSteps = [step for i=1:N_STOCKS] # discretization step of the control
@@ -108,15 +109,11 @@ end
 
 ######### Comparing the solutions on simulated scenarios.
 #srand(1234) # to fix the random seed accross runs
-scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
-if run_sddp
-    costsddp, stocks_sddp = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
-end
-
-if run_sdp
-    costsdp, stocks_sdp, controls = sdp_forward_simulation(spmodel_sdp,paramSDP,scenarios,Vs)
-end
-
-run_sddp && run_sdp && println("Simulated relative gain of sddp over sdp: "
+if run_sddp && run_sdp && test_simulation
+    scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
+    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
+    costsdp, states, controls = sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
+    println("Simulated relative gain of sddp over sdp: "
             *string(round(200*mean(costsdp-costsddp)/abs(mean(costsddp+costsdp)),3))*"%")
+end
 

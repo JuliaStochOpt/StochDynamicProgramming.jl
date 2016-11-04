@@ -10,10 +10,10 @@
 
 
 """
-Solve SDDP algorithm and return estimation of bellman functions.
+Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
 
 # Description
-Alternate forward and backward phase till the stopping criterion is
+Alternate forward and backward phases untill the stopping criterion is
 fulfilled.
 
 # Arguments
@@ -32,7 +32,7 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-* `sddp_stats::SDDPStat`:
+* `sddp_stats::SDDPStat`: statistics of the algorithm run
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
@@ -46,10 +46,11 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
 end
 
 """
-Solve SDDP algorithm with hotstart and return estimation of bellman functions.
+Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
+Use hotstart.
 
 # Description
-Alternate forward and backward phase till the stopping criterion is
+Alternate forward and backward phases untill the stopping criterion is
 fulfilled.
 
 # Arguments
@@ -70,7 +71,7 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-* `sddp_stats::SDDPStat`:
+* `sddp_stats::SDDPStat`: statistics of the algorithm run
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
     check_SDDPparameters(model,param,verbose)
