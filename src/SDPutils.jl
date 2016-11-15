@@ -1,8 +1,8 @@
 module SDPutils
-using Interpolations
+using Interpolations, Gallium
 
 export index_from_variable, real_index_from_variable,
-        compute_V_given_t_DH, compute_V_given_t_HD, Gallium
+        compute_V_given_t_DH, compute_V_given_t_HD
 
 """
 Convert the state and control float tuples (stored as arrays or tuples) of the
@@ -128,7 +128,7 @@ function compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds,
         controls_search_space = product_controls
     end
 
-    for u = controls_search_space
+    for u in controls_search_space
 
         expected_V_u = 0.
         count_admissible_w = 0
@@ -138,9 +138,12 @@ function compute_V_given_x_t_DH(sampling_size, samples, probas, u_bounds,
             proba = probas[w]
             next_state = dynamics(t, x, u, w_sample)
 
+            #@conditional breakpoint(constraints, Tuple{Any, Any, Any, Any}) (length(u)==2)
+
             if constraints(t, x, u, w_sample)&&is_next_state_feasible(next_state, x_dim, x_bounds)
 
                 count_admissible_w = count_admissible_w + proba
+
                 ind_next_state = real_index_from_variable(next_state, x_bounds,
                                                             x_steps)
                 next_V = Vitp[ind_next_state...]

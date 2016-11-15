@@ -196,7 +196,7 @@ function compute_V_given_t(sampling_size, samples, probas, u_bounds, x_bounds,
 
     if info_struc == "DH"
         for indx in 1:length(product_states)
-            @enter SDPutils.compute_V_given_x_t_DH(sampling_size, samples,
+            SDPutils.compute_V_given_x_t_DH(sampling_size, samples,
                                             probas, u_bounds, x_bounds,
                                             x_steps, x_dim, product_controls,
                                             dynamics, constraints, cost, V, Vitp,
