@@ -1,9 +1,10 @@
 ################################################################################
-# Test SDDP functions
+# Test extensive formulation
 ################################################################################
-using FactCheck, StochDynamicProgramming, JuMP, Clp
 
-facts("SDDP algorithm: 1D case") do
+using StochDynamicProgramming, Base.Test, Clp
+
+@testset "Extensive formulation" begin
     solver = ClpSolver()
 
     # SDDP's tolerance:
@@ -48,14 +49,14 @@ facts("SDDP algorithm: 1D case") do
                                                     gap=epsilon,
                                                     max_iterations=max_iterations)
 
-    context("Extensive solving") do
+    @testset "Extensive solving" begin
         ef_cost = StochDynamicProgramming.extensive_formulation(model_ef, params)[1]
-        @fact typeof(ef_cost) --> Float64
+        @test isa(ef_cost, Float64)
     end
 
-    context("Unsolvable extensive formulation") do
+    @testset "Unsolvable extensive formulation" begin
         x_bounds_ef = [(-2., -1.)]
         set_state_bounds(model_ef, x_bounds_ef)
-        @fact_throws extensive_formulation(model_ef, params)
+        @test_throws ErrorException extensive_formulation(model_ef, params)
     end
 end

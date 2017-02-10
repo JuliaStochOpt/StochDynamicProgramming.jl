@@ -90,28 +90,6 @@ function catcuts(Vts::StochDynamicProgramming.PolyhedralFunction...)
     return StochDynamicProgramming.PolyhedralFunction(betas, lambdas, numcuts)
 end
 
-"""
-Extract a vector stored in a 3D Array
-
-# Arguments
-* `input_array::Array{Float64, 3}`:
-    array storing the values of vectors
-* `nx::Int64`:
-    Position of vector in first dimension
-* `ny::Int64`:
-    Position of vector in second dimension
-
-# Return
-`Vector{Float64}`
-"""
-function extract_vector_from_3Dmatrix(input_array::Array{Float64, 3},
-                                      nx::Int64,
-                                      ny::Int64)
-    info("extract_vector_from_3Dmatrix is now deprecated. Use collect instead.")
-    state_dimension = size(input_array)[3]
-    return reshape(input_array[nx, ny, :], state_dimension)
-end
-
 
 """
 Generate a random state.

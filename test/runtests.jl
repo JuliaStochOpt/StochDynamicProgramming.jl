@@ -8,12 +8,12 @@
 
 
 using StochDynamicProgramming
-using Distributions, Clp, FactCheck, JuMP
+using Clp, JuMP
+using Base.Test
 
 
 # Test utility functions:
 include("prob.jl")
-include("utils.jl")
 
 # Test SDDP:
 include("sddp.jl")
