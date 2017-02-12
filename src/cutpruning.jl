@@ -59,7 +59,7 @@ function prune_cuts!(model::SPModel,
                     param::SDDPparameters,
                     V::Vector{PolyhedralFunction},
                     trajectories::Array{Float64, 3},
-                    territory::Union{Array{Void}, Array{ActiveCutsContainer}},
+                    territory,
                     it::Int64,
                     verbose::Int64)
     # Basic pruning: remove redundant cuts
@@ -70,7 +70,10 @@ function prune_cuts!(model::SPModel,
     if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
         for t in 1:model.stageNumber-1
             states = reshape(trajectories[t, :, :], param.forwardPassNumber, model.dimStates)
-            find_level1_cuts!(territory[t], V[t], states)
+            # FIXME: add in a proper way new cuts in territory
+            territory[t].cuts_DE = V[t].lambdas
+            territory[t].cuts_de = V[t].betas
+            CutPruners.updatestats!(territory[t], states)
         end
     end
 
@@ -174,7 +177,8 @@ ActiveCutsContainer(ndim) = ActiveCutsContainer(0, [], 0, Array{Float64}(0, ndim
 * `states`:
     Object storing all visited states
 """
-function find_level1_cuts!(cutscontainer::ActiveCutsContainer, V::PolyhedralFunction, states)
+function find_level1_cuts!(cutscontainer::CutPruners.LevelOneCutPruner,
+                           V::PolyhedralFunction, states)
     nc = V.numCuts
     # get number of new positions to analyse:
     nx = size(states, 1)
@@ -257,14 +261,12 @@ end
     the new PolyhedralFunction
 """
 function level1_cuts_pruning!(model::SPModel, param::SDDPparameters,
-                              V::PolyhedralFunction, cutscontainer::ActiveCutsContainer)
-    assert(cutscontainer.numCuts == V.numCuts)
+                              V::PolyhedralFunction, cutscontainer::CutPruners.LevelOneCutPruner)
 
     nstates = [length(terr) for terr in cutscontainer.territories]
     active_cuts = nstates .> 0
 
     cutscontainer.territories = cutscontainer.territories[active_cuts]
-    cutscontainer.numCuts = sum(active_cuts)
     return PolyhedralFunction(V.betas[active_cuts],
                               V.lambdas[active_cuts, :],
                               sum(active_cuts))
@@ -288,7 +290,7 @@ then test remaining cuts.
 """
 function exact_cuts_pruning_accelerated!(model::SPModel, param::SDDPparameters,
                                          V::PolyhedralFunction,
-                                         cutscontainer::ActiveCutsContainer)
+                                         cutscontainer::CutPruners.LevelOneCutPruner)
 
     assert(cutscontainer.numCuts == V.numCuts)
     solver = param.SOLVER
