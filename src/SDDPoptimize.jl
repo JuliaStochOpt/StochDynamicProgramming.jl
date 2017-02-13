@@ -97,22 +97,12 @@ end
 function solve!(sddp::SDDPInterface)
 
     if ~sddp.init
-        random_pass!(sddp)
-        sddp.init = true
+        init!(sddp)
     end
     model = sddp.spmodel
     param = sddp.params
     V = sddp.bellmanfunctions
     stats = sddp.stats
-
-    # Initialize cuts container for cuts pruning:
-    if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
-        activecuts = [CutPruner{model.dimStates, Float64}(LevelOnePruningAlgo(10000)) for i in 1:model.stageNumber-1]
-    else
-        activecuts = [nothing for i in 1:model.stageNumber-1]
-    end
-
-    (sddp.verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built
     # to keep always the same realization for upper bound estimation:
@@ -136,17 +126,17 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # Time execution of current pass
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        lwb = get_bellman_value(sddp)
         time_pass = toq()
 
         ####################
         # cut pruning
-        if param.pruning[:pruning]
-            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations+1, sddp.verbose)
-            if (stats.niterations%param.pruning[:period]==0)
-                problems = hotstart_SDDP(model, param, V)
-            end
-        end
+        prune!(sddp, stockTrajectories)
+        # TODO
+            #= if (stats.niterations%param.pruning[:period]==0) =#
+            #=     problems = hotstart_SDDP(model, param, V) =#
+            #= end =#
+        #= end =#
 
         ####################
         # In iteration upper bound estimation
@@ -164,9 +154,15 @@ function solve!(sddp::SDDPInterface)
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
+    println(sum([length(sddp.pruner[t].cuts_de) for t in 1:model.stageNumber-1]))
     display_final_solution(sddp)
 end
 
+function init!(sddp::SDDPInterface)
+    random_pass!(sddp)
+    sddp.init = true
+    (sddp.verbose > 0) && println("Initialize cuts")
+end
 
 """Display final results once SDDP iterations are finished."""
 function display_final_solution(sddp::SDDPInterface)
@@ -178,7 +174,7 @@ function display_final_solution(sddp::SDDPInterface)
     verbose = sddp.verbose
 
     if (verbose>0) && (param.compute_ub >= 0)
-        lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
+        lwb = get_bellman_value(sddp)
 
         if (param.compute_ub == 0) || (param.monteCarloSize > 0)
             (verbose > 0) && println("Compute final upper-bound with ",
@@ -201,7 +197,6 @@ function display_final_solution(sddp::SDDPInterface)
         println("\n############################################################")
     end
 end
-
 
 
 """
@@ -425,6 +420,12 @@ function get_bellman_value(model::SPModel, param::SDDPparameters,
     @objective(m, Min, alpha)
     solve(m)
     return getvalue(alpha)
+end
+
+function get_bellman_value(sddp::SDDPInterface)
+    return get_bellman_value(sddp.spmodel, sddp.params, 1,
+                             sddp.bellmanfunctions[1],
+                             sddp.spmodel.initialState)
 end
 
 

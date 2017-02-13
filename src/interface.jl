@@ -7,6 +7,8 @@ type SDDPInterface
     params::SDDPparameters
     # statistics
     stats::SDDPStat
+    # cut pruner:
+    pruner::Vector{CutPruners.AbstractCutPruner}
 
     # solution
     bellmanfunctions::Vector{PolyhedralFunction}
@@ -23,11 +25,13 @@ type SDDPInterface
         V, problems = initialize_value_functions(model, param)
         (verbose > 0) && println("SDDP Interface initialized")
 
+        pruner = initpruner(param, model.stageNumber, model.dimStates)
         #Initialization of stats
         stats = SDDPStat()
-        return new(false, model, param, stats, V, problems, verbose)
+        return new(false, model, param, stats, pruner, V, problems, verbose)
     end
 end
+
 
 function SDDPInterface(model::SPModel,
                        params::SDDPparameters,
@@ -36,5 +40,13 @@ function SDDPInterface(model::SPModel,
     check_SDDPparameters(model, param, verbose)
     # First step: process value functions if hotstart is called
     problems = hotstart_SDDP(model, param, V)
-    return SDDPInterface(false, model, params, stats, V, problems, verbose)
+    pruner = initpruner(param, model.stageNumber, model.dimStates)
+    return SDDPInterface(false, model, params, stats, pruner, V, problems, verbose)
+end
+
+function initpruner(param, nstages, ndim)
+    algo = param.pruning[:algo]
+    println(algo)
+    # Initialize cuts container for cuts pruning:
+    return [CutPruners.CutPruner{ndim, Float64}(algo) for i in 1:nstages-1]
 end
