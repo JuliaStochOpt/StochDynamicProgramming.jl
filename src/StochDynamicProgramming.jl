@@ -13,11 +13,12 @@ include("SDPutils.jl")
 
 using MathProgBase, JuMP, Distributions
 using DocStringExtensions
+using CutPruners
 
 export solve_SDDP,
         NoiseLaw, simulate_scenarios,
         SDDPparameters, LinearSPModel, set_state_bounds,
-         extensive_formulation,
+        extensive_formulation,
         PolyhedralFunction, NextStep, forward_simulations,
         StochDynProgModel, SDPparameters, solve_DP,
         sdp_forward_simulation, sampling, get_control, get_bellman_value,

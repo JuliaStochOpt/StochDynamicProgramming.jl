@@ -107,7 +107,7 @@ function solve!(sddp::SDDPInterface)
 
     # Initialize cuts container for cuts pruning:
     if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
-        activecuts = [ActiveCutsContainer(model.dimStates) for i in 1:model.stageNumber-1]
+        activecuts = [CutPruner{model.dimStates, Float64}(LevelOnePruningAlgo(10000)) for i in 1:model.stageNumber-1]
     else
         activecuts = [nothing for i in 1:model.stageNumber-1]
     end
