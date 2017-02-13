@@ -23,7 +23,9 @@ export solve_SDDP,
         sdp_forward_simulation, sampling, get_control, get_bellman_value,
         benchmark_parameters
 
+include("noises.jl")
 include("objects.jl")
+include("params.jl")
 include("utils.jl")
 include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")

@@ -30,10 +30,12 @@ scenarios, with associated costs.
 * `callsolver_forward::Int64`:
     number of call to solver
 """
-function forward_pass!(model::SPModel,
-                      param::SDDPparameters,
-                      V::Vector{PolyhedralFunction},
-                      problems::Vector{JuMP.Model})
+function forward_pass!(sddp::SDDPInterface)
+    model = sddp.spmodel
+    param = sddp.params
+    solverProblems = sddp.solverinterface
+    V = sddp.bellmanfunctions
+    problems = sddp.solverinterface
     # Draw a set of scenarios according to the probability
     # law specified in model.noises:
     noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
@@ -48,7 +50,8 @@ function forward_pass!(model::SPModel,
                         acceleration=param.IS_ACCELERATED)
 
     model.refTrajectories = stockTrajectories
-    return costs, stockTrajectories, callsolver_forward
+    sddp.stats.ncallsolver += callsolver_forward
+    return costs, stockTrajectories
 end
 
 
@@ -172,8 +175,8 @@ Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
   subgradient of the cut to add
 """
 function add_cut!(model::SPModel,
-    t::Int64, Vt::PolyhedralFunction,
-    beta::Float64, lambda::Vector{Float64})
+                  t::Int64, Vt::PolyhedralFunction,
+                  beta::Float64, lambda::Vector{Float64})
     Vt.lambdas = vcat(Vt.lambdas, reshape(lambda, 1, model.dimStates))
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
@@ -228,12 +231,14 @@ the current estimation of Vt.
 * `law::Array{NoiseLaw}`:
     Conditionnal distributions of perturbation, for each timestep
 """
-function backward_pass!(model::SPModel,
-                        param::SDDPparameters,
-                        V::Vector{PolyhedralFunction},
-                        solverProblems::Vector{JuMP.Model},
+function backward_pass!(sddp::SDDPInterface,
                         stockTrajectories::Array{Float64, 3},
                         law)
+
+    model = sddp.spmodel
+    param = sddp.params
+    solverProblems = sddp.solverinterface
+    V = sddp.bellmanfunctions
 
     callsolver::Int = 0
 
@@ -301,5 +306,7 @@ function backward_pass!(model::SPModel,
 
         end
     end
-    return callsolver
+
+    # update stats
+    sddp.stats.ncallsolver += callsolver
 end

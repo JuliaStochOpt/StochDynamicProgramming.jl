@@ -9,6 +9,7 @@
 #############################################################################
 
 
+
 """
 Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
 
@@ -36,13 +37,10 @@ fulfilled.
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
-    check_SDDPparameters(model,param,verbose)
-    # initialize value functions:
-    V, problems = initialize_value_functions(model, param)
-    (verbose > 0) && println("Initial value function loaded into memory.")
     # Run SDDP:
-    sddp_stats = run_SDDP!(model, param, V, problems, verbose)
-    return V, problems, sddp_stats
+    sddp = SDDPInterface(model, param, verbose=verbose)
+    solve!(sddp)
+    sddp
 end
 
 """
@@ -74,11 +72,9 @@ fulfilled.
 * `sddp_stats::SDDPStat`: statistics of the algorithm run
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
-    check_SDDPparameters(model,param,verbose)
-    # First step: process value functions if hotstart is called
-    problems = hotstart_SDDP(model, param, V)
-    sddp_stats = run_SDDP!(model, param, V, problems, verbose)
-    return V, problems, sddp_stats
+    sddp = SDDPInterface(model, param, V, verbose=verbose)
+    solve!(sddp)
+    sddp
 end
 
 
@@ -97,18 +93,14 @@ end
     If non null, display progression in terminal every
     `n` iterations, where `n` is the number specified by display.
 
-# Returns
-* `stats:SDDPStats`:
-    contains statistics of the current algorithm
 """
-function run_SDDP!(model::SPModel,
-                    param::SDDPparameters,
-                    V::Vector{PolyhedralFunction},
-                    problems::Vector{JuMP.Model},
-                    verbose=0::Int64)
+function solve!(sddp::SDDPInterface)
 
-    #Initialization of the counter
-    stats = SDDPStat()
+    random_pass!(sddp)
+    model = sddp.spmodel
+    param = sddp.params
+    V = sddp.bellmanfunctions
+    stats = sddp.stats
 
     # Initialize cuts container for cuts pruning:
     if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}})
@@ -117,11 +109,11 @@ function run_SDDP!(model::SPModel,
         activecuts = [nothing for i in 1:model.stageNumber-1]
     end
 
-    (verbose > 0) && println("Initialize cuts")
+    (sddp.verbose > 0) && println("Initialize cuts")
 
     # If computation of upper-bound is needed, a set of scenarios is built
     # to keep always the same realization for upper bound estimation:
-    upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
+    upperbound_scenarios = simulate_scenarios(sddp.spmodel.noises, sddp.params.in_iter_mc)
 
     upb = [Inf, Inf, Inf]
     stopping_test::Bool = false
@@ -133,11 +125,11 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # Forward pass : compute stockTrajectories
-        costs, stockTrajectories, callsolver_forward = forward_pass!(model, param, V, problems)
+        costs, stockTrajectories = forward_pass!(sddp)
 
         ####################
         # Backward pass : update polyhedral approximation of Bellman functions
-        callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
+        backward_pass!(sddp, stockTrajectories, model.noises)
 
         ####################
         # Time execution of current pass
@@ -147,7 +139,7 @@ function run_SDDP!(model::SPModel,
         ####################
         # cut pruning
         if param.pruning[:pruning]
-            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations+1, verbose)
+            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations+1, sddp.verbose)
             if (stats.niterations%param.pruning[:period]==0)
                 problems = hotstart_SDDP(model, param, V)
             end
@@ -155,11 +147,11 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # In iteration upper bound estimation
-        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, verbose,
+        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbose,
                                           upperbound_scenarios, upb, problems)
 
-        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, time_pass)
-        print_current_stats(stats,verbose)
+        updateSDDPStat!(stats, lwb, upb, time_pass)
+        print_current_stats(stats,sddp.verbose)
 
         ####################
         # Stopping test
@@ -168,14 +160,19 @@ function run_SDDP!(model::SPModel,
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    display_final_solution(model, param, V, problems, stats, verbose)
-    return stats
+    display_final_solution(sddp)
 end
 
 
 """Display final results once SDDP iterations are finished."""
-function display_final_solution(model::SPModel, param::SDDPparameters, V,
-                                problems, stats::SDDPStat, verbose::Int64)
+function display_final_solution(sddp::SDDPInterface)
+    model = sddp.spmodel
+    param = sddp.params
+    V = sddp.bellmanfunctions
+    problems = sddp.solverinterface
+    stats = sddp.stats
+    verbose = sddp.verbose
+
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
 
@@ -339,16 +336,22 @@ function initialize_value_functions(model::SPModel,
         V[end] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
         model.finalCost(model, solverProblems[end])
     end
+    return V, solverProblems
+end
+
+function random_pass!(sddp)
+    model = sddp.spmodel
+    param = sddp.params
 
     stockTrajectories = zeros(model.stageNumber, param.forwardPassNumber, model.dimStates)
     for i in 1:model.stageNumber, j in 1:param.forwardPassNumber
         stockTrajectories[i, j, :] = get_random_state(model)
     end
 
-    callsolver = backward_pass!(model, param, V, solverProblems,
-                                stockTrajectories, model.noises)
+    callsolver = backward_pass!(sddp, stockTrajectories, model.noises)
 
-    return V, solverProblems
+    sddp.stats.ncallsolver += callsolver
+
 end
 
 
