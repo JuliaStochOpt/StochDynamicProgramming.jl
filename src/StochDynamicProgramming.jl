@@ -26,6 +26,7 @@ export solve_SDDP,
 include("noises.jl")
 include("objects.jl")
 include("params.jl")
+include("interface.jl")
 include("utils.jl")
 include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")

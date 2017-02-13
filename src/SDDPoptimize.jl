@@ -96,7 +96,10 @@ end
 """
 function solve!(sddp::SDDPInterface)
 
-    random_pass!(sddp)
+    if ~sddp.init
+        random_pass!(sddp)
+        sddp.init = true
+    end
     model = sddp.spmodel
     param = sddp.params
     V = sddp.bellmanfunctions
@@ -148,7 +151,8 @@ function solve!(sddp::SDDPInterface)
         ####################
         # In iteration upper bound estimation
         upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbose,
-                                          upperbound_scenarios, upb, problems)
+                                          upperbound_scenarios, upb,
+                                          sddp.solverinterface)
 
         updateSDDPStat!(stats, lwb, upb, time_pass)
         print_current_stats(stats,sddp.verbose)

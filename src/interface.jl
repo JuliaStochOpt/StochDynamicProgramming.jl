@@ -1,5 +1,6 @@
 
 type SDDPInterface
+    init::Bool
     # Stochastic model to solve
     spmodel::SPModel
     # SDDP parameters
@@ -24,7 +25,7 @@ type SDDPInterface
 
         #Initialization of stats
         stats = SDDPStat()
-        return new(model, param, stats, V, problems, verbose)
+        return new(false, model, param, stats, V, problems, verbose)
     end
 end
 
@@ -35,5 +36,5 @@ function SDDPInterface(model::SPModel,
     check_SDDPparameters(model, param, verbose)
     # First step: process value functions if hotstart is called
     problems = hotstart_SDDP(model, param, V)
-    return SDDPInterface(model, params, stats, V, problems, verbose)
+    return SDDPInterface(false, model, params, stats, V, problems, verbose)
 end
