@@ -177,7 +177,7 @@ Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 function add_cut!(model::SPModel,
                   t::Int64, Vt::PolyhedralFunction,
                   beta::Float64, lambda::Vector{Float64})
-    Vt.lambdas = vcat(Vt.lambdas, reshape(lambda, 1, model.dimStates))
+    Vt.lambdas = vcat(Vt.lambdas, lambda')
     Vt.betas = vcat(Vt.betas, beta)
     Vt.numCuts += 1
 end
@@ -253,7 +253,7 @@ function backward_pass!(sddp::SDDPInterface,
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
             # We collect current state:
-            state_t = collect(stockTrajectories[t, k, :])
+            state_t = stockTrajectories[t, k, :]
             # We will store probabilities in a temporary array.
             # It is initialized at 0. If all problem are infeasible for
             # current timestep, then proba remains equal to 0 and not cut is added.
