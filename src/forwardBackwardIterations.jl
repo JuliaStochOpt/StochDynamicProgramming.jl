@@ -201,10 +201,8 @@ Add a cut to the JuMP linear problem.
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
                             t::Int64, beta::Float64, lambda::Vector{Float64})
     alpha = getvariable(problem, :alpha)
-    x = getvariable(problem, :x)
-    u = getvariable(problem, :u)
-    w = getvariable(problem, :w)
-    @constraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+    xf = getvariable(problem, :xf)
+    @constraint(problem, beta + dot(lambda, xf) <= alpha)
 end
 
 
