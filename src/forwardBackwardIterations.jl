@@ -7,19 +7,17 @@
 #############################################################################
 
 """
-Make a forward pass of the algorithm
+Run a forward pass of the algorithm with `sddp` object
+
+$(SIGNATURES)
 
 # Description
 Simulate scenarios of noise and compute optimal trajectories on those
 scenarios, with associated costs.
 
 # Arguments
-* `model::SPmodel`: the stochastic problem we want to optimize
-* `param::SDDPparameters`: the parameters of the SDDP algorithm
-* `V::Vector{PolyhedralFunction}`:
-    Linear model used to approximate each value function
-* `problems::Vector{JuMP.Model}`:
-    Current linear problems
+* `sddp::SDDPInterface`:
+    SDDP interface object
 
 # Returns
 * `costs::Array{float,1}`:
@@ -27,8 +25,7 @@ scenarios, with associated costs.
 * `stockTrajectories::Array{float}`:
     the simulated stock trajectories. stocks(t,k,:) is the stock for
     scenario k at time t.
-* `callsolver_forward::Int64`:
-    number of call to solver
+
 """
 function forward_pass!(sddp::SDDPInterface)
     model = sddp.spmodel
@@ -56,7 +53,9 @@ end
 
 
 """
-Make a forward pass of the algorithm
+Simulate a forward pass of the algorithm
+
+$(SIGNATURES)
 
 # Description
 Simulate a scenario of noise and compute an optimal trajectory on this
@@ -164,6 +163,8 @@ end
 """
 Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
 
+$(SIGNATURES)
+
 # Arguments
 * `model::SPModel`: Store the problem definition
 * `t::Int64`: Current time
@@ -207,7 +208,9 @@ end
 
 
 """
-Make a backward pass of the algorithm
+Run a SDDP backward pass on `sddp`.
+
+$(SIGNATURES)
 
 # Description
 For t:T-1 -> 0, compute a valid cut of the Bellman function
@@ -215,14 +218,8 @@ Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
 
 # Arguments
-* `model::SPmodel`:
-    the stochastic problem we want to optimize
-* `param::SDDPparameters`:
-    the parameters of the SDDP algorithm
-* `V::Array{PolyhedralFunction}`:
-    the current estimation of Bellman's functions
-* `solverProblems::Array{JuMP.Model}`:
-    Linear model used to approximate each value function
+* `sddp::SDDPInterface`:
+    SDDP instance
 * `stockTrajectories::Array{Float64,3}`:
     stockTrajectories[t,k,:] is the vector of stock where the cut is computed
     for scenario k and time t.

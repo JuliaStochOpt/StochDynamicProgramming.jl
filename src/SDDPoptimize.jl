@@ -11,7 +11,9 @@
 
 
 """
-Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
+Solve spmodel using SDDP algorithm and return `SDDPInterface` instance.
+
+$(SIGNATURES)
 
 # Description
 Alternate forward and backward phases untill the stopping criterion is
@@ -28,12 +30,7 @@ fulfilled.
     `n` iterations, where `n` is the number specified by display.
 
 # Returns
-* `V::Array{PolyhedralFunction}`:
-    the collection of approximation of the bellman functions
-* `problems::Array{JuMP.Model}`:
-    the collection of linear problems used to approximate
-    each value function
-* `sddp_stats::SDDPStat`: statistics of the algorithm run
+`SDDPInterface`
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
@@ -44,8 +41,10 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
 end
 
 """
-Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
+Solve spmodel using SDDP algorithm and return `SDDPInterface` instance.
 Use hotstart.
+
+$(SIGNATURES)
 
 # Description
 Alternate forward and backward phases untill the stopping criterion is
@@ -64,12 +63,7 @@ fulfilled.
     `n` iterations, where `n` is the number specified by display.
 
 # Returns
-* `V::Array{PolyhedralFunction}`:
-    the collection of approximation of the bellman functions
-* `problems::Array{JuMP.Model}`:
-    the collection of linear problems used to approximate
-    each value function
-* `sddp_stats::SDDPStat`: statistics of the algorithm run
+* `SDDPInterface`
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
     sddp = SDDPInterface(model, param, V, verbose=verbose)
@@ -78,20 +72,22 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralF
 end
 
 
-"""Run SDDP iterations.
+"""Run SDDP iterations on `sddp::SDDPInterface` instance.
 
-# Arguments
-* `model::SPmodel`:
-    the stochastic problem we want to optimize
-* `param::SDDPparameters`:
-    the parameters of the SDDP algorithm
-* `V::Vector{PolyhedralFunction}`:
-    Polyhedral lower approximation of Bellman functions
-* `problems::Vector{JuMP.Model}`:
-* `verbose::Int64`:
-    Default is `0`
-    If non null, display progression in terminal every
-    `n` iterations, where `n` is the number specified by display.
+$(SIGNATURES)
+
+# Description
+This function modifies `sddp`:
+* if `sddp.init` is false, init `sddp`
+* run SDDP iterations and update `sddp` till stopping test is fulfilled
+
+At each iteration, the algorithm runs:
+* a forward pass on `sddp` to compute `trajectories`
+* a backward pass to update value functions of `sddp`
+* a cut pruning to remove outdated cuts in `sddp`
+* an estimation of the upper-bound of `sddp`
+* an update of the different attributes of `sddp`
+* test the stopping criterion
 
 """
 function solve!(sddp::SDDPInterface)
@@ -156,6 +152,7 @@ function solve!(sddp::SDDPInterface)
 end
 
 
+"""Init `sddp::SDDPInterface` object."""
 function init!(sddp::SDDPInterface)
     random_pass!(sddp)
     sddp.init = true
@@ -210,16 +207,21 @@ end
 
 
 """
-Build a cut approximating terminal cost with null function
+Build final cost with PolyhedralFunction function `Vt`.
+
+$(SIGNATURES)
 
 # Arguments
+* `model::SPModel`:
+    Model description
 * `problem::JuMP.Model`:
     Cut approximating the terminal cost
-* `shape`:
-    If PolyhedralFunction is given, build terminal cost with it
-    Else, terminal cost is null
+* `Vt::PolyhedralFunction`:
+    Final cost given as a PolyhedralFunction
 """
-function build_terminal_cost!(model::SPModel, problem::JuMP.Model, Vt::PolyhedralFunction)
+function build_terminal_cost!(model::SPModel,
+                              problem::JuMP.Model,
+                              Vt::PolyhedralFunction)
     # if shape is PolyhedralFunction, build terminal cost with it:
     alpha = getvariable(problem, :alpha)
     xf = getvariable(problem, :xf)
@@ -236,7 +238,9 @@ end
 
 
 """
-Initialize each linear problem used to approximate value  functions
+Initialize each linear problem used to approximate value functions
+
+$(SIGNATURES)
 
 # Description
 This function define the variables and the constraints of each
@@ -311,6 +315,8 @@ end
 """
 Initialize value functions along a given trajectory
 
+$(SIGNATURES)
+
 # Description
 This function add the fist cut to each PolyhedralFunction stored in a Array
 
@@ -349,6 +355,15 @@ function initialize_value_functions(model::SPModel,
 end
 
 
+"""
+Run SDDP iteration with random forward pass.
+
+$(SIGNATURES)
+
+# Parameters
+* `sddp:SDDPInterface`
+    SDDP instance
+"""
 function random_pass!(sddp::SDDPInterface)
     model = sddp.spmodel
     param = sddp.params
@@ -367,6 +382,8 @@ end
 """
 Initialize JuMP.Model vector with a previously computed PolyhedralFunction
 vector.
+
+$(SIGNATURES)
 
 # Arguments
 * `model::SPModel`:
@@ -399,7 +416,9 @@ end
 
 
 """
-Compute value of Bellman function at point xt. Return V_t(xt)
+Compute value of Bellman function at point `xt`. Return `V_t(xt)`.
+
+$(SIGNATURES)
 
 # Arguments
 * `model::SPModel`:
@@ -433,7 +452,7 @@ function get_bellman_value(model::SPModel, param::SDDPparameters,
 end
 
 """
-Get lower bound of SDDP.
+Get lower bound of SDDP instance `sddp`.
 
 $(SIGNATURES)
 
@@ -447,6 +466,8 @@ end
 
 """
 Compute lower-bound of the problem at initial time.
+
+$(SIGNATURES)
 
 # Arguments
 * `model::SPModel`:
@@ -467,6 +488,8 @@ end
 
 """
 Compute optimal control at point xt and time t.
+
+$(SIGNATURES)
 
 # Arguments
 * `model::SPModel`:
@@ -493,6 +516,8 @@ end
 
 """
 Add several cuts to JuMP.Model from a PolyhedralFunction
+
+$(SIGNATURES)
 
 # Arguments
 * `model::SPModel`:

@@ -12,6 +12,8 @@ import Base: +, show
 """
 Write Polyhedral functions in a CSV file.
 
+$(SIGNATURES)
+
 # Arguments
 * `filename::String`:
     Name of output filt
@@ -122,5 +124,4 @@ function Base.show(io::IO, stats::SDDPStat)
     @printf("\tLower-bound: %.4e", stats.lower_bounds[end])
     print("\tTime: ", round(stats.exectime[end], 2),"s")
 end
-
 
