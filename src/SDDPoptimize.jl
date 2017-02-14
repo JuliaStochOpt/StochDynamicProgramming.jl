@@ -118,25 +118,23 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # Forward pass : compute stockTrajectories
-        costs, stockTrajectories = forward_pass!(sddp)
+        costs, trajectories = forward_pass!(sddp)
 
         ####################
         # Backward pass : update polyhedral approximation of Bellman functions
-        backward_pass!(sddp, stockTrajectories, model.noises)
+        backward_pass!(sddp, trajectories, model.noises)
 
         ####################
         # Time execution of current pass
-        lwb = get_bellman_value(sddp)
         time_pass = toq()
 
         ####################
         # cut pruning
-        prune!(sddp, stockTrajectories)
-        # TODO
-            #= if (stats.niterations%param.pruning[:period]==0) =#
-            #=     problems = hotstart_SDDP(model, param, V) =#
-            #= end =#
-        #= end =#
+        prune!(sddp, trajectories)
+
+        ####################
+        # In iteration lower bound estimation
+        lwb = lowerbound(sddp)
 
         ####################
         # In iteration upper bound estimation
@@ -144,19 +142,19 @@ function solve!(sddp::SDDPInterface)
                                           upperbound_scenarios, upb,
                                           sddp.solverinterface)
 
-        updateSDDPStat!(stats, lwb, upb, time_pass)
-        print_current_stats(stats,sddp.verbose)
+        updateSDDP!(sddp, lwb, upb, time_pass)
+        (sddp.verbose > 0) && println(sddp.stats)
 
         ####################
         # Stopping test
-        stopping_test = test_stopping_criterion(param,stats)
+        stopping_test = test_stopping_criterion(param, stats)
     end
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    println(sum([length(sddp.pruner[t].cuts_de) for t in 1:model.stageNumber-1]))
-    display_final_solution(sddp)
+    finalpass!(sddp)
 end
+
 
 function init!(sddp::SDDPInterface)
     random_pass!(sddp)
@@ -164,8 +162,9 @@ function init!(sddp::SDDPInterface)
     (sddp.verbose > 0) && println("Initialize cuts")
 end
 
+
 """Display final results once SDDP iterations are finished."""
-function display_final_solution(sddp::SDDPInterface)
+function finalpass!(sddp::SDDPInterface)
     model = sddp.spmodel
     param = sddp.params
     V = sddp.bellmanfunctions
@@ -174,7 +173,7 @@ function display_final_solution(sddp::SDDPInterface)
     verbose = sddp.verbose
 
     if (verbose>0) && (param.compute_ub >= 0)
-        lwb = get_bellman_value(sddp)
+        lwb = lowerbound(sddp)
 
         if (param.compute_ub == 0) || (param.monteCarloSize > 0)
             (verbose > 0) && println("Compute final upper-bound with ",
@@ -186,7 +185,7 @@ function display_final_solution(sddp::SDDPInterface)
             σ = stats.upper_bounds_std[end]
         end
 
-        println("\n############################################################")
+        println("\n", "#"^60)
         println("SDDP CONVERGENCE")
         @printf("- Exact lower bound:          %.4e [Gap < %.2f%s]\n",
                 lwb, 100*(upb+tol-lwb)/lwb, '%')
@@ -194,8 +193,19 @@ function display_final_solution(sddp::SDDPInterface)
         @printf("- Upper-bound's s.t.d:        %.4e\n", σ)
         @printf("- Confidence interval (%d%s):  [%.4e , %.4e]",
                 100*(1- 2*(1-param.confidence_level)), '\%',upb-tol, upb+tol)
-        println("\n############################################################")
+        println("\n", "#"^60)
     end
+end
+
+
+function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass)
+    updateSDDPStat!(sddp.stats, lwb, upb, time_pass)
+
+    #= if (sddp.stats.niterations%param.pruning[:period]==0) =#
+    #=     sddp.solverinterface = hotstart_SDDP(sddp.spmodel, =#
+    #=                                          sddp.params, =#
+    #=                                          sddp.bellmanfunctions) =#
+    #= end =#
 end
 
 
@@ -338,7 +348,8 @@ function initialize_value_functions(model::SPModel,
     return V, solverProblems
 end
 
-function random_pass!(sddp)
+
+function random_pass!(sddp::SDDPInterface)
     model = sddp.spmodel
     param = sddp.params
 
@@ -350,7 +361,6 @@ function random_pass!(sddp)
     callsolver = backward_pass!(sddp, stockTrajectories, model.noises)
 
     sddp.stats.ncallsolver += callsolver
-
 end
 
 
@@ -422,7 +432,13 @@ function get_bellman_value(model::SPModel, param::SDDPparameters,
     return getvalue(alpha)
 end
 
-function get_bellman_value(sddp::SDDPInterface)
+"""
+Get lower bound of SDDP.
+
+$(SIGNATURES)
+
+"""
+function lowerbound(sddp::SDDPInterface)
     return get_bellman_value(sddp.spmodel, sddp.params, 1,
                              sddp.bellmanfunctions[1],
                              sddp.spmodel.initialState)

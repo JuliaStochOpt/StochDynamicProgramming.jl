@@ -7,18 +7,19 @@
 #
 #############################################################################
 
+import Base: +, show
 
 """
-Dump Polyhedral functions in a text file.
+Write Polyhedral functions in a CSV file.
 
 # Arguments
-* `dump::String`:
+* `filename::String`:
     Name of output filt
 * `Vts::Vector{PolyhedralFunction}`:
     Vector of polyhedral functions to save
 """
-function writecsv(dump::AbstractString, Vts::Vector{PolyhedralFunction})
-    outfile = open(dump, "w")
+function writecsv(filename::AbstractString, Vts::Vector{PolyhedralFunction})
+    outfile = open(filename, "w")
 
     time = 1
     for V in Vts
@@ -106,13 +107,14 @@ function get_random_state(model::SPModel)
 end
 
 
-import Base: +, show
 """
-Print in terminal:
+Print in stdout:
 Pass number     Upper bound     Lower bound     exectime
+
 # Arguments
+* `io::IO`:
 * `stats::SDDPStat`:
-* `verbose::Int64`:
+
 """
 function Base.show(io::IO, stats::SDDPStat)
     print("Pass n\° ", stats.niterations)

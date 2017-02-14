@@ -22,7 +22,7 @@ export solve_SDDP,
         PolyhedralFunction, NextStep, forward_simulations,
         StochDynProgModel, SDPparameters, solve_DP,
         sdp_forward_simulation, sampling, get_control, get_bellman_value,
-        benchmark_parameters
+        benchmark_parameters, SDDPInterface
 
 include("noises.jl")
 include("objects.jl")
