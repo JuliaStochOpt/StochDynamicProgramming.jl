@@ -278,11 +278,11 @@ function build_model(model, param, t)
     @constraint(m, xf .== model.dynamics(t, x, u, w))
 
     # Add equality and inequality constraints:
-    if model.equalityConstraints != nothing
-        @constraint(m, model.equalityConstraints(t, x, u, w) .== 0)
+    if ~isnull(model.equalityConstraints)
+        @constraint(m, get(model.equalityConstraints)(t, x, u, w) .== 0)
     end
-    if model.inequalityConstraints != nothing
-        @constraint(m, model.inequalityConstraints(t, x, u, w) .<= 0)
+    if ~isnull(model.inequalityConstraints)
+        @constraint(m, get(model.inequalityConstraints)(t, x, u, w) .<= 0)
     end
 
     # Define objective function (could be linear or piecewise linear)

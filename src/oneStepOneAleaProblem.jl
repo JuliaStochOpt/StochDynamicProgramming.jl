@@ -119,7 +119,7 @@ end
 
 """Solve original MILP problem."""
 function solve_mip!(m, param)
-    setsolver(m, param.MIPSOLVER)
+    setsolver(m, get(param.MIPSOLVER))
     status = solve(m, relaxation=false)
     return status == :Optimal
 end

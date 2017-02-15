@@ -42,8 +42,8 @@ type LinearSPModel <: SPModel
     finalCost::Union{Function, PolyhedralFunction}
 
     controlCat::Vector{Symbol}
-    equalityConstraints::Union{Void, Function}
-    inequalityConstraints::Union{Void, Function}
+    equalityConstraints::Nullable{Function}
+    inequalityConstraints::Nullable{Function}
 
     refTrajectories::Union{Void, Array{Float64, 3}}
 

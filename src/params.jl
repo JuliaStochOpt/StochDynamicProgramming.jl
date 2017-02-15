@@ -9,7 +9,7 @@ type SDDPparameters
     # Solver used to solve LP
     SOLVER::MathProgBase.AbstractMathProgSolver
     # Solver used to solve MILP (default is nothing):
-    MIPSOLVER::Union{Void, MathProgBase.AbstractMathProgSolver}
+    MIPSOLVER::Nullable{MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # Admissible gap between lower and upper-bound:
@@ -71,7 +71,7 @@ Test compatibility of parameters.
 `Bool`
 """
 function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbose=0::Int64)
-    if model.IS_SMIP && isa(param.MIPSOLVER, Void)
+    if model.IS_SMIP && isnull(param.MIPSOLVER)
         error("MIP solver is not defined. Please set `param.MIPSOLVER`")
     end
     (model.IS_SMIP && param.IS_ACCELERATED) && error("Acceleration of SMIP not supported")
