@@ -139,7 +139,7 @@ function solve!(sddp::SDDPInterface)
                                           sddp.solverinterface)
 
         updateSDDP!(sddp, lwb, upb, time_pass)
-        (sddp.verbose > 0) && println(sddp.stats)
+        checkit(sddp.verbose, sddp.stats.niterations) && println(sddp.stats)
 
         ####################
         # Stopping test
@@ -198,11 +198,11 @@ end
 function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass)
     updateSDDPStat!(sddp.stats, lwb, upb, time_pass)
 
-    #= if (sddp.stats.niterations%param.pruning[:period]==0) =#
-    #=     sddp.solverinterface = hotstart_SDDP(sddp.spmodel, =#
-    #=                                          sddp.params, =#
-    #=                                          sddp.bellmanfunctions) =#
-    #= end =#
+    if checkit(sddp.params.reload, sddp.stats.niterations)
+        sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
+                                             sddp.params,
+                                             sddp.bellmanfunctions)
+    end
 end
 
 

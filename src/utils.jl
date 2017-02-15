@@ -125,3 +125,6 @@ function Base.show(io::IO, stats::SDDPStat)
     print("\tTime: ", round(stats.exectime[end], 2),"s")
 end
 
+"""Check if `k` is congruent with current iteration `it`."""
+checkit(k::Int, it::Int) = k > 0 && it%k == 0
+
