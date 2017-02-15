@@ -16,9 +16,10 @@ type PolyhedralFunction
     lambdas::Array{Float64,2} #lambdas[k,:] is the subgradient
     # number of cuts:
     numCuts::Int64
+    hashcuts::Vector{UInt64}
 end
 
-PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0)
+PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0, UInt64[])
 
 
 type LinearSPModel <: SPModel
@@ -233,8 +234,15 @@ end
 type NextStep
     next_state::Array{Float64, 1}
     optimal_control::Array{Float64, 1}
-    sub_gradient
+    sub_gradient::Array{Float64, 1}
     cost::Float64
     cost_to_go::Float64
 end
 
+
+type AcceleratedSDDP
+    incumbents::Array{Float64, 3}
+    ρ0::Float64
+    alpha::Float64
+    ρk::Float64
+end

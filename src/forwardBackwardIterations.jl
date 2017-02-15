@@ -183,9 +183,13 @@ function add_cut!(model::SPModel,
                   beta::Float64, lambda::Vector{Float64})
     Vt.lambdas = vcat(Vt.lambdas, lambda')
     Vt.betas = vcat(Vt.betas, beta)
+    Vt.hashcuts = vcat(Vt.hashcuts, hash(lambda))
     Vt.numCuts += 1
 end
 
+function isinside(Vt::PolyhedralFunction, lambda::Vector{Float64})
+    hash(lambda) in Vt.hashcuts
+end
 
 """
 Add a cut to the JuMP linear problem.
@@ -298,9 +302,11 @@ function backward_pass!(sddp::SDDPInterface,
                 beta = costs_npass - dot(subgradient, state_t)
 
                 # Add cut to polyhedral function and JuMP model:
-                add_cut!(model, t, V[t], beta, subgradient)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                if ~isinside(V[t], subgradient)
+                    add_cut!(model, t, V[t], beta, subgradient)
+                    if t > 1
+                        add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                    end
                 end
             end
 

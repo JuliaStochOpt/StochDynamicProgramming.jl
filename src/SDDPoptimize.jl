@@ -97,7 +97,6 @@ function solve!(sddp::SDDPInterface)
     end
     model = sddp.spmodel
     param = sddp.params
-    V = sddp.bellmanfunctions
     stats = sddp.stats
 
     # If computation of upper-bound is needed, a set of scenarios is built
@@ -196,8 +195,12 @@ end
 
 
 function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass)
+    # Update SDDP stats
     updateSDDPStat!(sddp.stats, lwb, upb, time_pass)
 
+    # If specified, reload JuMP model
+    # this step can be useful if MathProgBase interface takes too much
+    # room in memory, rendering necessary a call to GC
     if checkit(sddp.params.reload, sddp.stats.niterations)
         sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
                                              sddp.params,
@@ -336,8 +339,7 @@ function initialize_value_functions(model::SPModel,
                                     param::SDDPparameters)
 
     solverProblems = build_models(model, param)
-    V = PolyhedralFunction[
-                PolyhedralFunction(model.dimStates) for i in 1:model.stageNumber]
+    V = getemptyvaluefunctions(model)
 
     # Build scenarios according to distribution laws:
     aleas = simulate_scenarios(model.noises, param.forwardPassNumber)
@@ -348,11 +350,12 @@ function initialize_value_functions(model::SPModel,
         build_terminal_cost!(model, solverProblems[end], V[end])
     elseif isa(model.finalCost, Function)
         # In this case, define a trivial value functions for final cost to avoid problem:
-        V[end] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1)
+        V[end] = PolyhedralFunction(zeros(1), zeros(1, model.dimStates), 1, UInt64[])
         model.finalCost(model, solverProblems[end])
     end
     return V, solverProblems
 end
+getemptyvaluefunctions(model) = PolyhedralFunction[PolyhedralFunction(model.dimStates) for i in 1:model.stageNumber]
 
 
 """

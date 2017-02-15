@@ -19,12 +19,13 @@ function prune!(sddp::SDDPInterface,
                 trajectories::Array{Float64, 3},
                 )
     # Basic pruning: remove redundant cuts
-    for t in 1:sddp.spmodel.stageNumber-1
-        A = sddp.bellmanfunctions[t].lambdas
-        b = -sddp.bellmanfunctions[t].betas
-        mycut = Bool[true for _ in 1:ncuts(sddp.bellmanfunctions[t])]
-        CutPruners.addcuts!(sddp.pruner[t], A, b, mycut)
-    end
+    #= for t in 1:sddp.spmodel.stageNumber-1 =#
+    #=     newcuts = sddp.params.forwardPassNumber =#
+    #=     A = sddp.bellmanfunctions[t].lambdas[end-newcuts+1:end, :] =#
+    #=     b = -sddp.bellmanfunctions[t].betas[end-newcuts+1:end] =#
+    #=     mycut = Bool[true for _ in 1:newcuts] =#
+    #=     CutPruners.addcuts!(sddp.pruner[t], A, b, mycut) =#
+    #= end =#
 
     # If pruning is performed with territory heuristic, update territory
     # at given iteration:
