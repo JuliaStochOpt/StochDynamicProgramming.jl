@@ -71,6 +71,8 @@ function solve_one_step_one_alea(model,
         solved = (status == :Optimal)
     end
 
+    solvetime = try getsolvetime(m) catch 0 end
+
     if solved
         optimalControl = getvalue(u)
         # Return object storing results:
@@ -87,7 +89,7 @@ function solve_one_step_one_alea(model,
         result = nothing
     end
 
-    return solved, result
+    return solved, result, solvetime
 end
 
 # Solve local problem with a quadratic penalization:

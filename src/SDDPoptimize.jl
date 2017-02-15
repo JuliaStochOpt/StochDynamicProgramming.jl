@@ -373,9 +373,7 @@ function random_pass!(sddp::SDDPInterface)
         stockTrajectories[i, j, :] = get_random_state(model)
     end
 
-    callsolver = backward_pass!(sddp, stockTrajectories, model.noises)
-
-    sddp.stats.ncallsolver += callsolver
+    backward_pass!(sddp, stockTrajectories, model.noises)
 end
 
 

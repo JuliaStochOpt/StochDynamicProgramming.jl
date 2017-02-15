@@ -194,11 +194,14 @@ type SDDPStat
     upper_bounds_tol::Vector{Float64}
     # evolution of execution time:
     exectime::Vector{Float64}
+    # time used to solve each LP:
+    solverexectime_fw::Vector{Float64}
+    solverexectime_bw::Vector{Float64}
     # number of calls to solver:
     ncallsolver::Int64
 end
 
-SDDPStat() = SDDPStat(0, [], [], [], [], [], 0)
+SDDPStat() = SDDPStat(0, [], [], [], [], [], [], [], 0)
 
 """
 Update the SDDPStat object with the results of current iterations.

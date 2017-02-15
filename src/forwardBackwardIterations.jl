@@ -40,7 +40,7 @@ function forward_pass!(sddp::SDDPInterface)
     # If acceleration is ON, need to build a new array of problem to
     # avoid side effect:
     problems_fp = (param.IS_ACCELERATED)? hotstart_SDDP(model, param, V):problems
-    costs, stockTrajectories,_,callsolver_forward = forward_simulations(model,
+    costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
                         noise_scenarios,
@@ -48,6 +48,7 @@ function forward_pass!(sddp::SDDPInterface)
 
     model.refTrajectories = stockTrajectories
     sddp.stats.ncallsolver += callsolver_forward
+    sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
     return costs, stockTrajectories
 end
 
@@ -91,6 +92,7 @@ function forward_simulations(model::SPModel,
                             acceleration=false)
 
     callsolver::Int = 0
+    solvertime = Float64[]
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -127,12 +129,13 @@ function forward_simulations(model::SPModel,
             # Solve optimization problem corresponding to current position:
             if acceleration &&  ~isa(model.refTrajectories, Void)
                 xp = collect(model.refTrajectories[t+1, k, :])
-                status, nextstep = solve_one_step_one_alea(model, param,
+                status, nextstep, ts = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t, xp)
             else
-                status, nextstep = solve_one_step_one_alea(model, param,
+                status, nextstep, ts = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t)
             end
+            push!(solvertime, ts)
 
             # Check if the problem is effectively solved:
             if status
@@ -155,7 +158,7 @@ function forward_simulations(model::SPModel,
             end
         end
     end
-    return costs, stockTrajectories, controls, callsolver
+    return costs, stockTrajectories, controls, callsolver, solvertime
 end
 
 
@@ -236,6 +239,7 @@ function backward_pass!(sddp::SDDPInterface,
     V = sddp.bellmanfunctions
 
     callsolver::Int = 0
+    solvertime = Float64[]
 
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
@@ -265,10 +269,11 @@ function backward_pass!(sddp::SDDPInterface,
                 callsolver += 1
 
                 # We solve LP problem with current noise and position:
-                solved, nextstep = solve_one_step_one_alea(model, param,
+                solved, nextstep, ts = solve_one_step_one_alea(model, param,
                                                            solverProblems[t],
                                                            t, state_t, alea_t,
                                                            relaxation=model.IS_SMIP)
+                push!(solvertime, ts)
 
                 if solved
                     # We catch the subgradient λ:
@@ -304,4 +309,5 @@ function backward_pass!(sddp::SDDPInterface,
 
     # update stats
     sddp.stats.ncallsolver += callsolver
+    sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
 end
