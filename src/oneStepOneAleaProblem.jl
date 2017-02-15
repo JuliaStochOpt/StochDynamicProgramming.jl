@@ -76,12 +76,10 @@ function solve_one_step_one_alea(model,
     if solved
         optimalControl = getvalue(u)
         # Return object storing results:
-        λ = (~model.IS_SMIP || relaxation)? Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]:nothing
-
         result = NextStep(
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
-                          λ,
+                          getdual(m.ext[:cons]),
                           getobjectivevalue(m),
                           getvalue(alpha))
     else
