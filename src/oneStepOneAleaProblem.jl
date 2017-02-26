@@ -57,7 +57,9 @@ function solve_one_step_one_alea(model,
     alpha = getvariable(m, :alpha)
 
     # Update value of w:
-    setvalue(w, xi)
+    for ii in 1:model.dimNoises
+        JuMP.fix(w[ii], xi[ii])
+    end
 
     # Update constraint x == xt
     for i in 1:model.dimStates
