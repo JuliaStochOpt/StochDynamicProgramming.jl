@@ -7,6 +7,8 @@ type SDDPInterface
     params::SDDPparameters
     # statistics
     stats::SDDPStat
+    # stopping criterion
+    stopcrit::AbstractStoppingCriterion
     # cut pruner:
     pruner::Vector{CutPruners.AbstractCutPruner}
 
@@ -18,7 +20,8 @@ type SDDPInterface
 
     # Init SDDP interface
     function SDDPInterface(model::SPModel, # SP Model
-                           param::SDDPparameters; # parameters
+                           param::SDDPparameters,# parameters
+                           stopcrit::AbstractStoppingCriterion;
                            verbose::Int=1)
         check_SDDPparameters(model, param, verbose)
         # initialize value functions:
@@ -28,10 +31,11 @@ type SDDPInterface
         pruner = initpruner(param, model.stageNumber, model.dimStates)
         #Initialization of stats
         stats = SDDPStat()
-        return new(false, model, param, stats, pruner, V, problems, verbose)
+        return new(false, model, param, stats, stopcrit, pruner, V, problems, verbose)
     end
     function SDDPInterface(model::SPModel,
                         params::SDDPparameters,
+                        stopcrit::AbstractStoppingCriterion,
                         V::Vector{PolyhedralFunction};
                         verbose::Int=1)
         check_SDDPparameters(model, params, verbose)
@@ -39,10 +43,9 @@ type SDDPInterface
         problems = hotstart_SDDP(model, params, V)
         pruner = initpruner(params, model.stageNumber, model.dimStates)
         stats = SDDPStat()
-        return new(false, model, params, stats, pruner, V, problems, verbose)
+        return new(false, model, params, stats, stopcrit, pruner, V, problems, verbose)
     end
 end
-
 
 
 function initpruner(param, nstages, ndim)

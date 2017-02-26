@@ -11,7 +11,7 @@ __precompile__()
 module StochDynamicProgramming
 include("SDPutils.jl")
 
-using MathProgBase, JuMP, Distributions
+using MathProgBase, JuMP, Distributions, StochasticDualDynamicProgramming
 using DocStringExtensions
 using CutPruners
 

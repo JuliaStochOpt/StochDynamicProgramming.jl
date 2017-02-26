@@ -9,6 +9,7 @@
 #############################################################################
 
 
+export solve_SDDP, solve!
 
 """
 Solve spmodel using SDDP algorithm and return `SDDPInterface` instance.
@@ -107,7 +108,7 @@ function solve!(sddp::SDDPInterface)
     stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
-    while (~stopping_test)
+    while !stop(sddp.stopcrit, stats)
         # Time execution of current pass:
         tic()
 
@@ -139,10 +140,6 @@ function solve!(sddp::SDDPInterface)
 
         updateSDDP!(sddp, lwb, upb, time_pass)
         checkit(sddp.verbose, sddp.stats.niterations) && println(sddp.stats)
-
-        ####################
-        # Stopping test
-        stopping_test = test_stopping_criterion(param, stats)
     end
 
     ##########

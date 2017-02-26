@@ -182,9 +182,9 @@ end
 
 # Define an object to store evolution of solution
 # along iterations:
-type SDDPStat
+type SDDPStat <: AbstractSDDPStats
     # Number of iterations:
-    niterations::Int64
+    niterations::Int
     # evolution of lower bound:
     lower_bounds::Vector{Float64}
     # evolution of upper bound:
@@ -199,10 +199,22 @@ type SDDPStat
     solverexectime_fw::Vector{Float64}
     solverexectime_bw::Vector{Float64}
     # number of calls to solver:
-    ncallsolver::Int64
+    nsolved::Int
+    # number of optimality cuts
+    nocuts::Int
+    npaths::Int
+    # current lower bound
+    lowerbound::Float64
+    # current lower bound
+    upperbound::Float64
+    # upper-bound std:
+    σ_UB::Float64
+    # total time
+    time::Float64
 end
 
-SDDPStat() = SDDPStat(0, [], [], [], [], [], [], [], 0)
+
+SDDPStat() = SDDPStat(0, [], [], [], [], [], [], [], 0, 0, 0, 0., 0., 0., 0.)
 
 """
 Update the SDDPStat object with the results of current iterations.
@@ -228,6 +240,10 @@ function updateSDDPStat!(stats::SDDPStat,
     push!(stats.upper_bounds_tol, upb[3])
     push!(stats.upper_bounds_std, upb[2])
     push!(stats.exectime, time)
+    stats.lowerbound = lwb
+    stats.upperbound = upb[1]
+    stats.σ_UB = upb[2]
+    stats.time += time
 end
 
 

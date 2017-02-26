@@ -12,12 +12,8 @@ type SDDPparameters
     MIPSOLVER::Nullable{MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
-    # Admissible gap between lower and upper-bound:
-    gap::Float64
     # tolerance upon confidence interval:
     confidence_level::Float64
-    # Maximum iterations of the SDDP algorithms:
-    maxItNumber::Int64
     # Define the pruning method
     pruning::Dict{Symbol, Any}
     # Estimate upper-bound every %% iterations:
@@ -53,8 +49,8 @@ type SDDPparameters
         prune_cuts = Dict(:pruning=>prune_cuts>0,
                           :period=>prune_cuts,
                           :algo=>pruning_algo)
-        return new(solver, mipsolver, passnumber, gap, confidence,
-                   max_iterations, prune_cuts, compute_ub,
+        return new(solver, mipsolver, passnumber, confidence,
+                   prune_cuts, compute_ub,
                    montecarlo_final, montecarlo_in_iter, is_acc, accparams, reload)
     end
 end

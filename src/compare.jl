@@ -60,7 +60,7 @@ function benchmark_parameters(model,
         simulationmemory = m2+m3
         g = round(100*(upb-V0)/V0)
 
-        push!(solver_calls, sddpstats.ncallsolver)
+        push!(solver_calls, sddpstats.nsolved)
         push!(solving_times, t1)
         push!(solving_mem, m1)
         push!(gap_sols, g)
@@ -72,7 +72,7 @@ function benchmark_parameters(model,
             print("Simulation time = ",round(simulationtime,4),"\t")
             print("Simulation memory = ", simulationmemory,"\t")
             print("Gap < ", g,"% with prob 97.5%\t")
-            println("number external solver call = ", sddpstats.ncallsolver)
+            println("number external solver call = ", sddpstats.nsolved)
         end
     end
     return solver_calls, solving_times, solving_mem, gap_sols

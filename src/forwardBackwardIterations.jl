@@ -47,7 +47,7 @@ function forward_pass!(sddp::SDDPInterface)
                         acceleration=param.IS_ACCELERATED)
 
     model.refTrajectories = stockTrajectories
-    sddp.stats.ncallsolver += callsolver_forward
+    sddp.stats.nsolved += callsolver_forward
     sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
     return costs, stockTrajectories
 end
@@ -303,6 +303,7 @@ function backward_pass!(sddp::SDDPInterface,
 
                 # Add cut to polyhedral function and JuMP model:
                 if ~isinside(V[t], subgradient)
+                    sddp.stats.nocuts += 1
                     add_cut!(model, t, V[t], beta, subgradient)
                     if t > 1
                         add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
@@ -314,6 +315,6 @@ function backward_pass!(sddp::SDDPInterface,
     end
 
     # update stats
-    sddp.stats.ncallsolver += callsolver
+    sddp.stats.nsolved += callsolver
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
 end
