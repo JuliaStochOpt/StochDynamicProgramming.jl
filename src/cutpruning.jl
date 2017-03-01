@@ -19,46 +19,21 @@ function prune!(sddp::SDDPInterface,
                 trajectories::Array{Float64, 3},
                 )
     # Basic pruning: remove redundant cuts
-    #= for t in 1:sddp.spmodel.stageNumber-1 =#
-    #=     newcuts = sddp.params.forwardPassNumber =#
-    #=     A = sddp.bellmanfunctions[t].lambdas[end-newcuts+1:end, :] =#
-    #=     b = -sddp.bellmanfunctions[t].betas[end-newcuts+1:end] =#
-    #=     mycut = Bool[true for _ in 1:newcuts] =#
-    #=     CutPruners.addcuts!(sddp.pruner[t], A, b, mycut) =#
-    #= end =#
+    for t in 1:sddp.spmodel.stageNumber-1
+        b, A = fetchnewcuts!(sddp.bellmanfunctions[t])
+        nnew = length(b)
+        if nnew > 0
+            mycut = Bool[true for _ in 1:length(b)]
+            CutPruners.addcuts!(sddp.pruner[t], A, b, mycut)
+        end
+    end
 
-    # If pruning is performed with territory heuristic, update territory
-    # at given iteration:
-    #= if isa(param.pruning[:type], Union{Type{Territory}, Type{LevelOne}}) =#
-    #=     for t in 1:model.stageNumber-1 =#
-    #=         states = reshape(trajectories[t, :, :], param.forwardPassNumber, model.dimStates) =#
-    #=         # FIXME: add in a proper way new cuts in territory =#
-    #=         territory[t].cuts_DE = V[t].lambdas =#
-    #=         territory[t].cuts_de = V[t].betas =#
-    #=         CutPruners.updatestats!(territory[t], states) =#
-    #=     end =#
-    #= end =#
-
-    #= # If specified to prune cuts at this iteration, do it: =#
-    #= if param.pruning[:pruning] && (it%param.pruning[:period]==0) =#
-    #=     # initial number of cuts: =#
-    #=     ncuts_initial = get_total_number_cuts(V) =#
-    #=     (verbose > 0) && print("Prune cuts ...") =#
-
-    #=     for i in 1:length(V)-1 =#
-    #=         V[i] = pcuts!(param.pruning[:type], model, param, V[i], territory[i]) =#
-    #=     end =#
-
-    #=     # final number of cuts: =#
-    #=     ncuts_final = get_total_number_cuts(V) =#
-
-    #=     (verbose > 0) && @printf(" New cuts/Old cuts ratio: %.3f \n", ncuts_final/ncuts_initial) =#
-    #= end =#
 end
 
 pcuts!(::Type{LevelOne}, model, param, V, territory) = level1_cuts_pruning!(model, param, V, territory)
 pcuts!(::Type{ExactPruning}, model, param, V, territory) = exact_cuts_pruning(model, param, V, territory)
 pcuts!(::Type{Territory}, model, param, V, territory) = exact_cuts_pruning_accelerated!(model, param, V, territory)
+
 
 
 

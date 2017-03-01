@@ -36,7 +36,6 @@ type SDDPparameters
                             mipsolver=nothing,
                             rho0=0., alpha=1., reload=-1)
 
-        pruning_algo = CutPruners.AvgCutPruningAlgo(-1)
         is_acc = (rho0 > 0.)
         accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
 

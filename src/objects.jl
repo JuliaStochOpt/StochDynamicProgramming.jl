@@ -17,10 +17,17 @@ type PolyhedralFunction
     # number of cuts:
     numCuts::Int64
     hashcuts::Vector{UInt64}
+    newcuts::Int
 end
 
-PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0, UInt64[])
+PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0, UInt64[], 0)
 
+function fetchnewcuts!(V::PolyhedralFunction)
+    β = V.betas[end-V.newcuts+1:end]
+    λ = V.lambdas[end-V.newcuts+1:end, :]
+    V.newcuts = 0
+    return β, λ
+end
 
 type LinearSPModel <: SPModel
     # problem dimension

@@ -185,6 +185,7 @@ function add_cut!(model::SPModel,
     Vt.betas = vcat(Vt.betas, beta)
     Vt.hashcuts = vcat(Vt.hashcuts, hash(lambda))
     Vt.numCuts += 1
+    Vt.newcuts += 1
 end
 
 function isinside(Vt::PolyhedralFunction, lambda::Vector{Float64})
