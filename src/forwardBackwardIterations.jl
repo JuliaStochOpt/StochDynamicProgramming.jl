@@ -129,25 +129,24 @@ function forward_simulations(model::SPModel,
             # Solve optimization problem corresponding to current position:
             if acceleration &&  ~isa(model.refTrajectories, Void)
                 xp = collect(model.refTrajectories[t+1, k, :])
-                status, nextstep, ts = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t, xp)
+                sol, ts = solve_one_step_one_alea(model, param,
+                                                  solverProblems[t], t, state_t, alea_t, xp)
             else
-                status, nextstep, ts = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t)
+                sol, ts = solve_one_step_one_alea(model, param,
+                                                  solverProblems[t], t, state_t, alea_t)
             end
             push!(solvertime, ts)
 
             # Check if the problem is effectively solved:
-            if status
+            if sol.status
                 # Get the next position:
-                stockTrajectories[t+1, k, :] = nextstep.next_state
+                stockTrajectories[t+1, k, :] = sol.xf
                 # the optimal control just computed:
-                opt_control = nextstep.optimal_control
-                controls[t, k, :] = opt_control
+                controls[t, k, :] = sol.uopt
                 # and the current cost:
-                costs[k] += nextstep.cost - nextstep.cost_to_go
+                costs[k] += sol.objval - sol.θ
                 if t==T-1
-                    costs[k] += nextstep.cost_to_go
+                    costs[k] += sol.θ
                 end
             else
                 # if problem is not properly solved, next position if equal
@@ -274,17 +273,17 @@ function backward_pass!(sddp::SDDPInterface,
                 callsolver += 1
 
                 # We solve LP problem with current noise and position:
-                solved, nextstep, ts = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t],
-                                                           t, state_t, alea_t,
-                                                           relaxation=model.IS_SMIP)
+                sol, ts = solve_one_step_one_alea(model, param,
+                                                  solverProblems[t],
+                                                  t, state_t, alea_t,
+                                                  relaxation=model.IS_SMIP)
                 push!(solvertime, ts)
 
-                if solved
+                if sol.status
                     # We catch the subgradient λ:
-                    subgradient_array[:, w] = nextstep.sub_gradient
+                    subgradient_array[:, w] = sol.ρe
                     # and the current cost:
-                    costs[w] = nextstep.cost
+                    costs[w] = sol.objval
                     # and as problem is solved we store current proba in array:
                     proba[w] = law[t].proba[w]
                 end

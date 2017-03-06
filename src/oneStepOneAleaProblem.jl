@@ -78,18 +78,19 @@ function solve_one_step_one_alea(model,
     if solved
         optimalControl = getvalue(u)
         # Return object storing results:
-        result = NextStep(
+        result = NLDSSolution(
+                          solved,
+                          getobjectivevalue(m),
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
                           getdual(m.ext[:cons]),
-                          getobjectivevalue(m),
                           getvalue(alpha))
     else
         # If no solution is found, then return nothing
         result = nothing
     end
 
-    return solved, result, solvetime
+    return result, solvetime
 end
 
 # Solve local problem with a quadratic penalization:

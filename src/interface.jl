@@ -36,7 +36,6 @@ type SDDPInterface
         (verbose > 0) && println("SDDP Interface initialized")
 
         pruner = initpruner(param, model.stageNumber, model.dimStates)
-        println(typeof(pruner))
         #Initialization of stats
         stats = SDDPStat()
         return new(false, model, param, stats, stopcrit, pruner, V, problems, verbose)
@@ -50,7 +49,6 @@ type SDDPInterface
         # First step: process value functions if hotstart is called
         problems = hotstart_SDDP(model, params, V)
         pruner = initpruner(params, model.stageNumber, model.dimStates)
-        println(typeof(pruner))
 
         stats = SDDPStat()
         return new(false, model, params, stats, stopcrit, pruner, V, problems, verbose)

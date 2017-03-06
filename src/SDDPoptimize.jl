@@ -508,7 +508,7 @@ $(SIGNATURES)
 """
 function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model},
                      t::Int, xt::Vector{Float64}, xi::Vector{Float64})
-    return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].optimal_control
+    return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].uopt
 end
 
 

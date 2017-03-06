@@ -254,18 +254,18 @@ function updateSDDPStat!(stats::SDDPStat,
 end
 
 
-type NextStep
-    next_state::Array{Float64, 1}
-    optimal_control::Array{Float64, 1}
-    sub_gradient::Array{Float64, 1}
-    cost::Float64
-    cost_to_go::Float64
+type NLDSSolution
+    # solver status:
+    status::Bool
+    # cost:
+    objval::Float64
+    # next position:
+    xf::Array{Float64, 1}
+    # optimal control:
+    uopt::Array{Float64, 1}
+    # Subgradient:
+    ρe::Array{Float64, 1}
+    # cost-to-go:
+    θ::Float64
 end
 
-
-type AcceleratedSDDP
-    incumbents::Array{Float64, 3}
-    ρ0::Float64
-    alpha::Float64
-    ρk::Float64
-end

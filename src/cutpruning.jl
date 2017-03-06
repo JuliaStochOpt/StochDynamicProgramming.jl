@@ -19,14 +19,14 @@ function prune!(sddp::SDDPInterface,
                 trajectories::Array{Float64, 3},
                 )
     # Basic pruning: remove redundant cuts
-    for t in 1:sddp.spmodel.stageNumber-1
-        b, A = fetchnewcuts!(sddp.bellmanfunctions[t])
-        nnew = length(b)
-        if nnew > 0
-            mycut = Bool[true for _ in 1:length(b)]
-            CutPruners.addcuts!(sddp.pruner[t], A, b, mycut)
-        end
-    end
+    #= for t in 1:sddp.spmodel.stageNumber-1 =#
+    #=     b, A = fetchnewcuts!(sddp.bellmanfunctions[t]) =#
+    #=     nnew = length(b) =#
+    #=     if nnew > 0 =#
+    #=         mycut = Bool[true for _ in 1:length(b)] =#
+    #=         CutPruners.addcuts!(sddp.pruner[t], A, b, mycut) =#
+    #=     end =#
+    #= end =#
 
 end
 
