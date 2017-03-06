@@ -6,11 +6,6 @@
 #  Definition of SDDP parameters
 #############################################################################
 
-typealias LevelOne Val{:LevelOne}
-typealias ExactPruning Val{:Exact}
-typealias Territory Val{:Exact_Plus}
-typealias NoPruning Val{:none}
-
 type SDDPparameters
     # Solver used to solve LP
     SOLVER::MathProgBase.AbstractMathProgSolver
@@ -20,18 +15,12 @@ type SDDPparameters
     forwardPassNumber::Int64
     # tolerance upon confidence interval:
     confidence_level::Float64
-    # Define the pruning method
-    pruning::Dict{Symbol, Any}
     # Estimate upper-bound every %% iterations:
     compute_ub::Int64
     # Number of MonteCarlo simulation to perform to estimate upper-bound:
     monteCarloSize::Int64
     # Number of MonteCarlo simulation to estimate the upper bound during one iteration
     in_iter_mc::Int64
-    # specify whether SDDP is accelerated
-    IS_ACCELERATED::Bool
-    # ... and acceleration parameters:
-    acceleration::Dict{Symbol, Float64}
     # Refresh JuMP Model:
     reload::Int
 
@@ -42,21 +31,8 @@ type SDDPparameters
                             mipsolver=nothing,
                             rho0=0., alpha=1., reload=-1)
 
-        is_acc = (rho0 > 0.)
-        accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
-
-        prune_cuts = (pruning_algo != "none")? prune_cuts: 0
-
-        corresp = Dict("none"=>NoPruning,
-                       "level1"=>LevelOne,
-                       "exact+"=>Territory,
-                       "exact"=>ExactPruning)
-        prune_cuts = Dict(:pruning=>prune_cuts>0,
-                          :period=>prune_cuts,
-                          :algo=>pruning_algo)
         return new(solver, mipsolver, passnumber, confidence,
-                   prune_cuts, compute_ub,
-                   montecarlo_final, montecarlo_in_iter, is_acc, accparams, reload)
+                   compute_ub, montecarlo_final, montecarlo_in_iter, reload)
     end
 end
 
@@ -78,9 +54,7 @@ function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbose=0::
     if model.IS_SMIP && isnull(param.MIPSOLVER)
         error("MIP solver is not defined. Please set `param.MIPSOLVER`")
     end
-    (model.IS_SMIP && param.IS_ACCELERATED) && error("Acceleration of SMIP not supported")
 
     (verbose > 0) && (model.IS_SMIP) && println("SMIP SDDP")
-    (verbose > 0) && (param.IS_ACCELERATED) && println("Acceleration: ON")
 end
 

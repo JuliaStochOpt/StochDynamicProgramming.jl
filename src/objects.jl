@@ -53,8 +53,6 @@ type LinearSPModel <: SPModel
     equalityConstraints::Nullable{Function}
     inequalityConstraints::Nullable{Function}
 
-    refTrajectories::Union{Void, Array{Float64, 3}}
-
     IS_SMIP::Bool
 
     function LinearSPModel(nstage,             # number of stages
@@ -86,7 +84,7 @@ type LinearSPModel <: SPModel
         xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, nothing, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, is_smip)
     end
 end
 

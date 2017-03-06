@@ -94,15 +94,15 @@ function solve_one_step_one_alea(model,
 end
 
 # Solve local problem with a quadratic penalization:
-function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
-                                 xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
+function regularize(model, param,
+                    regularizer::AbstractRegularization,
+                    m::JuMP.Model,
+                    t::Int64,
+                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
     # store current objective:
     pobj = m.obj
     xf = getvariable(m, :xf)
-    # copy JuMP model to avoid side effect:
-    rho = param.acceleration[:rho]
-    # build quadratic penalty term:
-    qexp = QuadExpr(rho*dot(xf - xp, xf - xp))
+    qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
     res = solve_one_step_one_alea(model, param, m, t, xt, xi)

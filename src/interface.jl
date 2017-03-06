@@ -18,6 +18,8 @@ type SDDPInterface
     stopcrit::AbstractStoppingCriterion
     # cut pruner:
     pruner::Vector{CutPruners.AbstractCutPruner}
+    # regularization scheme:
+    regularizer::Nullable{AbstractRegularization}
 
     # solution
     bellmanfunctions::Vector{PolyhedralFunction}
@@ -28,36 +30,45 @@ type SDDPInterface
     # Init SDDP interface
     function SDDPInterface(model::SPModel, # SP Model
                            param::SDDPparameters,# parameters
-                           stopcrit::AbstractStoppingCriterion;
+                           stopcrit::AbstractStoppingCriterion,
+                           prunalgo::AbstractCutPruningAlgo;
+                           regularization=nothing,
                            verbose::Int=1)
         check_SDDPparameters(model, param, verbose)
         # initialize value functions:
         V, problems = initialize_value_functions(model, param)
         (verbose > 0) && println("SDDP Interface initialized")
 
-        pruner = initpruner(param, model.stageNumber, model.dimStates)
+        pruner = initpruner(prunalgo, model.stageNumber, model.dimStates)
         #Initialization of stats
         stats = SDDPStat()
-        return new(false, model, param, stats, stopcrit, pruner, V, problems, verbose)
+        return new(false, model, param, stats, stopcrit, pruner, regularization, V,
+                   problems, verbose)
     end
     function SDDPInterface(model::SPModel,
                         params::SDDPparameters,
                         stopcrit::AbstractStoppingCriterion,
+                        prunalgo::AbstractCutPruningAlgo,
                         V::Vector{PolyhedralFunction};
+                        regularization=nothing,
                         verbose::Int=1)
         check_SDDPparameters(model, params, verbose)
         # First step: process value functions if hotstart is called
         problems = hotstart_SDDP(model, params, V)
-        pruner = initpruner(params, model.stageNumber, model.dimStates)
+        pruner = initpruner(prunalgo, model.stageNumber, model.dimStates)
 
         stats = SDDPStat()
-        return new(false, model, params, stats, stopcrit, pruner, V, problems, verbose)
+        return new(false, model, params, stats, stopcrit, pruner, regularization,
+                   V, problems, verbose)
     end
 end
 
 
-function initpruner(param, nstages, ndim)
-    algo = param.pruning[:algo]
+function initpruner(algo, nstages, ndim)
     # Initialize cuts container for cuts pruning:
     return [CutPruners.CutPruner{ndim, Float64}(algo, :Max) for i in 1:nstages-1]
 end
+
+
+isregularized(sddp::SDDPInterface) = !isnull(sddp.regularizer)
+

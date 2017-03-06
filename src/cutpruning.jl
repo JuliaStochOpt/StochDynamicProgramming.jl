@@ -30,11 +30,6 @@ function prune!(sddp::SDDPInterface,
 
 end
 
-pcuts!(::Type{LevelOne}, model, param, V, territory) = level1_cuts_pruning!(model, param, V, territory)
-pcuts!(::Type{ExactPruning}, model, param, V, territory) = exact_cuts_pruning(model, param, V, territory)
-pcuts!(::Type{Territory}, model, param, V, territory) = exact_cuts_pruning_accelerated!(model, param, V, territory)
-
-
 
 
 """Remove cuts in PolyhedralFunction that are inactive on all visited states.
