@@ -8,10 +8,9 @@
 #############################################################################
 
 
-using StochDynamicProgramming, JuMP, Clp
+using StochDynamicProgramming, JuMP
 
-const SOLVER = ClpSolver()
-
+include("solver.jl")
 const EPSILON = .05
 const MAX_ITER = 20
 
@@ -164,10 +163,10 @@ end
 function solve_dams(display=0)
     model, params = init_problem()
 
-    V, pbs = solve_SDDP(model, params, display)
+    sddp = solve_SDDP(model, params, display)
     aleas = simulate_scenarios(model.noises, params.forwardPassNumber)
 
-    costs, stocks = forward_simulations(model, params, pbs, aleas)
+    costs, stocks = forward_simulations(model, params, sddp.solverinterface, aleas)
     println("SDDP cost: ", costs)
     return stocks
 end

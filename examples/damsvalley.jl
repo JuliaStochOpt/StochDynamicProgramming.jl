@@ -6,7 +6,9 @@
 # Set a seed for reproductability:
 srand(2713)
 
-using StochDynamicProgramming, JuMP, CPLEX
+using StochDynamicProgramming, JuMP
+
+include("solver.jl")
 ##################################################
 
 
@@ -116,7 +118,7 @@ function init_problem()
     set_state_bounds(model, x_bounds)
 
     # We need to use CPLEX to solve QP at final stages:
-    solver = CPLEX.CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_BARDISPLAY=0)
+    solver = SOLVER
 
     params = SDDPparameters(solver,
                             passnumber=FORWARD_PASS,
@@ -128,5 +130,5 @@ end
 
 # Solve the problem:
 model, params = init_problem()
-V, pbs = @time solve_SDDP(model, params, 1)
+sddp = @time solve_SDDP(model, params, 1)
 
