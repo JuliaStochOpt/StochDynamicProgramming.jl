@@ -20,7 +20,8 @@ type PolyhedralFunction
     newcuts::Int
 end
 
-PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0, UInt64[], 0)
+PolyhedralFunction(ndim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, ndim), 0, UInt64[], 0)
+PolyhedralFunction(beta, lambda) = PolyhedralFunction(beta, lambda, length(beta), UInt64[], 0)
 
 function fetchnewcuts!(V::PolyhedralFunction)
     β = V.betas[end-V.newcuts+1:end]
@@ -75,7 +76,7 @@ type LinearSPModel <: SPModel
         if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
             Vf = Vfinal
         else
-            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
+            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1, UInt64[], 0)
         end
 
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimStates]

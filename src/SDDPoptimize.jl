@@ -34,9 +34,16 @@ fulfilled.
 `SDDPInterface`
 
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
+function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64;
+                    stopcrit::AbstractStoppingCriterion=IterLimit(20),
+                    prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
+                    regularization=nothing)
     # Run SDDP:
-    sddp = SDDPInterface(model, param, verbose=verbose)
+    sddp = SDDPInterface(model, param,
+                         stopcrit,
+                         prunalgo,
+                         verbose=verbose,
+                         regularization=regularization)
     solve!(sddp)
     sddp
 end
@@ -66,8 +73,13 @@ fulfilled.
 # Returns
 * `SDDPInterface`
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
-    sddp = SDDPInterface(model, param, V, verbose=verbose)
+function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64;
+                    stopcrit::AbstractStoppingCriterion=IterLimit(20),
+                    prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
+    sddp = SDDPInterface(model, param,
+                         stopcrit,
+                         prunalgo, V,
+                         verbose=verbose)
     solve!(sddp)
     sddp
 end
@@ -514,7 +526,7 @@ $(SIGNATURES)
 """
 function get_control(model::SPModel, param::SDDPparameters, lpproblem::Vector{JuMP.Model},
                      t::Int, xt::Vector{Float64}, xi::Vector{Float64})
-    return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[2].uopt
+    return solve_one_step_one_alea(model, param, lpproblem[t], t, xt, xi)[1].uopt
 end
 
 

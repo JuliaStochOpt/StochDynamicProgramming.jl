@@ -7,7 +7,7 @@
 #
 #############################################################################
 
-import Base: +, show
+import Base: +, show, writecsv
 
 """
 Write Polyhedral functions in a CSV file.
@@ -67,8 +67,7 @@ function read_polyhedral_functions(dump::AbstractString)
             V[t].betas = vcat(V[t].betas, beta)
             V[t].numCuts += 1
         catch
-            V[t] = PolyhedralFunction([beta],
-                                       reshape(lambda, 1, dim_state), 1)
+            V[t] = PolyhedralFunction([beta], reshape(lambda, 1, dim_state))
         end
     end
     return V

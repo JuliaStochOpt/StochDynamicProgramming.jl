@@ -123,10 +123,10 @@ using Base.Test
         param2 = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
-                                                    max_iterations=max_iterations,
-                                                    rho0=1.)
+                                                    max_iterations=max_iterations)
         #TODO: fix solver, as Clp cannot solve QP
-        @test_throws ErrorException solve_SDDP(model, param2, 0)
+        @test_throws ErrorException solve_SDDP(model, param2, 0,
+                                               regularization=SDDPRegularization(1., .99))
     end
 
     # Test definition of final cost with a JuMP.Model:
@@ -166,8 +166,7 @@ using Base.Test
     @testset "Stopping criterion" begin
         # Compute upper bound every %% iterations:
         param.compute_ub = 1
-        param.maxItNumber = 30
-        param.gap = .1
+        gap = .1
         sddp = solve_SDDP(model, param, V, 0)
         V0 = StochDynamicProgramming.get_lower_bound(model, param, sddp.bellmanfunctions)
         n_simulations = 1000
@@ -175,7 +174,8 @@ using Base.Test
                                                            sddp.bellmanfunctions,
                                                            sddp.solverinterface,
                                                            n_simulations)[1]
-        @test abs((V0 - upb)) < param.gap
+
+        @test abs((V0 - upb))/V0 < gap
     end
 
     @testset "Dump" begin
