@@ -4,20 +4,23 @@
 **WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
 
-**Latest release:** 0.1.3
+**Latest release:** 0.3.0
 
+| **Documentation** | **Build Status** | **Social** |
+|:-----------------:|:----------------:|:----------:|
+| | [![Build Status][build-img]][build-url] | [![Gitter][gitter-img]][gitter-url] |
+| [![][docs-stable-img]][docs-stable-url] |  [![Codecov branch][codecov-img]][codecov-url] | [<img src="https://upload.wikimedia.org/wikipedia/en/a/af/Discourse_logo.png" width="64">][discourse-url] |
 
-[![Build Status](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl.svg?branch=master)](https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl)
-[![codecov.io](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl/coverage.svg?branch=master)](https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master)
 
 
 This is a Julia package for optimizing controlled stochastic dynamic system (in discrete time). It offers three methods of resolution :
 
+- *Stochastic Dual Dynamic Programming* (SDDP) algorithm.
 - *Extensive formulation*.
 - *Stochastic Dynamic Programming*.
-- *Stochastic Dual Dynamic Programming* (SDDP) algorithm.
 
-It is built upon [JuMP](https://github.com/JuliaOpt/JuMP.jl)
+
+It is built upon [JuMP]
 
 ## What problem can we solve with this package ?
 
@@ -86,3 +89,17 @@ make html
 ## License
 
 Released under Mozilla Public License (see LICENSE.md for further details).
+
+
+
+[build-img]: https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl.svg?branch=master
+[build-url]: https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl
+[codecov-img]: https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl/coverage.svg?branch=master
+[codecov-url]: https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master
+[gitter-url]: https://gitter.im/JuliaOpt/StochasticDualDynamicProgramming.jl
+[gitter-img]: https://badges.gitter.im/JuliaOpt/StochasticDualDynamicProgramming.jl.svg
+[discourse-url]: https://discourse.julialang.org/c/domain/opt
+[JuMP]: https://github.com/JuliaOpt/JuMP.jl
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: http://stochdynamicprogramming.readthedocs.io/en/latest/
+
