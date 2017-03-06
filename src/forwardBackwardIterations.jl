@@ -39,14 +39,13 @@ function forward_pass!(sddp::SDDPInterface)
 
     # If acceleration is ON, need to build a new array of problem to
     # avoid side effect:
-    problems_fp = (param.IS_ACCELERATED)? hotstart_SDDP(model, param, V):problems
+    problems_fp = isregularized(sddp) ? hotstart_SDDP(model, param, V) : problems
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
                         noise_scenarios,
-                        acceleration=param.IS_ACCELERATED)
+                        regularizer=sddp.regularizer)
 
-    model.refTrajectories = stockTrajectories
     sddp.stats.nsolved += callsolver_forward
     sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
     return costs, stockTrajectories
@@ -89,7 +88,7 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64};
-                            acceleration=false)
+                            regularizer=Nullable{SDDPRegularization}())
 
     callsolver::Int = 0
     solvertime = Float64[]
@@ -127,9 +126,10 @@ function forward_simulations(model::SPModel,
             callsolver += 1
 
             # Solve optimization problem corresponding to current position:
-            if acceleration &&  ~isa(model.refTrajectories, Void)
-                xp = collect(model.refTrajectories[t+1, k, :])
-                sol, ts = solve_one_step_one_alea(model, param,
+            if !isnull(regularizer) && !isa(get(regularizer).incumbents, Void)
+                reg = get(regularizer)
+                xp = getincumbent(reg, t, k)
+                sol, ts = regularize(model, param, reg,
                                                   solverProblems[t], t, state_t, alea_t, xp)
             else
                 sol, ts = solve_one_step_one_alea(model, param,

@@ -18,6 +18,8 @@ type SDDPInterface
     stopcrit::AbstractStoppingCriterion
     # cut pruner:
     pruner::Vector{CutPruners.AbstractCutPruner}
+    # regularization scheme:
+    regularizer::Nullable{AbstractRegularization}
 
     # solution
     bellmanfunctions::Vector{PolyhedralFunction}
@@ -29,6 +31,7 @@ type SDDPInterface
     function SDDPInterface(model::SPModel, # SP Model
                            param::SDDPparameters,# parameters
                            stopcrit::AbstractStoppingCriterion;
+                           regularization=nothing,
                            verbose::Int=1)
         check_SDDPparameters(model, param, verbose)
         # initialize value functions:
@@ -38,12 +41,14 @@ type SDDPInterface
         pruner = initpruner(param, model.stageNumber, model.dimStates)
         #Initialization of stats
         stats = SDDPStat()
-        return new(false, model, param, stats, stopcrit, pruner, V, problems, verbose)
+        return new(false, model, param, stats, stopcrit, pruner, regularization, V,
+                   problems, verbose)
     end
     function SDDPInterface(model::SPModel,
                         params::SDDPparameters,
                         stopcrit::AbstractStoppingCriterion,
                         V::Vector{PolyhedralFunction};
+                        regularization=nothing,
                         verbose::Int=1)
         check_SDDPparameters(model, params, verbose)
         # First step: process value functions if hotstart is called
@@ -51,7 +56,8 @@ type SDDPInterface
         pruner = initpruner(params, model.stageNumber, model.dimStates)
 
         stats = SDDPStat()
-        return new(false, model, params, stats, stopcrit, pruner, V, problems, verbose)
+        return new(false, model, params, stats, stopcrit, pruner, regularization,
+                   V, problems, verbose)
     end
 end
 
@@ -61,3 +67,7 @@ function initpruner(param, nstages, ndim)
     # Initialize cuts container for cuts pruning:
     return [CutPruners.CutPruner{ndim, Float64}(algo, :Max) for i in 1:nstages-1]
 end
+
+
+isregularized(sddp::SDDPInterface) = !isnull(sddp.regularizer)
+

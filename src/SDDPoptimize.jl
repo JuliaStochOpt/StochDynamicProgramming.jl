@@ -138,7 +138,7 @@ function solve!(sddp::SDDPInterface)
                                           upperbound_scenarios, upb,
                                           sddp.solverinterface)
 
-        updateSDDP!(sddp, lwb, upb, time_pass)
+        updateSDDP!(sddp, lwb, upb, time_pass, trajectories)
         checkit(sddp.verbose, sddp.stats.niterations) && println(sddp.stats)
     end
 
@@ -191,7 +191,7 @@ function finalpass!(sddp::SDDPInterface)
 end
 
 
-function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass)
+function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass, trajectories)
     # Update SDDP stats
     updateSDDPStat!(sddp.stats, lwb, upb, time_pass)
 
@@ -202,6 +202,12 @@ function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass)
         sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
                                              sddp.params,
                                              sddp.bellmanfunctions)
+    end
+
+    # Update regularization
+    if !isnull(sddp.regularizer)
+        update_penalization!(get(sddp.regularizer))
+        get(sddp.regularizer).incumbents = trajectories
     end
 end
 
