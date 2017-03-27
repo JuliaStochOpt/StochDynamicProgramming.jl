@@ -440,7 +440,7 @@ function forward_simulations(model::SPModel,
 
         current_ws = SharedArray{Float64}(scenarios[t,:,:])
 
-        for s in 1:nb_scenarios
+        @sync @parallel for s in 1:nb_scenarios
 
             x = states[t,s,:]
 
@@ -451,7 +451,6 @@ function forward_simulations(model::SPModel,
             if best_control == tuple()
                 error("No u admissible")
             else
-                println(best_control)
                 controls[t,s,:] = [best_control...]
                 states[t+1,s,:] = dynamics(t, x, best_control, current_ws[s,:])
                 costs[s] = costs[s] + cost(t, x, best_control, current_ws[s,:])

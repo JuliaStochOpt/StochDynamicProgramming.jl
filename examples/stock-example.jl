@@ -98,12 +98,12 @@ end
 ######### Comparing the solutions on simulated scenarios.
 scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
 if run_sddp
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
+    costsddp, stocks, controls_sddp = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
 end
 if run_sdp
     costsdp, states, controls = forward_simulations(spmodel, paramSDP, Vs, scenarios)
 end
 if run_sddp && run_sdp
     println("Simulated relative difference between sddp and sdp: "
-            *string(round(200*mean(costsddp-costsdp)/mean(costsddp+costsdp),3))*"%")
+            *string(round(200*mean(abs(costsddp-costsdp)./(abs(costsdp)+abs(costsddp))),3))*"%")
 end

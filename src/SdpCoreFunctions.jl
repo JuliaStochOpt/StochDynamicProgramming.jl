@@ -280,7 +280,7 @@ function sdp_dh_get_u(sampling_size, samples, probas, u_bounds,
 
     return sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
                         x_bounds, x_steps, x_dim, product_controls,
-                        dynamics, constraints, cost, Vitp, t, x, u_space_builder = nothing)[1]
+                        dynamics, constraints, cost, Vitp, t, x, u_space_builder)[1]
 
 end
 
