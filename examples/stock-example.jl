@@ -16,7 +16,7 @@ println("library loaded")
 
 run_sddp = true # false if you don't want to run sddp
 run_sdp  = true # false if you don't want to run sdp
-run_ef   = true # false if you don't want to run extensive formulation
+run_ef   = false # false if you don't want to run extensive formulation
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -101,7 +101,7 @@ if run_sddp
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
 end
 if run_sdp
-    costsdp, states, stocks =sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
+    costsdp, states, controls = forward_simulations(spmodel, paramSDP, Vs, scenarios)
 end
 if run_sddp && run_sdp
     println("Simulated relative difference between sddp and sdp: "
