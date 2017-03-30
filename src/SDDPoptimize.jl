@@ -10,10 +10,10 @@
 
 
 """
-Solve SDDP algorithm and return estimation of bellman functions.
+Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
 
 # Description
-Alternate forward and backward phase till the stopping criterion is
+Alternate forward and backward phases untill the stopping criterion is
 fulfilled.
 
 # Arguments
@@ -32,7 +32,7 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-* `sddp_stats::SDDPStat`:
+* `sddp_stats::SDDPStat`: statistics of the algorithm run
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
@@ -46,10 +46,11 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64)
 end
 
 """
-Solve SDDP algorithm with hotstart and return estimation of bellman functions.
+Solve spmodel using SDDP algorithm and return lower approximation of Bellman functions.
+Use hotstart.
 
 # Description
-Alternate forward and backward phase till the stopping criterion is
+Alternate forward and backward phases untill the stopping criterion is
 fulfilled.
 
 # Arguments
@@ -70,7 +71,7 @@ fulfilled.
 * `problems::Array{JuMP.Model}`:
     the collection of linear problems used to approximate
     each value function
-* `sddp_stats::SDDPStat`:
+* `sddp_stats::SDDPStat`: statistics of the algorithm run
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64)
     check_SDDPparameters(model,param,verbose)
@@ -120,13 +121,10 @@ function run_SDDP!(model::SPModel,
 
     # If computation of upper-bound is needed, a set of scenarios is built
     # to keep always the same realization for upper bound estimation:
-    #if param.compute_ub > 0 #TODO
     upperbound_scenarios = simulate_scenarios(model.noises, param.in_iter_mc)
 
-    upb = Inf
-    costs = nothing
+    upb = [Inf, Inf, Inf]
     stopping_test::Bool = false
-
 
     # Launch execution of forward and backward passes:
     while (~stopping_test)
@@ -142,15 +140,14 @@ function run_SDDP!(model::SPModel,
         callsolver_backward = backward_pass!(model, param, V, problems, stockTrajectories, model.noises)
 
         ####################
-        # Update stats
+        # Time execution of current pass
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
-        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, toq())
-        print_current_stats(stats,verbose)
+        time_pass = toq()
 
         ####################
         # cut pruning
         if param.pruning[:pruning]
-            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations, verbose)
+            prune_cuts!(model, param, V, stockTrajectories, activecuts, stats.niterations+1, verbose)
             if (stats.niterations%param.pruning[:period]==0)
                 problems = hotstart_SDDP(model, param, V)
             end
@@ -158,9 +155,11 @@ function run_SDDP!(model::SPModel,
 
         ####################
         # In iteration upper bound estimation
-        upb = in_iteration_upb_estimation(model, param, stats.niterations, verbose,
+        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, verbose,
                                           upperbound_scenarios, upb, problems)
 
+        updateSDDPStat!(stats, callsolver_forward+callsolver_backward, lwb, upb, time_pass)
+        print_current_stats(stats,verbose)
 
         ####################
         # Stopping test
@@ -169,29 +168,36 @@ function run_SDDP!(model::SPModel,
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
-    display_final_solution(model, param, V, problems, costs, stats, verbose)
+    display_final_solution(model, param, V, problems, stats, verbose)
     return stats
 end
 
 
 """Display final results once SDDP iterations are finished."""
 function display_final_solution(model::SPModel, param::SDDPparameters, V,
-                                problems, costs, stats::SDDPStat, verbose::Int64)
+                                problems, stats::SDDPStat, verbose::Int64)
     if (verbose>0) && (param.compute_ub >= 0)
         lwb = get_bellman_value(model, param, 1, V[1], model.initialState)
 
-        if param.compute_ub == 0
-            println("Estimate upper-bound with Monte-Carlo ...")
-            upb, costs = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
+        if (param.compute_ub == 0) || (param.monteCarloSize > 0)
+            (verbose > 0) && println("Compute final upper-bound with ",
+                                    param.monteCarloSize, " scenarios...")
+            upb, σ, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else
             upb = stats.upper_bounds[end]
+            tol = stats.upper_bounds_tol[end]
+            σ = stats.upper_bounds_std[end]
         end
 
-        println("Estimation of upper-bound: ", round(upb,4),
-                "\tExact lower bound: ", round(lwb,4),
-                "\t Gap <  ", round(100*(upb-lwb)/lwb, 2) , "\%  with prob. > 97.5 \%")
-        println("Estimation of cost of the solution (fiability 95\%):",
-                 round(mean(costs),4), " +/- ", round(1.96*std(costs)/sqrt(length(costs)),4))
+        println("\n############################################################")
+        println("SDDP CONVERGENCE")
+        @printf("- Exact lower bound:          %.4e [Gap < %.2f%s]\n",
+                lwb, 100*(upb+tol-lwb)/lwb, '%')
+        @printf("- Estimation of upper-bound:  %.4e\n", upb)
+        @printf("- Upper-bound's s.t.d:        %.4e\n", σ)
+        @printf("- Confidence interval (%d%s):  [%.4e , %.4e]",
+                100*(1- 2*(1-param.confidence_level)), '\%',upb-tol, upb+tol)
+        println("\n############################################################")
     end
 end
 
@@ -271,7 +277,13 @@ function build_model(model, param, t)
 
     # Define objective function (could be linear or piecewise linear)
     if isa(model.costFunctions, Function)
-        @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        try
+            @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        catch
+            #FIXME: hacky redefinition of costs as JuMP Model
+            @objective(m, Min, model.costFunctions(m, t, x, u, w) + alpha)
+        end
+
     elseif isa(model.costFunctions, Vector{Function})
         @variable(m, cost)
 

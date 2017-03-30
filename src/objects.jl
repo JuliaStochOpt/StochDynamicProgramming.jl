@@ -157,9 +157,11 @@ type SDDPparameters
     forwardPassNumber::Int64
     # Admissible gap between lower and upper-bound:
     gap::Float64
+    # tolerance upon confidence interval:
+    confidence_level::Float64
     # Maximum iterations of the SDDP algorithms:
     maxItNumber::Int64
-    # Prune cuts every %% iterations:
+    # Define the pruning method
     pruning::Dict{Symbol, Any}
     # Estimate upper-bound every %% iterations:
     compute_ub::Int64
@@ -172,10 +174,10 @@ type SDDPparameters
     # ... and acceleration parameters:
     acceleration::Dict{Symbol, Float64}
 
-    function SDDPparameters(solver; passnumber=10, gap=0.,
+    function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="none",
-                            compute_ub=-1, montecarlo_final=10000, montecarlo_in_iter = 100,
+                            compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
                             mipsolver=nothing,
                             rho0=0., alpha=1.)
 
@@ -195,7 +197,7 @@ type SDDPparameters
         prune_cuts = Dict(:pruning=>prune_cuts>0,
                           :period=>prune_cuts,
                           :type=>corresp[pruning_algo])
-        return new(solver, mipsolver, passnumber, gap,
+        return new(solver, mipsolver, passnumber, gap, confidence,
                    max_iterations, prune_cuts, compute_ub,
                    montecarlo_final, montecarlo_in_iter, is_acc, accparams)
     end
@@ -275,13 +277,17 @@ type SDDPStat
     lower_bounds::Vector{Float64}
     # evolution of upper bound:
     upper_bounds::Vector{Float64}
+    # standard deviation of upper-bound's estimation
+    upper_bounds_std::Vector{Float64}
+    # tolerance of upper-bounds estimation:
+    upper_bounds_tol::Vector{Float64}
     # evolution of execution time:
     exectime::Vector{Float64}
     # number of calls to solver:
     ncallsolver::Int64
 end
 
-SDDPStat() = SDDPStat(0, [], [], [], 0)
+SDDPStat() = SDDPStat(0, [], [], [], [], [], 0)
 
 """
 Update the SDDPStat object with the results of current iterations.
@@ -297,11 +303,17 @@ Update the SDDPStat object with the results of current iterations.
     upperbound estimated
 * `time`
 """
-function updateSDDPStat!(stats::SDDPStat,callsolver_at_it::Int64,lwb::Float64,upb::Float64,time)
+function updateSDDPStat!(stats::SDDPStat,
+                         callsolver_at_it::Int64,
+                         lwb::Float64,
+                         upb::Vector{Float64},
+                         time)
     stats.ncallsolver += callsolver_at_it
     stats.niterations += 1
     push!(stats.lower_bounds, lwb)
-    push!(stats.upper_bounds, upb)
+    push!(stats.upper_bounds, upb[1])
+    push!(stats.upper_bounds_tol, upb[3])
+    push!(stats.upper_bounds_std, upb[2])
     push!(stats.exectime, time)
 end
 

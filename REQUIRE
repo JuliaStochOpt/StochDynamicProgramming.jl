@@ -1,5 +1,5 @@
-julia 0.4
-JuMP 0.13
+julia 0.5
+JuMP 0.16
 Distributions
 ProgressMeter
 Interpolations

@@ -44,7 +44,8 @@ function forward_pass!(model::SPModel,
     costs, stockTrajectories,_,callsolver_forward = forward_simulations(model,
                         param,
                         problems_fp,
-                        noise_scenarios)
+                        noise_scenarios,
+                        acceleration=param.IS_ACCELERATED)
 
     model.refTrajectories = stockTrajectories
     return costs, stockTrajectories, callsolver_forward
@@ -84,7 +85,8 @@ scenario according to the current value functions.
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
-                            xi::Array{Float64})
+                            xi::Array{Float64};
+                            acceleration=false)
 
     callsolver::Int = 0
 
@@ -121,7 +123,7 @@ function forward_simulations(model::SPModel,
             callsolver += 1
 
             # Solve optimization problem corresponding to current position:
-            if param.IS_ACCELERATED &&  ~isa(model.refTrajectories, Void)
+            if acceleration &&  ~isa(model.refTrajectories, Void)
                 xp = collect(model.refTrajectories[t+1, k, :])
                 status, nextstep = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t, xp)
@@ -146,6 +148,8 @@ function forward_simulations(model::SPModel,
                 # if problem is not properly solved, next position if equal
                 # to current one:
                 stockTrajectories[t+1, k, :] = state_t
+                # this trajectory is unvalid, the cost is set to Inf to discard it:
+                costs[k] += Inf
             end
         end
     end

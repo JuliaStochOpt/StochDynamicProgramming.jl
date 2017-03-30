@@ -10,14 +10,5 @@ facts("Utils functions") do
     @fact typeof(v) --> Vector{Float64}
     @fact size(v) --> (2,)
     @fact v --> vec(arr[2, 1,:])
-
-    # Test upper bound calculation:
-    cost = rand(10)
-    upb = StochDynamicProgramming.upper_bound(cost)
-    tol = sqrt(2) * erfinv(2*.975 - 1)
-    @fact upb --> mean(cost) + tol*std(cost)/sqrt(length(cost))
-
-    # Test stopping criterion:
-    # TODO @fact StochDynamicProgramming.test_stopping_criterion(1., .999, 0.01) --> true
 end
 

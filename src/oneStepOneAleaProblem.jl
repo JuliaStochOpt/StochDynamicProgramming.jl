@@ -57,7 +57,9 @@ function solve_one_step_one_alea(model,
     alpha = getvariable(m, :alpha)
 
     # Update value of w:
-    setvalue(w, xi)
+    for ii in 1:model.dimNoises
+        JuMP.fix(w[ii], xi[ii])
+    end
 
     # Update constraint x == xt
     for i in 1:model.dimStates
@@ -67,7 +69,7 @@ function solve_one_step_one_alea(model,
     if model.IS_SMIP
         solved = relaxation ? solve_relaxed!(m, param): solve_mip!(m, param)
     else
-        status = solve(m)
+        status = solve(m, suppress_warnings=true)
         solved = (status == :Optimal)
     end
 

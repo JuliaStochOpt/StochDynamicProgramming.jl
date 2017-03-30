@@ -32,18 +32,18 @@ Refer to the documentation of JuMP_ to get another solver and interface it with 
 The following solvers have been tested:
 
 .. table:
-======  ===========
-Solver  Is working?
-======  ===========
-Clp     Yes
-CPLEX   Yes
-Gurobi  Yes
-GLPK    **No**
-======  ===========
+======  =========== ===============
+Solver  Is working? Quadratic costs
+======  =========== ===============
+Clp     Yes         No
+CPLEX   Yes         Yes
+Gurobi  Yes         Yes
+GLPK    **No**      **No**
+======  =========== ===============
 
 Run Unit-Tests
 --------------
-To run unit-tests::
+To run unit-tests (depend upon `FactCheck.jl`)::
 
    $ julia test/runtests.jl
 

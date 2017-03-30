@@ -4,19 +4,23 @@
 SDDP: Step-by-step example
 ====================
 
-This page gives a short introduction to the interface of this package. It explains the resolution with SDDP of a classical example: the management of a dam over one year with random inflow.
+This page gives a short introduction to the interface of this package. It
+explains the resolution with SDDP of a classical example: the management of a
+dam over one year with random inflow.
 
 Use case
 ========
-In the following, :math:`x_t` will denote the state and :math:`u_t` the control at time :math:`t`.
-We will consider a dam, whose dynamic is:
+In the following, :math:`x_t` denotes the state and :math:`u_t` the control at time :math:`t`.
+We consider a dam, whose dynamic is:
 
 .. math::
    x_{t+1} = x_t - u_t + w_t
 
-At time :math:`t`, we have a random inflow :math:`w_t` and we choose to turbine a quantity :math:`u_t` of water.
+At time :math:`t`, we have a random inflow :math:`w_t` and we choose to turbine
+a quantity :math:`u_t` of water.
 
-The turbined water is used to produce electricity, which is being sold at a price :math:`c_t`. At time :math:`t` we gain:
+The turbined water is used to produce electricity, which is being sold at a
+price :math:`c_t`. At time :math:`t` we gain:
 
 .. math::
     C(x_t, u_t, w_t) = c_t \times u_t
@@ -24,9 +28,9 @@ The turbined water is used to produce electricity, which is being sold at a pric
 We want to minimize the following criterion:
 
 .. math::
-    J = \underset{x, u}{\min} \sum_{t=0}^{T-1} C(x_t, u_t, w_t)
+    J = \underset{x, u}{\min} \mathbb{E} \;\left[ \sum_{t=0}^{T-1} C(x_t, u_t, w_t) \right]
 
-We will assume that both states and controls are bounded:
+We assume that both states and controls are bounded:
 
 .. math::
     x_t \in [0, 100], \qquad u_t \in [0, 7]
@@ -35,7 +39,8 @@ We will assume that both states and controls are bounded:
 Problem definition in Julia
 ===========================
 
-We will consider 52 time steps as we want to find optimal value functions for one year::
+We consider 52 time steps as we want to find optimal value functions every week
+during one year::
 
     N_STAGES = 52
 
@@ -44,7 +49,7 @@ and we consider the following initial position::
 
     X0 = [50]
 
-Note that X0 is a vector.
+Note that `X0` is a vector.
 
 Dynamic
 ^^^^^^^
@@ -59,7 +64,8 @@ We write the dynamic (which return a vector)::
 Cost
 ^^^^
 
-we store evolution of costs :math:`c_t` in an array `COSTS`, and we define the cost function (which return a float)::
+We store evolution of costs :math:`c_t` in an array `COSTS`, and we define
+the cost function (which return a float)::
 
     function cost_t(t, x, u, w)
         return COSTS[t] * u[1]
@@ -68,7 +74,7 @@ we store evolution of costs :math:`c_t` in an array `COSTS`, and we define the c
 Noises
 ^^^^^^
 
-Noises are defined in an array of Noiselaw. This type defines a discrete probability.
+Noises are defined in an array of `Noiselaw`. This type defines a discrete probability.
 
 
 For instance, if we want to define a uniform probability with size :math:`N= 10`, such that:
@@ -80,7 +86,7 @@ we write::
 
     N = 10
     proba = 1/N*ones(N) # uniform probabilities
-    xi_support = collect(linspace(1,N,N))
+    xi_support = collect(linspace(1, N, N))
     xi_law = NoiseLaw(xi_support, proba)
 
 
@@ -92,7 +98,7 @@ Thus, we could define a different probability laws for each time :math:`t`. Here
 Bounds
 ^^^^^^
 
-We add bounds over the state and the control::
+Both state and control are bounded:
 
     s_bounds = [(0, 100)]
     u_bounds = [(0, 7)]
@@ -103,7 +109,7 @@ Problem definition
 
 As our problem is purely linear, we instantiate::
 
-    spmodel = LinearDynamicLinearCostSPmodel(N_STAGES,u_bounds,X0,cost_t,dynamic,xi_laws)
+    spmodel = LinearSPModel(N_STAGES, u_bounds, X0, cost_t, dynamic, xi_laws)
 
 We add the state bounds to the model afterward::
 
@@ -119,24 +125,32 @@ First, we need to use a LP solver::
     using Clp
     SOLVER = ClpSolver()
 
-Clp is automatically installed during package installation. To install different solvers on your machine, refer to the JuMP_ documentation.
+Clp is automatically installed during packages' installation. To install
+different solvers on your machine, refer to the JuMP_ documentation.
 
-Once the solver installed, we define SDDP algorithm parameters::
+Once the solver is installed, we define SDDP parameters::
 
     forwardpassnumber = 2 # number of forward pass
-    sensibility = 0. # admissible gap between upper and lower bound
+    gap = 0. # admissible gap between upper and lower bound
     max_iter = 20  # maximum number of iterations
 
-    paramSDDP = SDDPparameters(SOLVER, forwardpassnumber, sensibility, max_iter)
+    paramSDDP = SDDPparameters(SOLVER,
+                               passnumber=forwardpassnumber,
+                               gap=gap,
+                               max_iterations=max_iter)
 
 
 Now, we solve the problem by computing Bellman values::
 
-    V, pbs = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
+    V, pbs, stats = solve_SDDP(spmodel, paramSDDP, 10) # display information every 10 iterations
 
-:code:`V` is an array storing the value functions, and :code:`pbs` a vector of JuMP.Model storing each value functions as a linear problem.
+:code:`V` is an array storing the value functions, and :code:`pbs` a vector of
+JuMP.Model storing each value functions as a linear problem.
+:code:`stats` is an object which stores a few informations about the convergence
+of SDDP (execution time, evolution of upper and lower bounds, number of calls to
+solver, etc.).
 
-We have an exact lower bound given by :code:`V` with the function::
+The exact lower bound is given by the function::
 
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
 
@@ -144,17 +158,19 @@ We have an exact lower bound given by :code:`V` with the function::
 Find optimal controls
 =====================
 
-Once Bellman functions are computed, we can control our system over assessments scenarios, without assuming knowledge of the future.
+Once Bellman functions are computed, we can control our system over
+assessments scenarios, without assuming knowledge of the future.
 
 We build 1000 scenarios according to the laws stored in :code:`xi_laws`::
 
-    scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
+    scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws, 1000)
 
 We compute 1000 simulations of the system over these scenarios::
 
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, V, pbs, scenarios)
+    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
 
-:code:`costsddp` returns the costs for each scenario, and :code:`stocks` the evolution of each stock along time, for each scenario.
+:code:`costsddp` returns the costs for each scenario, and :code:`stocks`
+the evolution of stocks along time, for each scenario.
 
 .. _JuMP: http://jump.readthedocs.io/en/latest/installation.html#coin-or-clp-and-cbc
 

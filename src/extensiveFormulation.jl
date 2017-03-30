@@ -77,14 +77,14 @@ function extensive_formulation(model, param; verbose=0)
                 [x[t+1,DIM_STATE*(m-1)+k] for k = 1:DIM_STATE] .== model.dynamics(t,
                                                                                     [x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE],
                                                                                     [u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL],
-                                                                                    laws[t].support[xi]))
+                                                                                    laws[t].support[:, xi]))
 
                 #Add constraints to define the cost at each node
                 @constraint(mod,
                 c[t,m] == model.costFunctions(t,
                                                 [x[t,DIM_STATE*(n-1)+k] for k = 1:DIM_STATE],
                                                 [u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL],
-                                                laws[t].support[xi]))
+                                                laws[t].support[:, xi]))
             end
         end
     end
@@ -94,11 +94,10 @@ function extensive_formulation(model, param; verbose=0)
 
     #Define the objective of the function
     @objective(mod, Min,
-    sum{
-        sum{    proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k],
-            k = 1:laws[t].supportSize},
-        t = 1:T, n=1:div(N[t+1],laws[t].supportSize)}
-    )
+    sum(
+        sum(proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k]
+            for k = 1:laws[t].supportSize)
+        for t = 1:T,  n=1:div(N[t+1],laws[t].supportSize)))
 
     status = solve(mod)
     solved = (status == :Optimal)
