@@ -444,9 +444,14 @@ function forward_simulations(model::SPModel,
 
             x = states[t,s,:]
 
-            best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
+            try
+                best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
                                     x_steps, x_dim, product_controls, dynamics,
                                     constraints, cost, Vitp, t, x, current_ws[s,:], u_space_builder)[1]
+            catch
+                println(x, " ", current_ws[s,:])
+                error("No u admissible")
+            end
 
             if best_control == tuple()
                 error("No u admissible")

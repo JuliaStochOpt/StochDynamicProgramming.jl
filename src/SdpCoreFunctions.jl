@@ -70,8 +70,8 @@ function is_next_state_feasible(next_state, x_dim, x_bounds)
 
     for i in 1:x_dim
         next_state_box_const =  (next_state_box_const&&
-                                (next_state[i]>=x_bounds[i][1])&&
-                                (next_state[i]<=x_bounds[i][2]))
+                                (next_state[i]>=x_bounds[i][1]-1e-10)&&
+                                (next_state[i]<=x_bounds[i][2]+1e-10))
     end
 
     return next_state_box_const
@@ -278,9 +278,9 @@ function sdp_dh_get_u(sampling_size, samples, probas, u_bounds,
                         x_bounds, x_steps, x_dim, product_controls,
                         dynamics, constraints, cost, Vitp, t, x, w, u_space_builder = nothing)
 
-    return sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
+    return (sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
                         x_bounds, x_steps, x_dim, product_controls,
-                        dynamics, constraints, cost, Vitp, t, x, u_space_builder)[1]
+                        dynamics, constraints, cost, Vitp, t, x, u_space_builder)[2])
 
 end
 
