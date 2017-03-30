@@ -136,8 +136,6 @@ function sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
             proba = probas[w]
             next_state = dynamics(t, x, u, w_sample)
 
-            #@conditional breakpoint(constraints, Tuple{Any, Any, Any, Any}) (length(u)==2)
-
             if constraints(t, x, u, w_sample)&&is_next_state_feasible(next_state, x_dim, x_bounds)
 
                 count_admissible_w = count_admissible_w + proba
@@ -148,6 +146,7 @@ function sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
                 expected_V_u += proba*(cost(t, x, u, w_sample) + next_V)
 
             end
+
         end
 
         if (count_admissible_w>0)

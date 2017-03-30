@@ -299,7 +299,7 @@ Get the optimal control at time t knowing the state of the system in the decisio
 
 """
 function get_control(model::SPModel,param::SDPparameters,
-                     V, t::Int64, x::Array, w::Union{Void,Array})
+                     V, t::Int64, x::Array, w::Union{Void,Array} = nothing)
 
     if typeof(w)==Void
         get_u = SdpCoreFunctions.sdp_dh_get_u
