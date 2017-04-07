@@ -406,7 +406,7 @@ function forward_simulations(model::SPModel,
 
     X0 = SDPmodel.initialState
 
-    for s in nb_scenarios
+    for s in 1:nb_scenarios
         states[1, s, :] = X0
     end
 
@@ -438,7 +438,7 @@ function forward_simulations(model::SPModel,
 
         Vitp = value_function_interpolation(x_dim, V, t+1)
 
-        current_ws = SharedArray{Float64}(scenarios[t,:,:])
+        current_ws = scenarios[t,:,:]
 
         @sync @parallel for s in 1:nb_scenarios
 

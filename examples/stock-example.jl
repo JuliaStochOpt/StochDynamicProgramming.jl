@@ -21,26 +21,26 @@ test_simulation = true # false if you don't want to test your strategies
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
-const SOLVER = ClpSolver() 			   # require "using Clp"
+SOLVER = ClpSolver() 			   # require "using Clp"
 #const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 
 # convergence test
-const MAX_ITER = 10 # number of iterations of SDDP
-const step = 0.1   # discretization step of SDP
+MAX_ITER = 10 # number of iterations of SDDP
+step = 0.01   # discretization step of SDP
 
 ######## Stochastic Model  Parameters  ########
-const N_STAGES = 6              # number of stages of the SP problem
-const COSTS = [sin(3*t)-1 for t in 1:N_STAGES]
+N_STAGES = 6              # number of stages of the SP problem
+COSTS = [sin(3*t)-1 for t in 1:N_STAGES-1]
 #const COSTS = rand(N_STAGES)    # randomly generating deterministic costs
 
-const CONTROL_MAX = 0.5         # bounds on the control
-const CONTROL_MIN = 0
+CONTROL_MAX = 0.5         # bounds on the control
+CONTROL_MIN = 0
 
-const XI_MAX = 0.3              # bounds on the noise
-const XI_MIN = 0
-const N_XI = 10                 # discretization of the noise
+XI_MAX = 0.3              # bounds on the noise
+XI_MIN = 0
+N_XI = 10                 # discretization of the noise
 
-const S0 = 0.5                  # initial stock
+S0 = 0.5                  # initial stock
 
 # create law of noises
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
