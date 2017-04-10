@@ -92,6 +92,49 @@ function solve_one_step_one_alea(model,
     return solved, result
 end
 
+
+function solve_dh(model, param, t, state_t, V)
+    m = Model(solver=param.SOLVER)
+    law = model.noises
+
+    nx = model.dimStates
+    nu = model.dimControls
+    nw = model.dimNoises
+
+    ns = law[t].supportSize
+    ξ = collect(law[t].support[:, :])
+    πp = law[t].proba
+
+    @variable(m, model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+    @variable(m, model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+    @variable(m, model.xlim[i][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i][2])
+    @variable(m, alpha[1:ns])
+
+    @constraint(m, state_constraint, x .== state_t)
+
+    for j=1:ns
+        @constraint(m, xf[:, j] .== model.dynamics(t, x, u, ξ[:, j]))
+    end
+
+    # add objective as minimization of expectancy:
+    @objective(m, Min,
+               sum(πp[j]*(model.costFunctions(m, t, x, u, ξ[:, j]) +
+                    alpha[j]) for j in 1:ns))
+
+    for nc in 1:V[t+1].numCuts
+        lambda = vec(V[t+1].lambdas[nc, :])
+        for j=1:ns
+            @constraint(m, V[t+1].betas[nc] + dot(lambda, xf[:, j]) <= alpha[j])
+        end
+    end
+
+    solve(m)
+    ns = NextStep(getvalue(xf)[:, 1], getvalue(u), nothing, getobjectivevalue(m), getvalue(alpha)[1])
+    return true, ns
+end
+
+
+
 # Solve local problem with a quadratic penalization:
 function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
                                  xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})

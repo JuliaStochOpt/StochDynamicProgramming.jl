@@ -44,6 +44,7 @@ function forward_pass!(model::SPModel,
     costs, stockTrajectories,_,callsolver_forward = forward_simulations(model,
                         param,
                         problems_fp,
+                        V,
                         noise_scenarios,
                         acceleration=param.IS_ACCELERATED)
 
@@ -85,6 +86,7 @@ scenario according to the current value functions.
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
+                            V,
                             xi::Array{Float64};
                             acceleration=false)
 
@@ -130,14 +132,15 @@ function forward_simulations(model::SPModel,
             else
                 status, nextstep = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t)
+                status, nextstep = solve_dh(model, param, t, state_t, V)
             end
 
             # Check if the problem is effectively solved:
             if status
                 # Get the next position:
-                stockTrajectories[t+1, k, :] = nextstep.next_state
-                # the optimal control just computed:
                 opt_control = nextstep.optimal_control
+                stockTrajectories[t+1, k, :] = model.dynamics(t, state_t, opt_control, alea_t)
+                # the optimal control just computed:
                 controls[t, k, :] = opt_control
                 # and the current cost:
                 costs[k] += nextstep.cost - nextstep.cost_to_go
