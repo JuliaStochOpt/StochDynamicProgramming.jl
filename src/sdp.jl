@@ -141,7 +141,7 @@ The information structure can be Decision Hazard (DH) or Hazard Decision (HD)
     of the system at each time step
 
 """
-function solve_DP(model::SPModel, param::SDPparameters, display=0::Int64)
+function solve_dp(model::SPModel, param::SDPparameters, display=0::Int64)
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
@@ -197,7 +197,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
 
     #Compute final value functions
     for x in product_states
-        ind_x = SdpCoreFunctions.index_from_variable(x, x_bounds, x_steps)
+        ind_x = SdpLoops.index_from_variable(x, x_bounds, x_steps)
         V[ind_x..., TF] = model.finalCostFunction(x)
     end
 
@@ -207,12 +207,12 @@ function compute_value_functions_grid(model::StochDynProgModel,
     end
 
     if param.infoStructure == "DH"
-        get_V_t_x = SdpCoreFunctions.sdp_u_w_loop
+        get_V_t_x = SdpLoops.sdp_u_w_loop
     elseif param.infoStructure == "HD"
-        get_V_t_x = SdpCoreFunctions.sdp_w_u_loop
+        get_V_t_x = SdpLoops.sdp_w_u_loop
     else
         warn("Information structure should be DH or HD. Defaulted to DH")
-        get_V_t_x = SdpCoreFunctions.sdp_u_w_loop
+        get_V_t_x = SdpLoops.sdp_u_w_loop
     end
 
     #Construct a progress meter
@@ -243,7 +243,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
 
         @sync @parallel for indx in 1:length(product_states)
             x = product_states[indx]
-            ind_x = SdpCoreFunctions.index_from_variable(x, x_bounds, x_steps)
+            ind_x = SdpLoops.index_from_variable(x, x_bounds, x_steps)
             V[ind_x..., t] = get_V_t_x(sampling_size, samples, probas,
                                             u_bounds, x_bounds, x_steps, x_dim,
                                             product_controls, dynamics,
@@ -271,7 +271,7 @@ Get the optimal value of the problem from the optimal Bellman Function
 
 """
 function get_bellman_value(model::SPModel, param::SDPparameters, V)
-    ind_x0 = SdpCoreFunctions.real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
+    ind_x0 = SdpLoops.real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
     Vi = value_function_interpolation(model.dimStates, V, 1)
     return Vi[ind_x0...,1]
 end
@@ -302,9 +302,9 @@ function get_control(model::SPModel,param::SDPparameters,
                      V, t::Int64, x::Array, w::Union{Void,Array} = nothing)
 
     if typeof(w)==Void
-        get_u = SdpCoreFunctions.sdp_dh_get_u
+        get_u = SdpLoops.sdp_dh_get_u
     else
-        get_u = SdpCoreFunctions.sdp_hd_get_u
+        get_u = SdpLoops.sdp_hd_get_u
     end
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
@@ -413,12 +413,12 @@ function forward_simulations(model::SPModel,
     best_control = tuple()
 
     if param.infoStructure == "DH"
-        get_u = SdpCoreFunctions.sdp_dh_get_u
+        get_u = SdpLoops.sdp_dh_get_u
     elseif param.infoStructure == "HD"
-        get_u = SdpCoreFunctions.sdp_hd_get_u
+        get_u = SdpLoops.sdp_hd_get_u
     else
         warn("Information structure should be DH or HD. Defaulted to DH")
-        get_u = SdpCoreFunctions.sdp_dh_get_u
+        get_u = SdpLoops.sdp_dh_get_u
     end
 
     u_space_builder = SDPmodel.build_search_space

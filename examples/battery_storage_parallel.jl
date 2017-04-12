@@ -106,7 +106,7 @@ println("library loaded")
                                                     controlSteps, infoStruct)
 end
 
-Vs = StochDynamicProgramming.solve_DP(spmodel,paramSDP, 1)
+Vs = StochDynamicProgramming.solve_dp(spmodel,paramSDP, 1)
 
 lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
 println("Value obtained by SDP: "*string(lb_sdp))

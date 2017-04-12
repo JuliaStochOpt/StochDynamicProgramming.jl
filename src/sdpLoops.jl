@@ -1,5 +1,5 @@
-module SdpCoreFunctions
-using Interpolations, Gallium
+module SdpLoops
+using Interpolations
 
 export index_from_variable, real_index_from_variable
 

@@ -8,7 +8,7 @@
 # see TODO
 #############################################################################
 module StochDynamicProgramming
-include("SdpCoreFunctions.jl")
+include("sdpLoops.jl")
 
 using MathProgBase, JuMP, Distributions
 
@@ -17,7 +17,7 @@ export solve_SDDP,
         SDDPparameters, LinearSPModel, set_state_bounds,
         extensive_formulation,
         PolyhedralFunction, NextStep, forward_simulations,
-        StochDynProgModel, SDPparameters, solve_DP,
+        StochDynProgModel, SDPparameters, solve_dp,
         sampling, get_control, get_bellman_value,
         benchmark_parameters
 
@@ -27,7 +27,7 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 include("extensiveFormulation.jl")
-include("SdpOptimize.jl")
+include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")
 include("stoppingtest.jl")

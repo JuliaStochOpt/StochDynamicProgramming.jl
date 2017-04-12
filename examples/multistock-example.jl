@@ -101,7 +101,7 @@ if run_sdp
     spmodel_sdp = StochDynamicProgramming.build_sdpmodel_from_spmodel(spmodel)
     spmodel_sdp.constraints = constraints_dp
 
-    Vs = solve_DP(spmodel_sdp, paramSDP, 1)
+    Vs = solve_dp(spmodel_sdp, paramSDP, 1)
     value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
     println("Value obtained by SDP: "*string(round(value_sdp,4)))
     toc(); println();
@@ -112,7 +112,7 @@ end
 if run_sddp && run_sdp && test_simulation
     scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
-    costsdp, states, controls = sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
+    costsdp, states, controls = forward_simulations(spmodel,paramSDP, Vs, scenarios)
     println("Simulated relative gain of sddp over sdp: "
             *string(round(200*mean(costsdp-costsddp)/abs(mean(costsddp+costsdp)),3))*"%")
 end

@@ -328,7 +328,7 @@ function benchmark_sdp()
     timing = zeros(n_benchmark)
     for n in 1:n_benchmark
         tic()
-        V_sdp = solve_DP(modelSDP, paramsSDP,0);
+        V_sdp = solve_dp(modelSDP, paramsSDP,0);
         timing[n] = toq()
     end
     @show timing
