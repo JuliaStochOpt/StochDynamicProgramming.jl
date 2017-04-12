@@ -71,7 +71,10 @@ Compute the cartesian products of discretized control spaces or more complex spa
     the cartesian product iterators for both states and controls
 
 """
-function generate_control_grid(model::SPModel, param::SDPparameters, t::Union{Int, Void} = nothing, x::Union{Array{Float64}, Void} = nothing, w = nothing)
+function generate_control_grid(model::SPModel, param::SDPparameters,
+                                t::Union{Int, Void} = nothing,
+                                x::Union{Array, Void} = nothing,
+                                w = nothing)
 
     if (typeof(model.build_search_space) != Void)&&(typeof(t)!=Void)&&(typeof(x)!=Void)
         product_controls = model.build_search_space(t, x, w)
@@ -212,6 +215,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
         get_V_t_x = SdpLoops.sdp_w_u_loop
     else
         warn("Information structure should be DH or HD. Defaulted to DH")
+        param.infoStructure = "DH"
         get_V_t_x = SdpLoops.sdp_u_w_loop
     end
 
@@ -340,7 +344,7 @@ function get_control(model::SPModel,param::SDPparameters,
 
     best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
                         x_steps, x_dim, product_controls, dynamics,
-                        constraints, cost, Vitp, t, x, u_space_builder)[1]
+                        constraints, cost, Vitp, t, x, w, u_space_builder)[1]
 
     return best_control
 end
@@ -440,7 +444,7 @@ function forward_simulations(model::SPModel,
 
         current_ws = scenarios[t,:,:]
 
-        @sync @parallel for s in 1:nb_scenarios
+        for s in 1:nb_scenarios
 
             x = states[t,s,:]
 

@@ -2,7 +2,7 @@
 # Test SDDP functions
 ################################################################################
 using FactCheck, StochDynamicProgramming
-using StochDynamicProgramming.SDPutils
+using StochDynamicProgramming.SdpLoops
 
 facts("Indexation for SDP") do
 
@@ -11,11 +11,11 @@ facts("Indexation for SDP") do
     var = [0.4, 3.7, 1.9]
     vart = [0.42, 3.78, 1.932]
 
-    ind = SDPutils.index_from_variable(var, bounds, steps)
-    ind2 = SDPutils.real_index_from_variable(vart, bounds, steps)
+    ind = SdpLoops.index_from_variable(var, bounds, steps)
+    ind2 = SdpLoops.real_index_from_variable(vart, bounds, steps)
 
-    checkFalse = SDPutils.is_next_state_feasible([0,1,2],3,bounds)
-    checkTrue = SDPutils.is_next_state_feasible([0.12,1.3,1.3],3,bounds)
+    checkFalse = SdpLoops.is_next_state_feasible([0,1,2],3,bounds)
+    checkTrue = SdpLoops.is_next_state_feasible([0.12,1.3,1.3],3,bounds)
 
 
     @fact ind --> (4,51,141)
@@ -123,7 +123,7 @@ facts("SDP algorithm") do
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
                                                         controlSteps,
-                                                        infoStruct,
+                                                        "HD",
                                                         "Exact");
 
 
@@ -168,30 +168,24 @@ facts("SDP algorithm") do
 
         context("Solve and simulate using SDP") do
             paramsSDP.infoStructure = "anything"
-            @fact_throws solve_DP(modelSDP, paramsSDP, false);
+            solve_dp(modelSDP, paramsSDP, false);
+            @fact paramsSDP.infoStructure --> "DH"
             paramsSDP.infoStructure = infoStruct
 
-            V_sdp = solve_DP(modelSDP, paramsSDP, false);
+            V_sdp = solve_dp(modelSDP, paramsSDP, false);
 
             @fact size(V_sdp) --> (paramsSDP.stateVariablesSizes..., TF)
 
-            costs_sdp, stocks_sdp, controls_sdp = StochDynamicProgramming.sdp_forward_single_simulation(modelSDP,
-                                                                                                        paramsSDP,
-                                                                                                        aleas_scen, x0,
-                                                                                                        V_sdp, true )
 
-
-            costs_sdp2, stocks_sdp2, controls_sdp2 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
+            costs_sdp2, stocks_sdp2, controls_sdp2 = StochDynamicProgramming.forward_simulations(modelSDP,
                                                                                                     paramsSDP,
-                                                                                                    aleas_scen,
-                                                                                                    V_sdp, true )
-
-            @fact costs_sdp2[1] --> costs_sdp
+                                                                                                    V_sdp,
+                                                                                                    aleas_scen)
 
             x = x0
-            V_sdp2 = StochDynamicProgramming.sdp_compute_value_functions(modelSDP, paramsSDP, false);
+            V_sdp2 = StochDynamicProgramming.compute_value_functions_grid(modelSDP, paramsSDP, false);
             paramsSDP.infoStructure = "DH"
-            V_sdp3 = StochDynamicProgramming.sdp_compute_value_functions(modelSDP, paramsSDP, false);
+            V_sdp3 = StochDynamicProgramming.compute_value_functions_grid(modelSDP, paramsSDP, false);
             paramsSDP.infoStructure = "HD"
 
             Vitp = StochDynamicProgramming.value_function_interpolation( modelSDP.dimStates, V_sdp, 1)
@@ -206,15 +200,16 @@ facts("SDP algorithm") do
             @fact (v1<=v3) --> true
 
             paramsSDP.infoStructure = "DH"
-            costs_sdp3, stocks_sdp3, controls_sdp3 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
+            costs_sdp3, stocks_sdp3, controls_sdp3 = StochDynamicProgramming.forward_simulations(modelSDP,
                                                                                                     paramsSDP,
-                                                                                                    aleas_scen,
-                                                                                                    V_sdp3, true )
+                                                                                                    V_sdp3,
+                                                                                                    aleas_scen)
             paramsSDP.infoStructure = "HD"
 
             @fact costs_sdp3[1]>=costs_sdp2[1] --> true
 
-            a,b = StochDynamicProgramming.generate_grid(modelSDP, paramsSDP)
+            a = StochDynamicProgramming.generate_state_grid(modelSDP, paramsSDP)
+            b = StochDynamicProgramming.generate_control_grid(modelSDP, paramsSDP)
 
             x_bounds = modelSDP.xlim
             x_steps = paramsSDP.stateSteps
@@ -225,21 +220,18 @@ facts("SDP algorithm") do
             @fact length(collect(a)) --> (x_bounds[1][2]-x_bounds[1][1]+x_steps[1])*(x_bounds[2][2]-x_bounds[2][1]+x_steps[2])/(x_steps[1]*x_steps[2])
             @fact length(collect(b)) --> (u_bounds[1][2]-u_bounds[1][1]+u_steps[1])*(u_bounds[2][2]-u_bounds[2][1]+u_steps[2])/(u_steps[1]*u_steps[2])
 
-            ind = SDPutils.index_from_variable(x, x_bounds, x_steps)
+            ind = SdpLoops.index_from_variable(x, x_bounds, x_steps)
             @fact get_bellman_value(modelSDP, paramsSDP, V_sdp2) --> V_sdp2[ind...,1]
 
             @fact size(V_sdp) --> (paramsSDP.stateVariablesSizes..., TF)
             @fact V_sdp2[1,1,1] <= V_sdp3[1,1,1] --> true
 
-            @fact size(stocks_sdp) --> (3,1,2)
-            @fact size(controls_sdp) --> (2,1,2)
 
             state_ref = zeros(2)
-            state_ref[1] = stocks_sdp[2,1,1]
-            state_ref[2] = stocks_sdp[2,1,2]
+            state_ref[1] = stocks_sdp2[2,1,1]
+            state_ref[2] = stocks_sdp2[2,1,2]
             w = [4]
 
-            @fact_throws get_control(modelSDP,paramsSDP,V_sdp3, 1, x)
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] >= CONTROL_MIN) --> true
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] <= CONTROL_MAX) --> true
 
@@ -247,8 +239,8 @@ facts("SDP algorithm") do
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] >= CONTROL_MIN) --> true
             @fact (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] <= CONTROL_MAX) --> true
 
-            @fact size(stocks_sdp) --> (3,1,2)
-            @fact size(controls_sdp) --> (2,1,2)
+            @fact size(stocks_sdp2) --> (3,1,2)
+            @fact size(controls_sdp2) --> (2,1,2)
 
         end
 
