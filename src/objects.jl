@@ -47,6 +47,7 @@ type LinearSPModel <: SPModel
     inequalityConstraints::Union{Void, Function}
 
     refTrajectories::Union{Void, Array{Float64, 3}}
+    info::Symbol
 
     IS_SMIP::Bool
 
@@ -79,7 +80,8 @@ type LinearSPModel <: SPModel
         xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, nothing, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr,
+                   nothing, :HD, is_smip)
     end
 end
 

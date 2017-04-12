@@ -44,7 +44,6 @@ function forward_pass!(model::SPModel,
     costs, stockTrajectories,_,callsolver_forward = forward_simulations(model,
                         param,
                         problems_fp,
-                        V,
                         noise_scenarios,
                         acceleration=param.IS_ACCELERATED)
 
@@ -86,7 +85,6 @@ scenario according to the current value functions.
 function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
-                            V,
                             xi::Array{Float64};
                             acceleration=false)
 
@@ -130,9 +128,13 @@ function forward_simulations(model::SPModel,
                 status, nextstep = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t, xp)
             else
-                status, nextstep = solve_one_step_one_alea(model, param,
+                if model.info == :HD
+                    status, nextstep = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t)
-                status, nextstep = solve_dh(model, param, t, state_t, V)
+                else
+                    status, nextstep = solve_dh(model, param, t, state_t,
+                                                solverProblems[t])
+                end
             end
 
             # Check if the problem is effectively solved:
@@ -207,6 +209,15 @@ function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
     @constraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
 end
 
+function add_cut_dh!(model::SPModel, problem::JuMP.Model,
+                     t::Int64, beta::Float64, lambda::Vector{Float64})
+    alpha = getvariable(problem, :alpha)
+    xf = getvariable(problem, :xf)
+
+    for j=1:length(model.noises[t].proba)
+        @constraint(problem, beta + dot(lambda, xf[:, j]) <= alpha[j])
+    end
+end
 
 """
 Make a backward pass of the algorithm
@@ -247,62 +258,96 @@ function backward_pass!(model::SPModel,
     state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
-        costs = zeros(Float64, law[t].supportSize)
 
         for k = 1:nb_forward
 
-            subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
             # We collect current state:
             state_t = collect(stockTrajectories[t, k, :])
             # We will store probabilities in a temporary array.
             # It is initialized at 0. If all problem are infeasible for
             # current timestep, then proba remains equal to 0 and not cut is added.
-            proba = zeros(law[t].supportSize)
-
-            # We iterate other the possible realization of noise:
-            for w in 1:law[t].supportSize
-
-                # We get current noise:
-                alea_t  = collect(law[t].support[:, w])
-
-                callsolver += 1
-
-                # We solve LP problem with current noise and position:
-                solved, nextstep = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t],
-                                                           t, state_t, alea_t,
-                                                           relaxation=model.IS_SMIP)
-
-                if solved
-                    # We catch the subgradient λ:
-                    subgradient_array[:, w] = nextstep.sub_gradient
-                    # and the current cost:
-                    costs[w] = nextstep.cost
-                    # and as problem is solved we store current proba in array:
-                    proba[w] = law[t].proba[w]
-                end
-            end
-
-            # We add cuts only if one solution was being found:
-            if sum(proba) > 0
-                # Scale probability (useful when some problems where infeasible):
-                proba /= sum(proba)
-
-                # Compute expectation of subgradient λ:
-                subgradient = vec(sum(proba' .* subgradient_array, 2))
-                # ... expectation of cost:
-                costs_npass = dot(proba, costs)
-                # ... and expectation of slope β:
-                beta = costs_npass - dot(subgradient, state_t)
-
-                # Add cut to polyhedral function and JuMP model:
-                add_cut!(model, t, V[t], beta, subgradient)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
-                end
+            if model.info == :HD
+                compute_cuts_hd(model, param, V, solverProblems, t, state_t)
+            else
+                compute_cuts_dh(model, param, V, solverProblems, t, state_t)
             end
 
         end
     end
     return callsolver
+end
+
+
+function compute_cuts_hd(model, param, V, solverProblems, t, state_t)
+    costs = zeros(Float64, model.noises[t].supportSize)
+    subgradient_array = zeros(Float64, model.dimStates, model.noises[t].supportSize)
+    proba = zeros(model.noises[t].supportSize)
+
+    # We iterate other the possible realization of noise:
+    for w in 1:model.noises[t].supportSize
+
+        # We get current noise:
+        alea_t  = collect(model.noises[t].support[:, w])
+
+
+        # We solve LP problem with current noise and position:
+        solved, nextstep = solve_one_step_one_alea(model, param,
+                                                    solverProblems[t],
+                                                    t, state_t, alea_t,
+                                                    relaxation=model.IS_SMIP)
+
+        if solved
+            # We catch the subgradient λ:
+            subgradient_array[:, w] = nextstep.sub_gradient
+            # and the current cost:
+            costs[w] = nextstep.cost
+            # and as problem is solved we store current proba in array:
+            proba[w] = model.noises[t].proba[w]
+        end
+    end
+
+    # We add cuts only if one solution was being found:
+    if sum(proba) > 0
+        # Scale probability (useful when some problems where infeasible):
+        proba /= sum(proba)
+
+        # Compute expectation of subgradient λ:
+        subgradient = vec(sum(proba' .* subgradient_array, 2))
+        # ... expectation of cost:
+        costs_npass = dot(proba, costs)
+        # ... and expectation of slope β:
+        beta = costs_npass - dot(subgradient, state_t)
+
+        # Add cut to polyhedral function and JuMP model:
+        add_cut!(model, t, V[t], beta, subgradient)
+        if t > 1
+            add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+        end
+    end
+end
+
+function compute_cuts_dh(model, param, V, solverProblems, t, state_t)
+
+
+    # We solve LP problem with current noise and position:
+    solved, nextstep = solve_dh(model, param,
+                                t, state_t,
+                                solverProblems[t])
+
+    # We add cuts only if one solution was being found:
+    # Scale probability (useful when some problems where infeasible):
+    if solved
+        # Compute expectation of subgradient λ:
+        subgradient = nextstep.sub_gradient
+        # ... expectation of cost:
+        costs_npass = nextstep.cost
+        # ... and expectation of slope β:
+        beta = costs_npass - dot(subgradient, state_t)
+
+        # Add cut to polyhedral function and JuMP model:
+        add_cut!(model, t, V[t], beta, subgradient)
+        if t > 1
+            add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient)
+        end
+    end
 end
