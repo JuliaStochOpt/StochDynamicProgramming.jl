@@ -117,8 +117,8 @@ function build_sdpmodel_from_spmodel(model::SPModel)
     elseif isa(model,StochDynProgModel)
         SDPmodel = model
     else
-        error("cannot build StochDynProgModel from current SPmodel. You need to implement
-        a new StochDynProgModel constructor.")
+        error("cannot build StochDynProgModel from current SPmodel. You need to
+        implement a new StochDynProgModel constructor.")
     end
 
     return SDPmodel
@@ -189,7 +189,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
 
     law = model.noises
 
-    u_space_builder = model.build_search_space
+    build_Ux = model.build_search_space
 
     #Compute cartesian product spaces
     product_states = generate_state_grid(model, param)
@@ -205,7 +205,8 @@ function compute_value_functions_grid(model::StochDynProgModel,
     end
 
     if param.expectation_computation!="MonteCarlo" && param.expectation_computation!="Exact"
-        warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'. Defaulted to 'exact'")
+        warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'.
+                Defaulted to 'exact'")
         param.expectation_computation="Exact"
     end
 
@@ -252,7 +253,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
                                             u_bounds, x_bounds, x_steps, x_dim,
                                             product_controls, dynamics,
                                             constraints, cost, Vitp, t,
-                                            x, u_space_builder)[1]
+                                            x, build_Ux)[1]
         end
 
     end
@@ -282,7 +283,8 @@ end
 
 
 """
-Get the optimal control at time t knowing the state of the system in the decision hazard case
+Get the optimal control at time t knowing the state of the system in the decision
+hazard case
 
 # Arguments
 * `model::SPmodel`:
@@ -305,46 +307,45 @@ Get the optimal control at time t knowing the state of the system in the decisio
 function get_control(model::SPModel,param::SDPparameters,
                      V, t::Int64, x::Array, w::Union{Void,Array} = nothing)
 
+    sdp_model = build_sdpmodel_from_spmodel(model)
+    law = sdp_model.noises
+
     if typeof(w)==Void
         get_u = SdpLoops.sdp_dh_get_u
+        if (param.expectation_computation=="MonteCarlo")
+            sampling_size = param.monteCarloSize
+            samples = [sampling(law,t) for i in 1:sampling_size]
+            probas = (1/sampling_size)
+        else
+            sampling_size = law[t].supportSize
+            samples = law[t].support
+            probas = law[t].proba
+        end
     else
         get_u = SdpLoops.sdp_hd_get_u
+        sampling_size = 1
+        samples = w
+        probas = [1]
     end
 
-    SDPmodel = build_sdpmodel_from_spmodel(model)
-
-    product_controls = generate_control_grid(SDPmodel, param, t, x)
-
-    u_bounds = SDPmodel.ulim
-    x_bounds = SDPmodel.xlim
+    u_bounds = sdp_model.ulim
+    x_bounds = sdp_model.xlim
     x_steps = param.stateSteps
-    x_dim = SDPmodel.dimStates
+    x_dim = sdp_model.dimStates
 
-    dynamics = SDPmodel.dynamics
-    constraints = SDPmodel.constraints
-    cost = SDPmodel.costFunctions
+    dynamics = sdp_model.dynamics
+    constraints = sdp_model.constraints
+    cost = sdp_model.costFunctions
 
-    law = SDPmodel.noises
+    build_Ux = sdp_model.build_search_space
 
-    if (param.expectation_computation=="MonteCarlo")
-        sampling_size = param.monteCarloSize
-        samples = [sampling(law,t) for i in 1:sampling_size]
-        probas = (1/sampling_size)
-    else
-        sampling_size = law[t].supportSize
-        samples = law[t].support
-        probas = law[t].proba
-    end
-
-    u_space_builder = SDPmodel.build_search_space
-
-    product_controls = generate_control_grid(SDPmodel, param)
+    product_controls = generate_control_grid(sdp_model, param)
 
     Vitp = value_function_interpolation(x_dim, V, t+1)
 
     best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
                         x_steps, x_dim, product_controls, dynamics,
-                        constraints, cost, Vitp, t, x, w, u_space_builder)[1]
+                        constraints, cost, Vitp, t, x, w, build_Ux)[1]
 
     return best_control
 end
@@ -425,7 +426,7 @@ function forward_simulations(model::SPModel,
         get_u = SdpLoops.sdp_dh_get_u
     end
 
-    u_space_builder = SDPmodel.build_search_space
+    build_Ux = SDPmodel.build_search_space
 
     for t = 1:(TF-1)
 
@@ -451,7 +452,7 @@ function forward_simulations(model::SPModel,
             try
                 best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
                                     x_steps, x_dim, product_controls, dynamics,
-                                    constraints, cost, Vitp, t, x, current_ws[s,:], u_space_builder)[1]
+                                    constraints, cost, Vitp, t, x, current_ws[s,:], build_Ux)[1]
             catch
                 println(x, " ", current_ws[s,:])
                 error("No u admissible")
