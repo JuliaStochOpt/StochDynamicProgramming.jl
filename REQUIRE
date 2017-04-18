@@ -4,3 +4,5 @@ Distributions
 ProgressMeter
 Interpolations
 Iterators
+CutPruners
+StochasticDualDynamicProgramming

@@ -7,19 +7,17 @@
 #############################################################################
 
 """
-Make a forward pass of the algorithm
+Run a forward pass of the algorithm with `sddp` object
+
+$(SIGNATURES)
 
 # Description
 Simulate scenarios of noise and compute optimal trajectories on those
 scenarios, with associated costs.
 
 # Arguments
-* `model::SPmodel`: the stochastic problem we want to optimize
-* `param::SDDPparameters`: the parameters of the SDDP algorithm
-* `V::Vector{PolyhedralFunction}`:
-    Linear model used to approximate each value function
-* `problems::Vector{JuMP.Model}`:
-    Current linear problems
+* `sddp::SDDPInterface`:
+    SDDP interface object
 
 # Returns
 * `costs::Array{float,1}`:
@@ -27,33 +25,37 @@ scenarios, with associated costs.
 * `stockTrajectories::Array{float}`:
     the simulated stock trajectories. stocks(t,k,:) is the stock for
     scenario k at time t.
-* `callsolver_forward::Int64`:
-    number of call to solver
+
 """
-function forward_pass!(model::SPModel,
-                      param::SDDPparameters,
-                      V::Vector{PolyhedralFunction},
-                      problems::Vector{JuMP.Model})
+function forward_pass!(sddp::SDDPInterface)
+    model = sddp.spmodel
+    param = sddp.params
+    solverProblems = sddp.solverinterface
+    V = sddp.bellmanfunctions
+    problems = sddp.solverinterface
     # Draw a set of scenarios according to the probability
     # law specified in model.noises:
     noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
     # If acceleration is ON, need to build a new array of problem to
     # avoid side effect:
-    problems_fp = (param.IS_ACCELERATED)? hotstart_SDDP(model, param, V):problems
-    costs, stockTrajectories,_,callsolver_forward = forward_simulations(model,
+    problems_fp = isregularized(sddp) ? hotstart_SDDP(model, param, V) : problems
+    costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
                         noise_scenarios,
-                        acceleration=param.IS_ACCELERATED)
+                        regularizer=sddp.regularizer)
 
-    model.refTrajectories = stockTrajectories
-    return costs, stockTrajectories, callsolver_forward
+    sddp.stats.nsolved += callsolver_forward
+    sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
+    return costs, stockTrajectories
 end
 
 
 """
-Make a forward pass of the algorithm
+Simulate a forward pass of the algorithm
+
+$(SIGNATURES)
 
 # Description
 Simulate a scenario of noise and compute an optimal trajectory on this
@@ -86,9 +88,10 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64};
-                            acceleration=false)
+                            regularizer=Nullable{SDDPRegularization}())
 
     callsolver::Int = 0
+    solvertime = Float64[]
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
@@ -123,26 +126,27 @@ function forward_simulations(model::SPModel,
             callsolver += 1
 
             # Solve optimization problem corresponding to current position:
-            if acceleration &&  ~isa(model.refTrajectories, Void)
-                xp = collect(model.refTrajectories[t+1, k, :])
-                status, nextstep = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t, xp)
+            if !isnull(regularizer) && !isa(get(regularizer).incumbents, Void)
+                reg = get(regularizer)
+                xp = getincumbent(reg, t, k)
+                sol, ts = regularize(model, param, reg,
+                                                  solverProblems[t], t, state_t, alea_t, xp)
             else
-                status, nextstep = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t)
+                sol, ts = solve_one_step_one_alea(model, param,
+                                                  solverProblems[t], t, state_t, alea_t)
             end
+            push!(solvertime, ts)
 
             # Check if the problem is effectively solved:
-            if status
+            if sol.status
                 # Get the next position:
-                stockTrajectories[t+1, k, :] = nextstep.next_state
+                stockTrajectories[t+1, k, :] = sol.xf
                 # the optimal control just computed:
-                opt_control = nextstep.optimal_control
-                controls[t, k, :] = opt_control
+                controls[t, k, :] = sol.uopt
                 # and the current cost:
-                costs[k] += nextstep.cost - nextstep.cost_to_go
+                costs[k] += sol.objval - sol.θ
                 if t==T-1
-                    costs[k] += nextstep.cost_to_go
+                    costs[k] += sol.θ
                 end
             else
                 # if problem is not properly solved, next position if equal
@@ -153,13 +157,15 @@ function forward_simulations(model::SPModel,
             end
         end
     end
-    return costs, stockTrajectories, controls, callsolver
+    return costs, stockTrajectories, controls, callsolver, solvertime
 end
 
 
 
 """
 Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
+
+$(SIGNATURES)
 
 # Arguments
 * `model::SPModel`: Store the problem definition
@@ -172,13 +178,18 @@ Add to polyhedral function a cut with shape Vt >= beta + <lambda,.>
   subgradient of the cut to add
 """
 function add_cut!(model::SPModel,
-    t::Int64, Vt::PolyhedralFunction,
-    beta::Float64, lambda::Vector{Float64})
-    Vt.lambdas = vcat(Vt.lambdas, reshape(lambda, 1, model.dimStates))
+                  t::Int64, Vt::PolyhedralFunction,
+                  beta::Float64, lambda::Vector{Float64})
+    Vt.lambdas = vcat(Vt.lambdas, lambda')
     Vt.betas = vcat(Vt.betas, beta)
+    Vt.hashcuts = vcat(Vt.hashcuts, hash(lambda))
     Vt.numCuts += 1
+    Vt.newcuts += 1
 end
 
+function isinside(Vt::PolyhedralFunction, lambda::Vector{Float64})
+    hash(lambda) in Vt.hashcuts
+end
 
 """
 Add a cut to the JuMP linear problem.
@@ -198,15 +209,15 @@ Add a cut to the JuMP linear problem.
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
                             t::Int64, beta::Float64, lambda::Vector{Float64})
     alpha = getvariable(problem, :alpha)
-    x = getvariable(problem, :x)
-    u = getvariable(problem, :u)
-    w = getvariable(problem, :w)
-    @constraint(problem, beta + dot(lambda, model.dynamics(t, x, u, w)) <= alpha)
+    xf = getvariable(problem, :xf)
+    @constraint(problem, beta + dot(lambda, xf) <= alpha)
 end
 
 
 """
-Make a backward pass of the algorithm
+Run a SDDP backward pass on `sddp`.
+
+$(SIGNATURES)
 
 # Description
 For t:T-1 -> 0, compute a valid cut of the Bellman function
@@ -214,28 +225,25 @@ Vt at the state given by stockTrajectories and add them to
 the current estimation of Vt.
 
 # Arguments
-* `model::SPmodel`:
-    the stochastic problem we want to optimize
-* `param::SDDPparameters`:
-    the parameters of the SDDP algorithm
-* `V::Array{PolyhedralFunction}`:
-    the current estimation of Bellman's functions
-* `solverProblems::Array{JuMP.Model}`:
-    Linear model used to approximate each value function
+* `sddp::SDDPInterface`:
+    SDDP instance
 * `stockTrajectories::Array{Float64,3}`:
     stockTrajectories[t,k,:] is the vector of stock where the cut is computed
     for scenario k and time t.
 * `law::Array{NoiseLaw}`:
     Conditionnal distributions of perturbation, for each timestep
 """
-function backward_pass!(model::SPModel,
-                        param::SDDPparameters,
-                        V::Vector{PolyhedralFunction},
-                        solverProblems::Vector{JuMP.Model},
+function backward_pass!(sddp::SDDPInterface,
                         stockTrajectories::Array{Float64, 3},
                         law)
 
+    model = sddp.spmodel
+    param = sddp.params
+    solverProblems = sddp.solverinterface
+    V = sddp.bellmanfunctions
+
     callsolver::Int = 0
+    solvertime = Float64[]
 
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
@@ -250,7 +258,7 @@ function backward_pass!(model::SPModel,
 
             subgradient_array = zeros(Float64, model.dimStates, law[t].supportSize)
             # We collect current state:
-            state_t = collect(stockTrajectories[t, k, :])
+            state_t = stockTrajectories[t, k, :]
             # We will store probabilities in a temporary array.
             # It is initialized at 0. If all problem are infeasible for
             # current timestep, then proba remains equal to 0 and not cut is added.
@@ -265,16 +273,17 @@ function backward_pass!(model::SPModel,
                 callsolver += 1
 
                 # We solve LP problem with current noise and position:
-                solved, nextstep = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t],
-                                                           t, state_t, alea_t,
-                                                           relaxation=model.IS_SMIP)
+                sol, ts = solve_one_step_one_alea(model, param,
+                                                  solverProblems[t],
+                                                  t, state_t, alea_t,
+                                                  relaxation=model.IS_SMIP)
+                push!(solvertime, ts)
 
-                if solved
+                if sol.status
                     # We catch the subgradient λ:
-                    subgradient_array[:, w] = nextstep.sub_gradient
+                    subgradient_array[:, w] = sol.ρe
                     # and the current cost:
-                    costs[w] = nextstep.cost
+                    costs[w] = sol.objval
                     # and as problem is solved we store current proba in array:
                     proba[w] = law[t].proba[w]
                 end
@@ -293,13 +302,19 @@ function backward_pass!(model::SPModel,
                 beta = costs_npass - dot(subgradient, state_t)
 
                 # Add cut to polyhedral function and JuMP model:
-                add_cut!(model, t, V[t], beta, subgradient)
-                if t > 1
-                    add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                if ~isinside(V[t], subgradient)
+                    sddp.stats.nocuts += 1
+                    add_cut!(model, t, V[t], beta, subgradient)
+                    if t > 1
+                        add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                    end
                 end
             end
 
         end
     end
-    return callsolver
+
+    # update stats
+    sddp.stats.nsolved += callsolver
+    sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
 end
