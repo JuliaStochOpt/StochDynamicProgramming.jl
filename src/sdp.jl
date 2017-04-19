@@ -28,7 +28,7 @@ Compute interpolation of the value function at time t
     the interpolated value function (working as an array with float indexes)
 
 """
-function value_function_interpolation( dim_states, V, time::Int)
+function value_function_interpolation( dim_states::Int, V::Union{SharedArray, Array}, time::Int)
     return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()), OnGrid())
 end
 
@@ -47,7 +47,7 @@ Compute the cartesian products of discretized state spaces
     the cartesian product iterators for states
 
 """
-function generate_state_grid(model::SPModel, param::SDPparameters, w = nothing)
+function generate_state_grid(model::SPModel, param::SDPparameters, w::Nullable{Array} = Nullable{Array}() )
     product_states = Base.product([model.xlim[i][1]:param.stateSteps[i]:model.xlim[i][2] for i in 1:model.dimStates]...)
 
     return collect(product_states)
@@ -72,14 +72,15 @@ Compute the cartesian products of discretized control spaces or more complex spa
 
 """
 function generate_control_grid(model::SPModel, param::SDPparameters,
-                                t::Union{Int, Void} = nothing,
-                                x::Union{Array, Void} = nothing,
-                                w = nothing)
+                                t::Nullable{Int} = Nullable{Int}(),
+                                x::Nullable{Array} = Nullable{Array}(),
+                                w::Nullable{Array} = Nullable{Array}())
 
-    if (typeof(model.build_search_space) != Void)&&(typeof(t)!=Void)&&(typeof(x)!=Void)
-        product_controls = model.build_search_space(t, x, w)
-    else
+    if (isnull(model.build_search_space))||(isnull(t))||(isnull(x))
         product_controls = Base.product([model.ulim[i][1]:param.controlSteps[i]:model.ulim[i][2] for i in 1:model.dimControls]...)
+    else
+        product_controls = model.build_search_space(t, x, w)
+
     end
     return collect(product_controls)
 end
@@ -275,7 +276,8 @@ Get the optimal value of the problem from the optimal Bellman Function
 * `V_x0::Float64`:
 
 """
-function get_bellman_value(model::SPModel, param::SDPparameters, V)
+function get_bellman_value(model::SPModel, param::SDPparameters,
+                            V::Union{SharedArray, Array})
     ind_x0 = SdpLoops.real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
     Vi = value_function_interpolation(model.dimStates, V, 1)
     return Vi[ind_x0...,1]
@@ -305,49 +307,36 @@ hazard case
 
 """
 function get_control(model::SPModel,param::SDPparameters,
-                     V, t::Int64, x::Array, w::Union{Void,Array} = nothing)
+                     V, t::Int64, x::Array, w::Union{Void, Array} = nothing)
 
     sdp_model = build_sdpmodel_from_spmodel(model)
-    law = sdp_model.noises
 
-    if typeof(w)==Void
+    args = []
+    optional_args = []
+
+    if w==nothing
+        law = sdp_model.noises
         get_u = SdpLoops.sdp_dh_get_u
         if (param.expectation_computation=="MonteCarlo")
             sampling_size = param.monteCarloSize
-            samples = [sampling(law,t) for i in 1:sampling_size]
-            probas = (1/sampling_size)
+            push!(args,sampling_size,
+                    [sampling(law,t) for i in 1:sampling_size],
+                    (1./sampling_size)*ones(sampling_size))
         else
-            sampling_size = law[t].supportSize
-            samples = law[t].support
-            probas = law[t].proba
+            push!(args,law[t].supportSize, law[t].support, law[t].proba)
         end
+        push!(optional_args, sdp_model.build_search_space)
     else
         get_u = SdpLoops.sdp_hd_get_u
-        sampling_size = 1
-        samples = w
-        probas = [1]
+        push!(optional_args, w, sdp_model.build_search_space)
     end
 
-    u_bounds = sdp_model.ulim
-    x_bounds = sdp_model.xlim
-    x_steps = param.stateSteps
-    x_dim = sdp_model.dimStates
+    push!(args, sdp_model.ulim, sdp_model.xlim, param.stateSteps,
+            sdp_model.dimStates, generate_control_grid(sdp_model, param),
+            sdp_model.dynamics, sdp_model.constraints, sdp_model.costFunctions,
+            value_function_interpolation(sdp_model.dimStates, V, t+1), t, x)
 
-    dynamics = sdp_model.dynamics
-    constraints = sdp_model.constraints
-    cost = sdp_model.costFunctions
-
-    build_Ux = sdp_model.build_search_space
-
-    product_controls = generate_control_grid(sdp_model, param)
-
-    Vitp = value_function_interpolation(x_dim, V, t+1)
-
-    best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
-                        x_steps, x_dim, product_controls, dynamics,
-                        constraints, cost, Vitp, t, x, w, build_Ux)[1]
-
-    return best_control
+    return get_u(args..., optional_args...)[1]
 end
 
 
@@ -378,100 +367,91 @@ Simulation of optimal control given an initial state and multiple scenarios
     the controls applied to the system at each time step for each scenario
 """
 function forward_simulations(model::SPModel,
-                                        param::SDPparameters,
-                                        V,
-                                        scenarios::Array,
-                                        display=true::Bool)
+                            param::SDPparameters,
+                            V::Union{SharedArray, Array},
+                            scenarios::Array,
+                            display=true::Bool)
 
     SDPmodel = build_sdpmodel_from_spmodel(model)
 
     nb_scenarios = size(scenarios,2)
 
-    # if VERSION.minor < 5
-    #     scenario = reshape(scenario, size(scenario, 1), size(scenario, 3))
-    # end
     TF = SDPmodel.stageNumber
     law = SDPmodel.noises
-    u_bounds = SDPmodel.ulim
-    x_bounds = SDPmodel.xlim
-    x_steps = param.stateSteps
     x_dim = SDPmodel.dimStates
-
-    #Compute cartesian product spaces
     product_states = generate_state_grid(SDPmodel, param)
-    product_controls = generate_control_grid(SDPmodel, param)
-
     costs = SharedArray{Float64}(zeros(nb_scenarios))
     states = SharedArray{Float64}(zeros(TF,nb_scenarios,x_dim))
     controls = SharedArray{Float64}(zeros(TF-1,nb_scenarios,SDPmodel.dimControls))
 
     dynamics = SDPmodel.dynamics
-    constraints = SDPmodel.constraints
     cost = SDPmodel.costFunctions
 
-    X0 = SDPmodel.initialState
+    args = [SDPmodel.ulim, SDPmodel.xlim, param.stateSteps, x_dim,
+    generate_control_grid(SDPmodel, param), dynamics, SDPmodel.constraints,
+    cost]
 
+    X0 = SDPmodel.initialState
     for s in 1:nb_scenarios
         states[1, s, :] = X0
     end
 
     best_control = tuple()
 
-    if param.infoStructure == "DH"
+    info = param.infoStructure
+
+    if  info == "DH"
         get_u = SdpLoops.sdp_dh_get_u
-    elseif param.infoStructure == "HD"
+    elseif info == "HD"
         get_u = SdpLoops.sdp_hd_get_u
     else
         warn("Information structure should be DH or HD. Defaulted to DH")
         get_u = SdpLoops.sdp_dh_get_u
     end
 
-    build_Ux = SDPmodel.build_search_space
-
-    for t = 1:(TF-1)
-
-        if (param.expectation_computation=="MonteCarlo")
-            sampling_size = param.monteCarloSize
-            samples = [sampling(law,t) for i in 1:sampling_size]
-            probas = (1/sampling_size)
-        else
-            sampling_size = law[t].supportSize
-            samples = law[t].support
-            probas = law[t].proba
-        end
+    build_Ux = Nullable{Function}(SDPmodel.build_search_space)
 
 
-        Vitp = value_function_interpolation(x_dim, V, t+1)
+    @sync @parallel for s in 1:nb_scenarios
 
-        current_ws = scenarios[t,:,:]
+        current_scen = scenarios[:,s,:]
 
-        for s in 1:nb_scenarios
+        for t = 1:(TF-1)
+
+            args_w = []
 
             x = states[t,s,:]
+            w = current_scen[t,:]
+            args_t = [value_function_interpolation(x_dim, V, t+1), t, x]
 
-            try
-                best_control = get_u(sampling_size, samples, probas, u_bounds, x_bounds,
-                                    x_steps, x_dim, product_controls, dynamics,
-                                    constraints, cost, Vitp, t, x, current_ws[s,:], build_Ux)[1]
-            catch
-                println(x, " ", current_ws[s,:])
-                error("No u admissible")
+            if info == "DH"
+                if (param.expectation_computation=="MonteCarlo")
+                    sampling_size = param.monteCarloSize
+                    push!(args_w,sampling_size,
+                            [sampling(law,t) for i in 1:sampling_size],
+                            (1./sampling_size)*ones(sampling_size))
+                else
+                    push!(args_w,law[t].supportSize, law[t].support, law[t].proba)
+                end
+            else
+                push!(args_t, w)
             end
+
+            best_control = get_u(args_w..., args..., args_t..., build_Ux)[1]
 
             if best_control == tuple()
                 error("No u admissible")
             else
                 controls[t,s,:] = [best_control...]
-                states[t+1,s,:] = dynamics(t, x, best_control, current_ws[s,:])
-                costs[s] = costs[s] + cost(t, x, best_control, current_ws[s,:])
+                states[t+1,s,:] = dynamics(t, x, best_control, w)
+                costs[s] = costs[s] + cost(t, x, best_control, w)
             end
         end
 
     end
 
     for s in 1:nb_scenarios
-        x = states[TF,s,:]
-        costs[s] = costs[s] + SDPmodel.finalCostFunction(x)
+        costs[s] = costs[s] + SDPmodel.finalCostFunction(states[TF,s,:])
     end
 
     return costs, states, controls

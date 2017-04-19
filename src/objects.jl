@@ -113,7 +113,7 @@ type StochDynProgModel <: SPModel
     constraints::Function
     noises::Vector{NoiseLaw}
 
-    build_search_space::Union{Void, Function}
+    build_search_space::Nullable{Function}
 
     function StochDynProgModel(model::LinearSPModel, final, cons)
         if isa(model.costFunctions, Function)
@@ -134,7 +134,7 @@ type StochDynProgModel <: SPModel
     end
 
     function StochDynProgModel(TF, x_bounds, u_bounds, x0, cost_t,
-                                finalCostFunction, dynamic, constraints, aleas, search_space_builder = nothing)
+                                finalCostFunction, dynamic, constraints, aleas, search_space_builder = Nullable{Function}())
         return new(TF, length(u_bounds), length(x_bounds), length(aleas[1].support[:, 1]),
                     x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
                     constraints, aleas, search_space_builder)

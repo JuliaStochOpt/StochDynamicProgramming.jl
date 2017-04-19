@@ -21,7 +21,7 @@ value functions
     the indexes of the variable
 
 """
-function index_from_variable(variable, bounds::Array, variable_steps::Array)
+function index_from_variable(variable::Union{Array,Tuple}, bounds::Array, variable_steps::Array)
     return tuple([ 1 + floor(Int64,(1e-10+( variable[i] - bounds[i][1] )/ variable_steps[i] )) for i in 1:length(variable)]...)
 end
 
@@ -44,7 +44,7 @@ value function
     the indexes of the variable
 
 """
-function real_index_from_variable(variable, bounds::Array, variable_steps::Array)
+function real_index_from_variable(variable::Union{Array,Tuple}, bounds::Array, variable_steps::Array)
     return tuple([1 + ( variable[i] - bounds[i][1] )/variable_steps[i] for i in 1:length(variable)]...)
 end
 
@@ -64,7 +64,7 @@ Check if next state x_{t+1} satisfies state bounds constraints
     the indexes of the variable
 
 """
-function is_next_state_feasible(next_state, x_dim, x_bounds)
+function is_next_state_feasible(next_state::Union{Array,Tuple}, x_dim::Int, x_bounds::Array)
 
     next_state_box_const = true
 
@@ -120,16 +120,19 @@ hazard setting
     the optimal control
 
 """
-function sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
-                                x_bounds, x_steps, x_dim, product_controls,
-                                dynamics, constraints, cost, Vitp, t, x, build_Ux = nothing)
+function sdp_u_w_loop(sampling_size::Int, samples::Array,
+                        probas::Array, u_bounds::Array, x_bounds::Array,
+                        x_steps::Array, x_dim::Int, product_controls::Array,
+                        dynamics::Function, constraints::Function, cost::Function,
+                        Vitp, t::Int, x::Union{Array,Tuple},
+                        build_Ux::Nullable{Function} = Nullable{Function}())
     expected_V = Inf
     optimal_u = tuple()
     #Loop over controls
-    if typeof(build_Ux) != Void
-        controls_search_space = build_Ux(t,x)
-    else
+    if isnull(build_Ux)
         controls_search_space = product_controls
+    else
+        controls_search_space = build_Ux(t,x)
     end
 
     for u in controls_search_space
@@ -215,14 +218,9 @@ at state x at realization w in a decision hazard setting
     the optimal control
 
 """
-function sdp_dh_get_u(sampling_size, samples, probas, u_bounds,
-                        x_bounds, x_steps, x_dim, product_controls,
-                        dynamics, constraints, cost, Vitp, t, x, w,
-                        build_Ux = nothing)
+function sdp_dh_get_u(args...)
 
-    return (sdp_u_w_loop(sampling_size, samples, probas, u_bounds,
-                        x_bounds, x_steps, x_dim, product_controls,
-                        dynamics, constraints, cost, Vitp, t, x, build_Ux)[2],)
+    return (sdp_u_w_loop(args...)[2],)
 
 end
 
@@ -270,10 +268,12 @@ decision setting
     the value function V(x)
 
 """
-function sdp_w_u_loop(sampling_size, samples, probas, u_bounds,
-                      x_bounds, x_steps, x_dim, product_controls,
-                      dynamics, constraints, cost, Vitp, t, x,
-                      build_Ux = nothing)
+function sdp_w_u_loop(sampling_size::Int, samples::Array,
+                        probas::Array, u_bounds::Array, x_bounds::Array,
+                        x_steps::Array, x_dim::Int, product_controls::Array,
+                        dynamics::Function, constraints::Function, cost::Function,
+                        Vitp, t::Int, x::Union{Array,Tuple},
+                        build_Ux::Nullable{Function} = Nullable{Function}())
 
     expected_V = 0.
     count_admissible_w = 0.
@@ -284,8 +284,7 @@ function sdp_w_u_loop(sampling_size, samples, probas, u_bounds,
         w_sample = samples[:, w]
         proba = probas[w]
 
-        uopt, best_V_x_w, admissible_u_w_count = sdp_hd_get_u(sampling_size, samples,
-                                                            probas, u_bounds,
+        uopt, best_V_x_w, admissible_u_w_count = sdp_hd_get_u(u_bounds,
                                                             x_bounds, x_steps,
                                                             x_dim,
                                                             product_controls,
@@ -310,12 +309,6 @@ Computes the optimal control and associated cost at time t evaluated
 at state x at realization w in a hazard decision setting
 
 # Parameters
-* `sampling_size::int`:
-    the size of the uncertainty space
-* `samples::Array`:
-    the uncertainties realizations
-* `probas::Array`:
-    the probabilities of all the uncertainties realizations
 * `u_bounds::Array`:
     the control variables bounds
 * `x_bounds::Array`:
@@ -354,15 +347,16 @@ at state x at realization w in a hazard decision setting
 * `admissible_u_w_count::Int`:
     the number of admissible couples (u,w)
 """
-function sdp_hd_get_u(sampling_size, samples, probas, u_bounds,
-                    x_bounds, x_steps, x_dim, product_controls,
-                    dynamics, constraints, cost, Vitp, t, x, w,
-                    build_Ux = nothing)
+function sdp_hd_get_u(u_bounds::Array, x_bounds::Array,
+                        x_steps::Array, x_dim::Int, product_controls::Array,
+                        dynamics::Function, constraints::Function, cost::Function,
+                        Vitp, t::Int, x::Union{Array,Tuple}, w::Union{Array,Tuple},
+                        build_Ux::Nullable{Function} = Nullable{Function}())
 
-    if typeof(build_Ux) == Function
-        controls_search_space = build_Ux(t,x,w)
-    else
+    if isnull(build_Ux)
         controls_search_space = product_controls
+    else
+        controls_search_space = get(build_Ux)(t,x,w)
     end
 
     best_V_x_w = Inf
