@@ -1,4 +1,4 @@
-#  Copyright 2014, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2017, V.Leclere, H.Gerard, F.Pacaud, T.Rigaut
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -73,35 +73,36 @@ function solve_one_step_one_alea(model,
         solved = (status == :Optimal)
     end
 
+    solvetime = try getsolvetime(m) catch 0 end
+
     if solved
         optimalControl = getvalue(u)
         # Return object storing results:
-        λ = (~model.IS_SMIP || relaxation)? Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]:nothing
-
-        result = NextStep(
+        result = NLDSSolution(
+                          solved,
+                          getobjectivevalue(m),
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
-                          λ,
-                          getobjectivevalue(m),
+                          getdual(m.ext[:cons]),
                           getvalue(alpha))
     else
         # If no solution is found, then return nothing
         result = nothing
     end
 
-    return solved, result
+    return result, solvetime
 end
 
 # Solve local problem with a quadratic penalization:
-function solve_one_step_one_alea(model, param, m::JuMP.Model, t::Int64,
-                                 xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
+function regularize(model, param,
+                    regularizer::AbstractRegularization,
+                    m::JuMP.Model,
+                    t::Int64,
+                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
     # store current objective:
     pobj = m.obj
     xf = getvariable(m, :xf)
-    # copy JuMP model to avoid side effect:
-    rho = param.acceleration[:rho]
-    # build quadratic penalty term:
-    qexp = QuadExpr(rho*dot(xf - xp, xf - xp))
+    qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
     res = solve_one_step_one_alea(model, param, m, t, xt, xi)
@@ -119,7 +120,7 @@ end
 
 """Solve original MILP problem."""
 function solve_mip!(m, param)
-    setsolver(m, param.MIPSOLVER)
+    setsolver(m, get(param.MIPSOLVER))
     status = solve(m, relaxation=false)
     return status == :Optimal
 end

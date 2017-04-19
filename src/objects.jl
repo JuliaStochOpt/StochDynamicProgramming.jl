@@ -1,4 +1,4 @@
-#  Copyright 2014, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2017, V.Leclere, H.Gerard, F.Pacaud, T.Rigaut
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -6,7 +6,6 @@
 # Define all types used in this module.
 #############################################################################
 
-include("noises.jl")
 
 abstract SPModel
 
@@ -17,10 +16,19 @@ type PolyhedralFunction
     lambdas::Array{Float64,2} #lambdas[k,:] is the subgradient
     # number of cuts:
     numCuts::Int64
+    hashcuts::Vector{UInt64}
+    newcuts::Int
 end
 
-PolyhedralFunction(ndim) = PolyhedralFunction([], Array{Float64}(0, ndim), 0)
+PolyhedralFunction(ndim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, ndim), 0, UInt64[], 0)
+PolyhedralFunction(beta, lambda) = PolyhedralFunction(beta, lambda, length(beta), UInt64[], 0)
 
+function fetchnewcuts!(V::PolyhedralFunction)
+    β = V.betas[end-V.newcuts+1:end]
+    λ = V.lambdas[end-V.newcuts+1:end, :]
+    V.newcuts = 0
+    return β, λ
+end
 
 type LinearSPModel <: SPModel
     # problem dimension
@@ -43,10 +51,8 @@ type LinearSPModel <: SPModel
     finalCost::Union{Function, PolyhedralFunction}
 
     controlCat::Vector{Symbol}
-    equalityConstraints::Union{Void, Function}
-    inequalityConstraints::Union{Void, Function}
-
-    refTrajectories::Union{Void, Array{Float64, 3}}
+    equalityConstraints::Nullable{Function}
+    inequalityConstraints::Nullable{Function}
 
     IS_SMIP::Bool
 
@@ -70,7 +76,7 @@ type LinearSPModel <: SPModel
         if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
             Vf = Vfinal
         else
-            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1)
+            Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1, UInt64[], 0)
         end
 
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimStates]
@@ -79,7 +85,7 @@ type LinearSPModel <: SPModel
         xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, nothing, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, is_smip)
     end
 end
 
@@ -142,89 +148,6 @@ type StochDynProgModel <: SPModel
 
 end
 
-# Define alias for cuts pruning algorithm:
-typealias LevelOne Val{:LevelOne}
-typealias ExactPruning Val{:Exact}
-typealias Territory Val{:Exact_Plus}
-typealias NoPruning Val{:none}
-
-type SDDPparameters
-    # Solver used to solve LP
-    SOLVER::MathProgBase.AbstractMathProgSolver
-    # Solver used to solve MILP (default is nothing):
-    MIPSOLVER::Union{Void, MathProgBase.AbstractMathProgSolver}
-    # number of scenarios in the forward pass
-    forwardPassNumber::Int64
-    # Admissible gap between lower and upper-bound:
-    gap::Float64
-    # tolerance upon confidence interval:
-    confidence_level::Float64
-    # Maximum iterations of the SDDP algorithms:
-    maxItNumber::Int64
-    # Define the pruning method
-    pruning::Dict{Symbol, Any}
-    # Estimate upper-bound every %% iterations:
-    compute_ub::Int64
-    # Number of MonteCarlo simulation to perform to estimate upper-bound:
-    monteCarloSize::Int64
-    # Number of MonteCarlo simulation to estimate the upper bound during one iteration
-    in_iter_mc::Int64
-    # specify whether SDDP is accelerated
-    IS_ACCELERATED::Bool
-    # ... and acceleration parameters:
-    acceleration::Dict{Symbol, Float64}
-
-    function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
-                            max_iterations=20, prune_cuts=0,
-                            pruning_algo="none",
-                            compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
-                            mipsolver=nothing,
-                            rho0=0., alpha=1.)
-
-        if ~(pruning_algo ∈ ["none", "exact+", "level1", "exact"])
-            throw(ArgumentError("`pruning_algo` must be `none`, `level1`, `exact` or `exact+`"))
-        end
-        is_acc = (rho0 > 0.)
-        accparams = is_acc? Dict(:ρ0=>rho0, :alpha=>alpha, :rho=>rho0): Dict()
-
-        pruning_algo = (prune_cuts>0)? pruning_algo: "none"
-        prune_cuts = (pruning_algo != "none")? prune_cuts: 0
-
-        corresp = Dict("none"=>NoPruning,
-                       "level1"=>LevelOne,
-                       "exact+"=>Territory,
-                       "exact"=>ExactPruning)
-        prune_cuts = Dict(:pruning=>prune_cuts>0,
-                          :period=>prune_cuts,
-                          :type=>corresp[pruning_algo])
-        return new(solver, mipsolver, passnumber, gap, confidence,
-                   max_iterations, prune_cuts, compute_ub,
-                   montecarlo_final, montecarlo_in_iter, is_acc, accparams)
-    end
-end
-
-"""
-Test compatibility of parameters.
-
-# Arguments
-* `model::SPModel`:
-    Parametrization of the problem
-* `param::SDDPparameters`:
-    Parameters of SDDP
-* `verbose:Int64`:
-
-# Return
-`Bool`
-"""
-function check_SDDPparameters(model::SPModel,param::SDDPparameters,verbose=0::Int64)
-    if model.IS_SMIP && isa(param.MIPSOLVER, Void)
-        error("MIP solver is not defined. Please set `param.MIPSOLVER`")
-    end
-    (model.IS_SMIP && param.IS_ACCELERATED) && error("Acceleration of SMIP not supported")
-    (verbose > 0) && (model.IS_SMIP) && println("SMIP SDDP")
-    (verbose > 0) && (param.IS_ACCELERATED) && println("Acceleration: ON")
-end
-
 
 type SDPparameters
     stateSteps
@@ -264,15 +187,12 @@ type SDPparameters
 
 end
 
-function set_max_iterations(param::SDDPparameters, n_iter::Int)
-    param.maxItNumber = n_iter
-end
 
 # Define an object to store evolution of solution
 # along iterations:
-type SDDPStat
+type SDDPStat <: AbstractSDDPStats
     # Number of iterations:
-    niterations::Int64
+    niterations::Int
     # evolution of lower bound:
     lower_bounds::Vector{Float64}
     # evolution of upper bound:
@@ -283,11 +203,26 @@ type SDDPStat
     upper_bounds_tol::Vector{Float64}
     # evolution of execution time:
     exectime::Vector{Float64}
+    # time used to solve each LP:
+    solverexectime_fw::Vector{Float64}
+    solverexectime_bw::Vector{Float64}
     # number of calls to solver:
-    ncallsolver::Int64
+    nsolved::Int
+    # number of optimality cuts
+    nocuts::Int
+    npaths::Int
+    # current lower bound
+    lowerbound::Float64
+    # current lower bound
+    upperbound::Float64
+    # upper-bound std:
+    σ_UB::Float64
+    # total time
+    time::Float64
 end
 
-SDDPStat() = SDDPStat(0, [], [], [], [], [], 0)
+
+SDDPStat() = SDDPStat(0, [], [], [], [], [], [], [], 0, 0, 0, 0., 0., 0., 0.)
 
 """
 Update the SDDPStat object with the results of current iterations.
@@ -304,25 +239,34 @@ Update the SDDPStat object with the results of current iterations.
 * `time`
 """
 function updateSDDPStat!(stats::SDDPStat,
-                         callsolver_at_it::Int64,
                          lwb::Float64,
                          upb::Vector{Float64},
                          time)
-    stats.ncallsolver += callsolver_at_it
     stats.niterations += 1
     push!(stats.lower_bounds, lwb)
     push!(stats.upper_bounds, upb[1])
     push!(stats.upper_bounds_tol, upb[3])
     push!(stats.upper_bounds_std, upb[2])
     push!(stats.exectime, time)
+    stats.lowerbound = lwb
+    stats.upperbound = upb[1]
+    stats.σ_UB = upb[2]
+    stats.time += time
 end
 
 
-type NextStep
-    next_state::Array{Float64, 1}
-    optimal_control::Array{Float64, 1}
-    sub_gradient
-    cost::Float64
-    cost_to_go::Float64
+type NLDSSolution
+    # solver status:
+    status::Bool
+    # cost:
+    objval::Float64
+    # next position:
+    xf::Array{Float64, 1}
+    # optimal control:
+    uopt::Array{Float64, 1}
+    # Subgradient:
+    ρe::Array{Float64, 1}
+    # cost-to-go:
+    θ::Float64
 end
 
