@@ -1,5 +1,4 @@
-#  Copyright 2015, Vincent Leclere, Francois Pacaud, Henri Gerard and
-#  Tristan Rigaut
+#  Copyright 2017, V.Leclere, H.Gerard, F.Pacaud, T.Rigaut
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
