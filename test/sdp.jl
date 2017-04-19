@@ -112,8 +112,8 @@ facts("SDP algorithm") do
     aleas_scen = zeros(2, 1, 1)
     aleas_scen[:, 1, 1] = alea_year;
 
-    stateSteps = [1,1];
-    controlSteps = [1,1];
+    stateSteps = [2,2];
+    controlSteps = [2,2];
     monteCarloSize = 2;
 
     modelSDP = StochDynProgModel(TF, x_bounds, u_bounds,
