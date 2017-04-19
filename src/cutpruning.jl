@@ -42,7 +42,7 @@ end
     the new PolyhedralFunction
 """
 function level1_cuts_pruning!(model::SPModel, param::SDDPparameters,
-                              V::PolyhedralFunction, cutscontainer::CutPruners.LevelOneCutPruner)
+                              V::PolyhedralFunction, cutscontainer::CutPruners.DeMatosCutPruner)
 
     nstates = [length(terr) for terr in cutscontainer.territories]
     active_cuts = nstates .> 0
@@ -71,7 +71,7 @@ then test remaining cuts.
 """
 function exact_cuts_pruning_accelerated!(model::SPModel, param::SDDPparameters,
                                          V::PolyhedralFunction,
-                                         cutscontainer::CutPruners.LevelOneCutPruner)
+                                         cutscontainer::CutPruners.DeMatosCutPruner)
 
     assert(cutscontainer.numCuts == V.numCuts)
     solver = param.SOLVER

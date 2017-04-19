@@ -2,7 +2,7 @@
 # Test SDDP functions
 ################################################################################
 using Base.Test, StochDynamicProgramming
-using StochDynamicProgramming.SDPutils
+using StochDynamicProgramming.SdpLoops
 
 @testset "Indexation for SDP" begin
 
@@ -11,11 +11,11 @@ using StochDynamicProgramming.SDPutils
     var = [0.4, 3.7, 1.9]
     vart = [0.42, 3.78, 1.932]
 
-    ind = SDPutils.index_from_variable(var, bounds, steps)
-    ind2 = SDPutils.real_index_from_variable(vart, bounds, steps)
+    ind = SdpLoops.index_from_variable(var, bounds, steps)
+    ind2 = SdpLoops.real_index_from_variable(vart, bounds, steps)
 
-    checkFalse = SDPutils.is_next_state_feasible([0,1,2],3,bounds)
-    checkTrue = SDPutils.is_next_state_feasible([0.12,1.3,1.3],3,bounds)
+    checkFalse = SdpLoops.is_next_state_feasible([0,1,2],3,bounds)
+    checkTrue = SdpLoops.is_next_state_feasible([0.12,1.3,1.3],3,bounds)
 
 
     @test ind == (4,51,141)
@@ -112,8 +112,8 @@ end
     aleas_scen = zeros(2, 1, 1)
     aleas_scen[:, 1, 1] = alea_year;
 
-    stateSteps = [1,1];
-    controlSteps = [1,1];
+    stateSteps = [2,2];
+    controlSteps = [2,2];
     monteCarloSize = 2;
 
     modelSDP = StochDynProgModel(TF, x_bounds, u_bounds,
@@ -123,7 +123,7 @@ end
 
     paramsSDP = StochDynamicProgramming.SDPparameters(modelSDP, stateSteps,
                                                         controlSteps,
-                                                        infoStruct,
+                                                        "HD",
                                                         "Exact");
 
 
@@ -168,30 +168,24 @@ end
 
         @testset "Solve and simulate using SDP" begin
             paramsSDP.infoStructure = "anything"
-            @test_throws ErrorException solve_DP(modelSDP, paramsSDP, false);
+            solve_dp(modelSDP, paramsSDP, false);
+            @test paramsSDP.infoStructure == "DH"
             paramsSDP.infoStructure = infoStruct
 
-            V_sdp = solve_DP(modelSDP, paramsSDP, false);
+            V_sdp = solve_dp(modelSDP, paramsSDP, false);
 
             @test size(V_sdp) == (paramsSDP.stateVariablesSizes..., TF)
 
-            costs_sdp, stocks_sdp, controls_sdp = StochDynamicProgramming.sdp_forward_single_simulation(modelSDP,
-                                                                                                        paramsSDP,
-                                                                                                        aleas_scen, x0,
-                                                                                                        V_sdp, true )
 
-
-            costs_sdp2, stocks_sdp2, controls_sdp2 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
+            costs_sdp2, stocks_sdp2, controls_sdp2 = StochDynamicProgramming.forward_simulations(modelSDP,
                                                                                                     paramsSDP,
-                                                                                                    aleas_scen,
-                                                                                                    V_sdp, true )
-
-            @test costs_sdp2[1] == costs_sdp
+                                                                                                    V_sdp,
+                                                                                                    aleas_scen)
 
             x = x0
-            V_sdp2 = StochDynamicProgramming.sdp_compute_value_functions(modelSDP, paramsSDP, false);
+            V_sdp2 = StochDynamicProgramming.compute_value_functions_grid(modelSDP, paramsSDP, false);
             paramsSDP.infoStructure = "DH"
-            V_sdp3 = StochDynamicProgramming.sdp_compute_value_functions(modelSDP, paramsSDP, false);
+            V_sdp3 = StochDynamicProgramming.compute_value_functions_grid(modelSDP, paramsSDP, false);
             paramsSDP.infoStructure = "HD"
 
             Vitp = StochDynamicProgramming.value_function_interpolation( modelSDP.dimStates, V_sdp, 1)
@@ -206,15 +200,16 @@ end
             @test v1 <= v3
 
             paramsSDP.infoStructure = "DH"
-            costs_sdp3, stocks_sdp3, controls_sdp3 = StochDynamicProgramming.sdp_forward_simulation(modelSDP,
+            costs_sdp3, stocks_sdp3, controls_sdp3 = StochDynamicProgramming.forward_simulations(modelSDP,
                                                                                                     paramsSDP,
-                                                                                                    aleas_scen,
-                                                                                                    V_sdp3, true )
+                                                                                                    V_sdp3,
+                                                                                                    aleas_scen)
             paramsSDP.infoStructure = "HD"
 
             @test costs_sdp3[1] >= costs_sdp2[1]
 
-            a,b = StochDynamicProgramming.generate_grid(modelSDP, paramsSDP)
+            a = StochDynamicProgramming.generate_state_grid(modelSDP, paramsSDP)
+            b = StochDynamicProgramming.generate_control_grid(modelSDP, paramsSDP)
 
             x_bounds = modelSDP.xlim
             x_steps = paramsSDP.stateSteps
@@ -225,30 +220,28 @@ end
             @test length(collect(a)) == (x_bounds[1][2]-x_bounds[1][1]+x_steps[1])*(x_bounds[2][2]-x_bounds[2][1]+x_steps[2])/(x_steps[1]*x_steps[2])
             @test length(collect(b)) == (u_bounds[1][2]-u_bounds[1][1]+u_steps[1])*(u_bounds[2][2]-u_bounds[2][1]+u_steps[2])/(u_steps[1]*u_steps[2])
 
-            ind = SDPutils.index_from_variable(x, x_bounds, x_steps)
+            modelSDP.initialState = [xi[1] for xi in x_bounds]
+            ind = SdpLoops.index_from_variable(modelSDP.initialState, x_bounds, x_steps)
             @test get_bellman_value(modelSDP, paramsSDP, V_sdp2) == V_sdp2[ind...,1]
+            modelSDP.initialState = x0
 
             @test size(V_sdp) == (paramsSDP.stateVariablesSizes..., TF)
             @test V_sdp2[1,1,1] <= V_sdp3[1,1,1]
 
-            @test size(stocks_sdp) == (3,1,2)
-            @test size(controls_sdp) == (2,1,2)
-
             state_ref = zeros(2)
-            state_ref[1] = stocks_sdp[2,1,1]
-            state_ref[2] = stocks_sdp[2,1,2]
+            state_ref[1] = stocks_sdp2[2,1,1]
+            state_ref[2] = stocks_sdp2[2,1,2]
             w = [4]
 
-            @test_throws ErrorException get_control(modelSDP,paramsSDP,V_sdp3, 1, x)
-            @test (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] >= CONTROL_MIN)
-            @test (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] <= CONTROL_MAX)
+            @test (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] >= CONTROL_MIN) == true
+            @test (get_control(modelSDP,paramsSDP,V_sdp3, 1, x, w)[1] <= CONTROL_MAX) == true
 
             paramsSDP.infoStructure = "DH"
             @test (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] >= CONTROL_MIN)
             @test (get_control(modelSDP,paramsSDP,V_sdp3, 1, x)[1] <= CONTROL_MAX)
 
-            @test size(stocks_sdp) == (3,1,2)
-            @test size(controls_sdp) == (2,1,2)
+            @test size(stocks_sdp2) == (3,1,2)
+            @test size(controls_sdp2) == (2,1,2)
 
         end
 

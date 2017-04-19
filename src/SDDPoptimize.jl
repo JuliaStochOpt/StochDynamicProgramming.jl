@@ -120,7 +120,7 @@ function solve!(sddp::SDDPInterface)
     stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
-    while !stop(sddp.stopcrit, stats)
+    while !stop(sddp.stopcrit, stats, stats)
         # Time execution of current pass:
         tic()
 

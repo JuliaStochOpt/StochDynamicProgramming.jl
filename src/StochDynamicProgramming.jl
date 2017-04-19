@@ -10,7 +10,7 @@
 __precompile__()
 
 module StochDynamicProgramming
-include("SDPutils.jl")
+include("sdpLoops.jl")
 
 using MathProgBase, JuMP, Distributions, StochasticDualDynamicProgramming
 using DocStringExtensions
@@ -21,8 +21,8 @@ export solve_SDDP,
         SDDPparameters, LinearSPModel, set_state_bounds,
         extensive_formulation,
         PolyhedralFunction, forward_simulations,
-        StochDynProgModel, SDPparameters, solve_DP,
-        sdp_forward_simulation, sampling, get_control, get_bellman_value,
+        StochDynProgModel, SDPparameters, solve_dp,
+        sampling, get_control, get_bellman_value,
         benchmark_parameters, SDDPInterface
 
 include("noises.jl")
@@ -35,7 +35,7 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 include("extensiveFormulation.jl")
-include("SDPoptimize.jl")
+include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")
 include("stoppingtest.jl")
