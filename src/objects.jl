@@ -60,6 +60,7 @@ type LinearSPModel <: SPModel
                            Vfinal=nothing,     # final cost
                            eqconstr=nothing,   # equality constraints
                            ineqconstr=nothing, # inequality constraints
+                           info=:HD, # inequality constraints
                            control_cat=nothing) # category of controls
 
         dimStates = length(x0)
@@ -81,7 +82,7 @@ type LinearSPModel <: SPModel
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
                    x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr,
-                   nothing, :HD, is_smip)
+                   nothing, info, is_smip)
     end
 end
 

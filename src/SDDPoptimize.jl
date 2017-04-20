@@ -536,7 +536,13 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
-        @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
+        if model.info == :HD
+            @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
+        elseif model.info == :DH
+            for j in 1:model.noises[t].supportSize
+                @constraint(problem, V.betas[i] + dot(lambda, xf[:, j]) <= alpha[j])
+            end
+        end
     end
 end
 
