@@ -44,6 +44,7 @@ function forward_pass!(sddp::SDDPInterface)
                         param,
                         problems_fp,
                         noise_scenarios,
+                        pruner=sddp.pruner,
                         regularizer=sddp.regularizer)
 
     sddp.stats.nsolved += callsolver_forward
@@ -88,6 +89,7 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64};
+                            pruner=Nullable{AbstractCutPruner}(),
                             regularizer=Nullable{SDDPRegularization}())
 
     callsolver::Int = 0
@@ -136,6 +138,10 @@ function forward_simulations(model::SPModel,
                                                   solverProblems[t], t, state_t, alea_t)
             end
             push!(solvertime, ts)
+            # update cutpruners status with new point
+            if ~isnull(pruner) && t < T-1
+                update!(pruner[t+1], sol.xf, sol.πc)
+            end
 
             # Check if the problem is effectively solved:
             if sol.status
@@ -211,6 +217,7 @@ function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
     alpha = getvariable(problem, :alpha)
     xf = getvariable(problem, :xf)
     @constraint(problem, beta + dot(lambda, xf) <= alpha)
+    problem.ext[:ncuts] += 1
 end
 
 
@@ -318,3 +325,4 @@ function backward_pass!(sddp::SDDPInterface,
     sddp.stats.nsolved += callsolver
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
 end
+

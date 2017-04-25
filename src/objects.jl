@@ -268,5 +268,7 @@ type NLDSSolution
     ρe::Array{Float64, 1}
     # cost-to-go:
     θ::Float64
+    # cuts' multipliers
+    πc::Vector{Float64}
 end
 

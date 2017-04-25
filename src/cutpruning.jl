@@ -19,90 +19,30 @@ function prune!(sddp::SDDPInterface,
                 trajectories::Array{Float64, 3},
                 )
     # Basic pruning: remove redundant cuts
-    #= for t in 1:sddp.spmodel.stageNumber-1 =#
-    #=     b, A = fetchnewcuts!(sddp.bellmanfunctions[t]) =#
-    #=     nnew = length(b) =#
-    #=     if nnew > 0 =#
-    #=         mycut = Bool[true for _ in 1:length(b)] =#
-    #=         CutPruners.addcuts!(sddp.pruner[t], A, b, mycut) =#
-    #=     end =#
-    #= end =#
-
-end
-
-
-
-"""Remove cuts in PolyhedralFunction that are inactive on all visited states.
-# Arguments
-* `cutscontainer::ActiveCutsContainer`:
-* `V::PolyhedralFunction`:
-    Object storing all cuts
-# Return
-* `V::PolyhedralFunction`
-    the new PolyhedralFunction
-"""
-function level1_cuts_pruning!(model::SPModel, param::SDDPparameters,
-                              V::PolyhedralFunction, cutscontainer::CutPruners.DeMatosCutPruner)
-
-    nstates = [length(terr) for terr in cutscontainer.territories]
-    active_cuts = nstates .> 0
-
-    cutscontainer.territories = cutscontainer.territories[active_cuts]
-    return PolyhedralFunction(V.betas[active_cuts],
-                              V.lambdas[active_cuts, :],
-                              sum(active_cuts))
-end
-
-
-"""Remove useless cuts in PolyhedralFunction
-
-First test if cuts are active on the visited states,
-then test remaining cuts.
-
-# Arguments
-* `model::SPModel`:
-* `cutscontainer::ActiveCutsContainer`:
-* `V::PolyhedralFunction`:
-    Object storing all cuts
-
-# Return
-* `V::PolyhedralFunction`
-    the new PolyhedralFunction
-"""
-function exact_cuts_pruning_accelerated!(model::SPModel, param::SDDPparameters,
-                                         V::PolyhedralFunction,
-                                         cutscontainer::CutPruners.DeMatosCutPruner)
-
-    assert(cutscontainer.numCuts == V.numCuts)
-    solver = param.SOLVER
-
-    nstates = [length(terr) for terr in cutscontainer.territories]
-    # Set of inactive cuts:
-    inactive_cuts = nstates .== 0
-    # Set of active cuts:
-    active_cuts = nstates .> 0
-
-    # get index of inactive cuts:
-    index = collect(1:cutscontainer.numCuts)[inactive_cuts]
-
-    # Check if inactive cuts are useful or not:
-    for id in index
-        status, x = is_cut_relevant(model, id, V, solver)
-        if status
-            active_cuts[id] = true
+    for t in 1:sddp.spmodel.stageNumber-1
+        b, A = fetchnewcuts!(sddp.bellmanfunctions[t])
+        nnew = length(b)
+        if nnew > 0
+            mycut = Bool[true for _ in 1:length(b)]
+            CutPruners.addcuts!(sddp.pruner[t], A, b, mycut)
         end
     end
+end
 
-    # Remove useless cuts:
-    cutscontainer.territories = cutscontainer.territories[active_cuts]
-    cutscontainer.numCuts = sum(active_cuts)
-    return PolyhedralFunction(V.betas[active_cuts],
-                              V.lambdas[active_cuts, :],
-                              sum(active_cuts))
+"""Synchronise cuts between `sddp.pruner` and `sddp.bellmanfunctions`."""
+function sync!(sddp::SDDPInterface)
+    for t in 1:sddp.spmodel.stageNumber-1
+        sddp.bellmanfunctions[t] = PolyhedralFunction(sddp.pruner[t].b, sddp.pruner[t].A)
+    end
 end
 
 
 # Return total number of cuts in PolyhedralFunction array:
 ncuts(V::PolyhedralFunction) = length(V.betas)
 ncuts(V::Array{PolyhedralFunction}) = sum([ncuts(v) for v in V])
+
+# Update cut pruner
+update!{T}(pruner::CutPruners.DeMatosCutPruner, x::Vector{T}, λ::Vector{T})=addposition!(pruner, x)
+update!{T}(pruner::CutPruners.AvgCutPruner, x::Vector{T}, λ::Vector{T})=addusage!(pruner, λ)
+update!{T}(pruner::CutPruners.DecayCutPruner, x::Vector{T}, λ::Vector{T})=addusage!(pruner, λ)
 
