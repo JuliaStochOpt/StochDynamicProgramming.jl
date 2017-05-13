@@ -12,9 +12,10 @@ __precompile__()
 module StochDynamicProgramming
 include("sdpLoops.jl")
 
-using MathProgBase, JuMP, Distributions, StochasticDualDynamicProgramming
+using MathProgBase, JuMP, Distributions
 using DocStringExtensions
 using CutPruners
+using Compat
 
 export solve_SDDP,
         NoiseLaw, simulate_scenarios,
@@ -27,6 +28,7 @@ export solve_SDDP,
 
 include("noises.jl")
 include("objects.jl")
+include("stopcrit.jl")
 include("params.jl")
 include("regularization.jl")
 include("interface.jl")
