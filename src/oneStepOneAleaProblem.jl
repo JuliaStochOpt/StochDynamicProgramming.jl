@@ -93,6 +93,40 @@ function solve_one_step_one_alea(model,
     return result, solvetime
 end
 
+
+"""Solve model in Decision-Hazard."""
+function solve_dh(model, param, t, xt, m)
+    xf = getvariable(m, :xf)
+    u = getvariable(m, :u)
+    alpha = getvariable(m, :alpha)
+    for i in 1:model.dimStates
+        JuMP.setRHS(m.ext[:cons][i], xt[i])
+    end
+
+    status = solve(m)
+    solved = status == :Optimal
+
+    solvetime = try getsolvetime(m) catch 0 end
+
+    if solved
+        # Computation of subgradient:
+        λ = Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]
+        result = NLDSSolution(solved,
+                              getobjectivevalue(m),
+                              getvalue(xf)[:, 1],
+                              getvalue(u),
+                              λ,
+                              getvalue(alpha)[1])
+    else
+        # If no solution is found, then return nothing
+        result = NLDSSolution()
+    end
+
+    return ns, result
+end
+
+
+
 # Solve local problem with a quadratic penalization:
 function regularize(model, param,
                     regularizer::AbstractRegularization,

@@ -247,7 +247,13 @@ function build_terminal_cost!(model::SPModel,
     if isa(Vt, PolyhedralFunction)
         for i in 1:Vt.numCuts
             lambda = vec(Vt.lambdas[i, :])
-            @constraint(problem, Vt.betas[i] + dot(lambda, xf) <= alpha)
+            if model.info == :HD
+                @constraint(problem, Vt.betas[i] + dot(lambda, xf) <= alpha)
+            else
+                for ww=1:length(model.noises[t].proba)
+                    @constraint(problem, Vt.betas[i] + dot(lambda, xf[:, ww]) <= alpha[ww])
+                end
+            end
         end
     else
         @constraint(problem, alpha >= 0)
@@ -274,8 +280,13 @@ linear problem.
 * `Array::JuMP.Model`:
 """
 function build_models(model::SPModel, param::SDDPparameters)
-    return JuMP.Model[build_model(model, param, t) for t=1:model.stageNumber-1]
+    if model.info == :HD
+        return JuMP.Model[build_model(model, param, t) for t=1:model.stageNumber-1]
+    else
+        return JuMP.Model[build_model_dh(model, param, t) for t=1:model.stageNumber-1]
+    end
 end
+
 
 function build_model(model, param, t)
     m = Model(solver=param.SOLVER)
@@ -328,6 +339,45 @@ function build_model(model, param, t)
 
     return m
 end
+
+"""Build model in Decision-Hazard."""
+function build_model_dh(model, param, t)
+    m = Model(solver=param.SOLVER)
+    law = model.noises
+
+    nx = model.dimStates
+    nu = model.dimControls
+    nw = model.dimNoises
+
+    ns = law[t].supportSize
+    ξ = collect(law[t].support[:, :])
+    πp = law[t].proba
+
+    @variable(m, model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+    @variable(m, model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+    @variable(m, model.xlim[i][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i][2])
+    @variable(m, alpha[1:ns])
+
+    m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
+
+    for j=1:ns
+        @constraint(m, xf[:, j] .== model.dynamics(t, x, u, ξ[:, j]))
+    end
+
+    # add objective as minimization of expectancy:
+    try
+        @objective(m, Min,
+                        sum(πp[j]*(model.costFunctions(t, x, u, ξ[:, j]) +
+                                    alpha[j]) for j in 1:ns))
+    catch
+        @objective(m, Min,
+                        sum(πp[j]*(model.costFunctions(m, t, x, u, ξ[:, j]) +
+                        alpha[j]) for j in 1:ns))
+    end
+
+    return m
+end
+
 
 
 """
@@ -551,7 +601,13 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
-        @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
+        if model.info == :HD
+            @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
+        elseif model.info == :DH
+            for j in 1:model.noises[t].supportSize
+                @constraint(problem, V.betas[i] + dot(lambda, xf[:, j]) <= alpha[j])
+            end
+        end
     end
 end
 

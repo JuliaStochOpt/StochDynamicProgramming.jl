@@ -53,6 +53,7 @@ type LinearSPModel <: SPModel
     controlCat::Vector{Symbol}
     equalityConstraints::Nullable{Function}
     inequalityConstraints::Nullable{Function}
+    info::Symbol
 
     IS_SMIP::Bool
 
@@ -65,6 +66,7 @@ type LinearSPModel <: SPModel
                            Vfinal=nothing,     # final cost
                            eqconstr=nothing,   # equality constraints
                            ineqconstr=nothing, # inequality constraints
+                           info=:HD,           # information structure
                            control_cat=nothing) # category of controls
 
         dimStates = length(x0)
@@ -85,7 +87,7 @@ type LinearSPModel <: SPModel
         xbounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip)
     end
 end
 
