@@ -188,6 +188,8 @@ type SDPparameters
 end
 
 
+@compat abstract type AbstractSDDPStats end
+
 # Define an object to store evolution of solution
 # along iterations:
 type SDDPStat <: AbstractSDDPStats
