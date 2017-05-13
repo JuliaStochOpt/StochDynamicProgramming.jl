@@ -87,7 +87,7 @@ function solve_one_step_one_alea(model,
                           getvalue(alpha))
     else
         # If no solution is found, then return nothing
-        result = nothing
+        result = NLDSSolution()
     end
 
     return result, solvetime

@@ -21,7 +21,7 @@ type NoiseLaw
     function NoiseLaw(supportSize, support, proba)
         supportSize = convert(Int64,supportSize)
         if ndims(support)==1
-            support = reshape(support,1,length(support))
+            support = reshape(support,length(support),1)
         end
 
         if ndims(proba) == 2

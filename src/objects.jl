@@ -79,7 +79,7 @@ type LinearSPModel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1, UInt64[], 0)
         end
 
-        isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimStates]
+        isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimControls]
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
         xbounds = [(-Inf, Inf) for i=1:dimStates]
@@ -270,3 +270,4 @@ type NLDSSolution
     θ::Float64
 end
 
+NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf)
