@@ -248,10 +248,10 @@ the current estimation of Vt.
     Conditionnal distributions of perturbation, for each timestep
 """
 function backward_pass!(sddp::SDDPInterface,
-                        stockTrajectories::Array{Float64, 3},
-                        law)
+                        stockTrajectories::Array{Float64, 3})
 
     model = sddp.spmodel
+    law = model.noises
     param = sddp.params
     solverProblems = sddp.solverinterface
     V = sddp.bellmanfunctions
@@ -288,6 +288,7 @@ end
 
 
 function compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime)
+    law = model.noises
     costs = zeros(Float64, model.noises[t].supportSize)
     subgradient_array = zeros(Float64, model.dimStates, model.noises[t].supportSize)
     proba = zeros(model.noises[t].supportSize)
@@ -328,7 +329,6 @@ function compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertim
 
         # Add cut to polyhedral function and JuMP model:
         if ~isinside(V[t], subgradient)
-            sddp.stats.nocuts += 1
             add_cut!(model, t, V[t], beta, subgradient)
             if t > 1
                 add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)

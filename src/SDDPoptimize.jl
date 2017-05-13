@@ -130,7 +130,7 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # Backward pass : update polyhedral approximation of Bellman functions
-        backward_pass!(sddp, trajectories, model.noises)
+        backward_pass!(sddp, trajectories)
 
         ####################
         # Time execution of current pass
@@ -441,7 +441,7 @@ function random_pass!(sddp::SDDPInterface)
         stockTrajectories[i, j, :] = get_random_state(model)
     end
 
-    backward_pass!(sddp, stockTrajectories, model.noises)
+    backward_pass!(sddp, stockTrajectories)
 end
 
 
