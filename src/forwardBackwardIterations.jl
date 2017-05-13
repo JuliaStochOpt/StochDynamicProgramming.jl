@@ -261,18 +261,12 @@ function backward_pass!(sddp::SDDPInterface,
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
 
-    costs::Vector{Float64} = zeros(1)
-    state_t = zeros(Float64, model.dimStates)
 
     for t = T-1:-1:1
-
         for k = 1:nb_forward
 
             # We collect current state:
             state_t = stockTrajectories[t, k, :]
-            # We will store probabilities in a temporary array.
-            # It is initialized at 0. If all problem are infeasible for
-            # current timestep, then proba remains equal to 0 and not cut is added.
             if model.info == :HD
                 compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime)
             else
@@ -287,10 +281,18 @@ function backward_pass!(sddp::SDDPInterface,
 end
 
 
-function compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime)
+"""Compute cuts in Hazard-Decision (classical SDDP)."""
+function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
+                          V::Vector{PolyhedralFunction},
+                          solverProblems::Vector{JuMP.Model}, t::Int,
+                          state_t::Vector{Float64}, solvertime::Vector{Float64})
     law = model.noises
     costs = zeros(Float64, model.noises[t].supportSize)
     subgradient_array = zeros(Float64, model.dimStates, model.noises[t].supportSize)
+
+    # We will store probabilities in a temporary array.
+    # It is initialized at 0. If all problem are infeasible for
+    # current timestep, then proba remains equal to 0 and not cut is added.
     proba = zeros(model.noises[t].supportSize)
 
     # We iterate other the possible realization of noise:
@@ -338,8 +340,13 @@ function compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertim
 end
 
 
-function compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime)
-    # We solve LP problem with current noise and position:
+"""Compute cuts in Decision-Hazard (variant of SDDP)."""
+function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
+                          V::Vector{PolyhedralFunction},
+                          solverProblems::Vector{JuMP.Model}, t::Int,
+                          state_t::Vector{Float64}, solvertime::Vector{Float64})
+    # We solve LP problem in decision-hazard, considering all possible
+    # outcomes of randomness:
     sol, ts = solve_dh(model, param, t, state_t, solverProblems[t])
 
     push!(solvertime, ts)

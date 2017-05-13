@@ -122,7 +122,7 @@ function solve_dh(model, param, t, xt, m)
         result = NLDSSolution()
     end
 
-    return ns, result
+    return result, solvetime
 end
 
 
