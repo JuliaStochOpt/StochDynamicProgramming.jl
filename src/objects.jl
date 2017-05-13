@@ -7,7 +7,7 @@
 #############################################################################
 
 
-abstract SPModel
+@compat abstract type SPModel end
 
 
 type PolyhedralFunction
