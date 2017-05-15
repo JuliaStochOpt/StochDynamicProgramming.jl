@@ -208,7 +208,7 @@ Add a cut to the JuMP linear problem.
   Time index
 * `beta::Float`:
   affine part of the cut to add
-* `lambda::Array{float,1}`:
+* `lambda::Vector{Float64}`:
   subgradient of the cut to add
 """
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
