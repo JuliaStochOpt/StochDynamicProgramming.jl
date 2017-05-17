@@ -102,9 +102,9 @@ type SDDPInterface
 end
 
 
-function initpruner(algo, n_stages, ndim)
+function initpruner(algo, n_stages, n_dim)
     # Initialize cuts container for cuts pruning:
-    return [CutPruners.CutPruner{ndim, Float64}(algo, :Max) for i in 1:n_stages-1]
+    return [CutPruners.CutPruner{n_dim, Float64}(algo, :Max) for i in 1:n_stages-1]
 end
 
 

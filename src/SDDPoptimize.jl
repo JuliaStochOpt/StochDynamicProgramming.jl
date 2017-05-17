@@ -249,6 +249,8 @@ $(SIGNATURES)
     Cut approximating the terminal cost
 * `Vt::PolyhedralFunction`:
     Final cost given as a PolyhedralFunction
+* `verbosity::Int64`:
+    Default is `0`, higher gives more printed information
 """
 function build_terminal_cost!(model::SPModel,
                               problem::JuMP.Model,

@@ -20,7 +20,7 @@ type PolyhedralFunction
     newcuts::Int
 end
 
-PolyhedralFunction(ndim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, ndim), 0, UInt64[], 0)
+PolyhedralFunction(n_dim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, n_dim), 0, UInt64[], 0)
 PolyhedralFunction(beta, lambda) = PolyhedralFunction(beta, lambda, length(beta), UInt64[], 0)
 
 function fetchnewcuts!(V::PolyhedralFunction)
