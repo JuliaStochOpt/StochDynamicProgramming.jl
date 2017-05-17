@@ -26,15 +26,17 @@ fulfilled.
 * `param::SDDPparameters`:
     the parameters of the SDDP algorithm
 * `verbosity::Int64`:
-    Default is `0`
-    If non null, display progression in terminal every
-    `n` iterations, where `n` is the number specified by display.
+    Default is `0`, higher gives more printed information
+* `verbose_it::Int64`:
+    Default is `1`
+    If verbosity >1 , display progression in terminal every
+    `verbose_it` iterations.
 
 # Returns
 `SDDPInterface`
 
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64;
+function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, verbose_it=1::Int64;
                     stopcrit::AbstractStoppingCriterion=IterLimit(20),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
@@ -43,6 +45,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64;
                          stopcrit,
                          prunalgo,
                          verbosity=verbosity,
+                         verbose_it=verbose_it,
                          regularization=regularization)
     solve!(sddp)
     sddp
@@ -66,20 +69,23 @@ fulfilled.
 * `V::Vector{PolyhedralFunction}`:
     current lower approximation of Bellman functions
 * `verbosity::Int64`:
-    Default is `0`
-    If non null, display progression in terminal every
-    `n` iterations, where `n` is the number specified by display.
+    Default is `0`, higher gives more printed information
+* `verbose_it::Int64`:
+    Default is `1`
+    If verbosity >1 , display progression in terminal every
+    `verbose_it` iterations.
 
 # Returns
 * `SDDPInterface`
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbosity=0::Int64;
+function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbosity=0::Int64, verbose_it=1::Int64;
                     stopcrit::AbstractStoppingCriterion=IterLimit(20),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo, V,
-                         verbosity=verbosity)
+                         verbosity=verbosity,
+                         verbose_it=verbose_it)
     solve!(sddp)
     sddp
 end
