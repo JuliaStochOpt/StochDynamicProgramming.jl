@@ -30,6 +30,41 @@ type SDDPInterface
 
     # Init SDDP interface
     function SDDPInterface(model::SPModel, # SP Model
+                           param::SDDPparameters;# parameters
+                           stopcrit::AbstractStoppingCriterion=IterLimit(20),
+                           prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
+                           regularization=nothing,
+                           verbosity::Int=2,
+                           verbose_it::Int=1)
+        check_SDDPparameters(model, param, verbosity)
+        # initialize value functions:
+        V, problems = initialize_value_functions(model, param)
+        (verbosity > 0) && println("SDDP Interface initialized")
+
+        pruner = initpruner(prunalgo, model.stageNumber, model.dimStates)
+        #Initialization of stats
+        stats = SDDPStat()
+        return new(false, model, param, stats, stopcrit, pruner, regularization, V,
+                   problems, verbosity,verbose_it)
+    end
+   function SDDPInterface(model::SPModel,
+                        params::SDDPparameters,
+                        V::Vector{PolyhedralFunction};
+                        stopcrit::AbstractStoppingCriterion=IterLimit(20),
+                        prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
+                        regularization=nothing,
+                        verbosity::Int=2,
+                        verbose_it::Int=1)
+        check_SDDPparameters(model, params, verbosity)
+        # First step: process value functions if hotstart is called
+        problems = hotstart_SDDP(model, params, V)
+        pruner = initpruner(prunalgo, model.stageNumber, model.dimStates)
+
+        stats = SDDPStat()
+        return new(false, model, params, stats, stopcrit, pruner, regularization,
+                   V, problems, verbosity,verbose_it)
+    end
+    function SDDPInterface(model::SPModel, # SP Model
                            param::SDDPparameters,# parameters
                            stopcrit::AbstractStoppingCriterion,
                            prunalgo::AbstractCutPruningAlgo;
