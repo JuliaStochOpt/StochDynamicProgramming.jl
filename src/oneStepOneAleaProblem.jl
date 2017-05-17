@@ -67,6 +67,13 @@ function solve_one_step_one_alea(model,
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
+    if verbosity > 5
+        println("One step one alea problem at time t=",t)
+        println("for x =",xt)
+        println("and w=",xi)
+        print(m)
+    end
+
     if model.IS_SMIP
         solved = relaxation ? solve_relaxed!(m, param,verbosity): solve_mip!(m, param,verbosity)
     else
@@ -153,7 +160,6 @@ end
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param,verbosity::Int64=0)
     setsolver(m, param.SOLVER)
-    (verbosity>5) && print(m)
     status = solve(m, relaxation=true)
     return status == :Optimal
 end
@@ -161,7 +167,6 @@ end
 """Solve original MILP problem."""
 function solve_mip!(m, param,verbosity::Int64=0)
     setsolver(m, get(param.MIPSOLVER))
-    (verbosity>5) && print(m)
     status = solve(m, relaxation=false)
     return status == :Optimal
 end
