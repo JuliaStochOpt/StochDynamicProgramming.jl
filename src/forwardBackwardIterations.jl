@@ -37,14 +37,15 @@ function forward_pass!(sddp::SDDPInterface)
     # law specified in model.noises:
     noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
-    # If acceleration is ON, need to build a new array of problem to
+    # If regularization is ON, need to build a new array of problem to
     # avoid side effect:
     problems_fp = isregularized(sddp) ? hotstart_SDDP(model, param, V) : problems
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
                         noise_scenarios,
-                        regularizer=sddp.regularizer)
+                        regularizer=sddp.regularizer,
+                        verbosity = sddp.verbosity)
 
     sddp.stats.nsolved += callsolver_forward
     sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
@@ -88,7 +89,8 @@ function forward_simulations(model::SPModel,
                             param::SDDPparameters,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64};
-                            regularizer=Nullable{SDDPRegularization}())
+                            regularizer=Nullable{SDDPRegularization}(),
+                            verbosity::Int64=0)
 
     callsolver::Int = 0
     solvertime = Float64[]
@@ -134,10 +136,10 @@ function forward_simulations(model::SPModel,
             else
                 if model.info == :HD
                     sol, ts = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t)
+                                                           solverProblems[t], t, state_t, alea_t,verbosity=verbosity)
                 else
                     sol, ts = solve_dh(model, param, t, state_t,
-                                                solverProblems[t])
+                                                solverProblems[t],verbosity=verbosity)
                 end
             end
             push!(solvertime, ts)
