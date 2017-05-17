@@ -113,6 +113,7 @@ function solve!(sddp::SDDPInterface)
 
     if ~sddp.init
         init!(sddp)
+        (sddp.verbosity > 0) && println("Initialize cuts")
     end
     model = sddp.spmodel
     param = sddp.params
@@ -126,16 +127,19 @@ function solve!(sddp::SDDPInterface)
     stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
+    (sddp.verbosity > 0) && println("Starting sddp iterations")
     while !stop(sddp.stopcrit, stats, stats)
         # Time execution of current pass:
         tic()
 
         ####################
         # Forward pass : compute stockTrajectories
+        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start forward pass")
         costs, trajectories = forward_pass!(sddp)
 
         ####################
         # Backward pass : update polyhedral approximation of Bellman functions
+        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start backward pass")
         backward_pass!(sddp, trajectories)
 
         ####################
@@ -144,6 +148,7 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # cut pruning
+        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start cut prunning")
         prune!(sddp, trajectories)
 
         ####################
@@ -152,12 +157,14 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # In iteration upper bound estimation
+        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start in-iteration upperbound estimation")
         upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbosity,
                                           upperbound_scenarios, upb,
                                           sddp.solverinterface)
 
         updateSDDP!(sddp, lwb, upb, time_pass, trajectories)
-        checkit(sddp.verbosity, sddp.stats.niterations) && println(sddp.stats)
+
+        (sddp.verbosity > 1) && checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
     end
 
     ##########
@@ -170,7 +177,6 @@ end
 function init!(sddp::SDDPInterface)
     random_pass!(sddp)
     sddp.init = true
-    (sddp.verbosity > 0) && println("Initialize cuts")
 end
 
 
@@ -181,13 +187,12 @@ function finalpass!(sddp::SDDPInterface)
     V = sddp.bellmanfunctions
     problems = sddp.solverinterface
     stats = sddp.stats
-    verbosity = sddp.verbosity
 
-    if (verbosity>0) && (param.compute_ub >= 0)
+    if (sddp.verbosity>0) && (param.compute_ub >= 0)
         lwb = lowerbound(sddp)
 
         if (param.compute_ub == 0) || (param.monteCarloSize > 0)
-            (verbosity > 0) && println("Compute final upper-bound with ",
+            println("Compute final upper-bound with ",
                                     param.monteCarloSize, " scenarios...")
             upb, σ, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else
@@ -217,6 +222,7 @@ function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass, trajectories)
     # this step can be useful if MathProgBase interface takes too much
     # room in memory, rendering necessary a call to GC
     if checkit(sddp.params.reload, sddp.stats.niterations)
+        (sddp.verbosity >2 )&& println("Reloading JuMP model")
         sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
                                              sddp.params,
                                              sddp.bellmanfunctions)
@@ -224,6 +230,7 @@ function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass, trajectories)
 
     # Update regularization
     if !isnull(sddp.regularizer)
+        (sddp.verbosity >3) && println("Updating regularization ")
         update_penalization!(get(sddp.regularizer))
         get(sddp.regularizer).incumbents = trajectories
     end
@@ -245,12 +252,14 @@ $(SIGNATURES)
 """
 function build_terminal_cost!(model::SPModel,
                               problem::JuMP.Model,
-                              Vt::PolyhedralFunction)
+                              Vt::PolyhedralFunction,
+                              verbosity::Int64=0)
     # if shape is PolyhedralFunction, build terminal cost with it:
     alpha = getvariable(problem, :alpha)
     xf = getvariable(problem, :xf)
     t = model.stageNumber -1
     if isa(Vt, PolyhedralFunction)
+        (verbosity >3) && println("Building final cost")
         for i in 1:Vt.numCuts
             lambda = vec(Vt.lambdas[i, :])
             if model.info == :HD
@@ -294,7 +303,7 @@ function build_models(model::SPModel, param::SDDPparameters)
 end
 
 
-function build_model(model, param, t)
+function build_model(model, param, t,verbosity::Int64=0)
     m = Model(solver=param.SOLVER)
 
     nx = model.dimStates
@@ -343,11 +352,12 @@ function build_model(model, param, t)
         m.colCat[2*nx+1:2*nx+nu] = model.controlCat
     end
 
+    (verbosity >5) && print(m)
     return m
 end
 
 """Build model in Decision-Hazard."""
-function build_model_dh(model, param, t)
+function build_model_dh(model, param, t, verbosity::Int64=0)
     m = Model(solver=param.SOLVER)
     law = model.noises
 
@@ -380,7 +390,7 @@ function build_model_dh(model, param, t)
                         sum(πp[j]*(model.costFunctions(m, t, x, u, ξ[:, j]) +
                         alpha[j]) for j in 1:ns))
     end
-
+    (verbosity >5) && print(m)
     return m
 end
 

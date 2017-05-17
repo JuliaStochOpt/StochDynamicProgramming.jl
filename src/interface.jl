@@ -25,7 +25,7 @@ type SDDPInterface
     bellmanfunctions::Vector{PolyhedralFunction}
     solverinterface::Vector{JuMP.Model}
 
-    verbosity::Int #0: no output, 1: big phases, 2: every verbose_it iterations
+    verbosity::Int #0: no output, 1: big phases, 2: every verbose_it iterations, 3: inside iterations, 4: detailed inside iterations, 6: showing LP problems
     verbose_it::Int 
 
     # Init SDDP interface
