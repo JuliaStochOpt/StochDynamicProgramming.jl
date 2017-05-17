@@ -45,16 +45,16 @@ Test compatibility of parameters.
     Parametrization of the problem
 * `param::SDDPparameters`:
     Parameters of SDDP
-* `verbose:Int64`:
+* `verbosity:Int64`:
 
 # Return
 `Bool`
 """
-function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbose=0::Int64)
+function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbosity=0::Int64)
     if model.IS_SMIP && isnull(param.MIPSOLVER)
         error("MIP solver is not defined. Please set `param.MIPSOLVER`")
     end
 
-    (verbose > 0) && (model.IS_SMIP) && println("SMIP SDDP")
+    (verbosity > 0) && (model.IS_SMIP) && println("SMIP SDDP")
 end
 

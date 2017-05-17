@@ -25,7 +25,7 @@ fulfilled.
     the stochastic problem we want to optimize
 * `param::SDDPparameters`:
     the parameters of the SDDP algorithm
-* `verbose::Int64`:
+* `verbosity::Int64`:
     Default is `0`
     If non null, display progression in terminal every
     `n` iterations, where `n` is the number specified by display.
@@ -34,7 +34,7 @@ fulfilled.
 `SDDPInterface`
 
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64;
+function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64;
                     stopcrit::AbstractStoppingCriterion=IterLimit(20),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
@@ -42,7 +42,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbose=0::Int64;
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo,
-                         verbose=verbose,
+                         verbosity=verbosity,
                          regularization=regularization)
     solve!(sddp)
     sddp
@@ -65,7 +65,7 @@ fulfilled.
     the parameters of the SDDP algorithm
 * `V::Vector{PolyhedralFunction}`:
     current lower approximation of Bellman functions
-* `verbose::Int64`:
+* `verbosity::Int64`:
     Default is `0`
     If non null, display progression in terminal every
     `n` iterations, where `n` is the number specified by display.
@@ -73,13 +73,13 @@ fulfilled.
 # Returns
 * `SDDPInterface`
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbose=0::Int64;
+function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbosity=0::Int64;
                     stopcrit::AbstractStoppingCriterion=IterLimit(20),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo, V,
-                         verbose=verbose)
+                         verbosity=verbosity)
     solve!(sddp)
     sddp
 end
@@ -146,12 +146,12 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # In iteration upper bound estimation
-        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbose,
+        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbosity,
                                           upperbound_scenarios, upb,
                                           sddp.solverinterface)
 
         updateSDDP!(sddp, lwb, upb, time_pass, trajectories)
-        checkit(sddp.verbose, sddp.stats.niterations) && println(sddp.stats)
+        checkit(sddp.verbosity, sddp.stats.niterations) && println(sddp.stats)
     end
 
     ##########
@@ -164,7 +164,7 @@ end
 function init!(sddp::SDDPInterface)
     random_pass!(sddp)
     sddp.init = true
-    (sddp.verbose > 0) && println("Initialize cuts")
+    (sddp.verbosity > 0) && println("Initialize cuts")
 end
 
 
@@ -175,13 +175,13 @@ function finalpass!(sddp::SDDPInterface)
     V = sddp.bellmanfunctions
     problems = sddp.solverinterface
     stats = sddp.stats
-    verbose = sddp.verbose
+    verbosity = sddp.verbosity
 
-    if (verbose>0) && (param.compute_ub >= 0)
+    if (verbosity>0) && (param.compute_ub >= 0)
         lwb = lowerbound(sddp)
 
         if (param.compute_ub == 0) || (param.monteCarloSize > 0)
-            (verbose > 0) && println("Compute final upper-bound with ",
+            (verbosity > 0) && println("Compute final upper-bound with ",
                                     param.monteCarloSize, " scenarios...")
             upb, σ, tol = estimate_upper_bound(model, param, V, problems, param.monteCarloSize)
         else
