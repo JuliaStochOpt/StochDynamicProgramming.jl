@@ -50,7 +50,8 @@ function solve_one_step_one_alea(model,
                                  xt::Vector{Float64},
                                  xi::Vector{Float64};
                                  relaxation=false::Bool,
-                                 init=false::Bool)
+                                 init=false::Bool,
+                                 verbosity::Int64=0)
     # Get var defined in JuMP.model:
     u = getvariable(m, :u)
     w = getvariable(m, :w)
@@ -66,10 +67,17 @@ function solve_one_step_one_alea(model,
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
+    if verbosity > 5
+        println("One step one alea problem at time t=",t)
+        println("for x =",xt)
+        println("and w=",xi)
+        print(m)
+    end
+
     if model.IS_SMIP
-        solved = relaxation ? solve_relaxed!(m, param): solve_mip!(m, param)
+        solved = relaxation ? solve_relaxed!(m, param,verbosity): solve_mip!(m, param,verbosity)
     else
-        status = solve(m, suppress_warnings=true)
+        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=true)
         solved = (status == :Optimal)
     end
 
@@ -95,13 +103,17 @@ end
 
 
 """Solve model in Decision-Hazard."""
-function solve_dh(model, param, t, xt, m)
+function solve_dh(model, param, t, xt, m,
+                                 verbosity::Int64=0)
     xf = getvariable(m, :xf)
     u = getvariable(m, :u)
     alpha = getvariable(m, :alpha)
     for i in 1:model.dimStates
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
+
+    (verbosity>5) && println("Decision Hazard model")
+    (verbosity>5) && print(m)
 
     status = solve(m)
     solved = status == :Optimal
@@ -132,28 +144,28 @@ function regularize(model, param,
                     regularizer::AbstractRegularization,
                     m::JuMP.Model,
                     t::Int64,
-                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64})
+                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64},verbosity::Int64=0)
     # store current objective:
     pobj = m.obj
     xf = getvariable(m, :xf)
     qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
-    res = solve_one_step_one_alea(model, param, m, t, xt, xi)
+    res = solve_one_step_one_alea(model, param, m, t, xt, xi,verbosity)
     m.obj = pobj
 
     return res
 end
 
 """Solve relaxed MILP problem."""
-function solve_relaxed!(m, param)
+function solve_relaxed!(m, param,verbosity::Int64=0)
     setsolver(m, param.SOLVER)
     status = solve(m, relaxation=true)
     return status == :Optimal
 end
 
 """Solve original MILP problem."""
-function solve_mip!(m, param)
+function solve_mip!(m, param,verbosity::Int64=0)
     setsolver(m, get(param.MIPSOLVER))
     status = solve(m, relaxation=false)
     return status == :Optimal

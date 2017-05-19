@@ -20,8 +20,8 @@ but allows to use either piecewise linear or quadratic costs.
 To define a `LinearSPModel`, the constructor is::
 
     spmodel = LinearSPModel(
-                        nstage,             # number of stages
-                        ubounds,            # bounds of control
+                        n_stage,             # number of stages
+                        u_bounds,            # bounds of control
                         x0,                 # initial state
                         cost,               # cost function
                         dynamic,            # dynamic
@@ -36,8 +36,8 @@ Default parameters
 ^^^^^^^^^^^^^^^^^^
 You should at least specify these parameters to define a `LinearSPModel`:
 
-- `nstage` (Int): number of stages in the stochastic multistage problem
-- `ubounds` (list of tuple): bounds upon control, defined as a sequence of tuple :code:`(umin, umax)`.
+- `n_stage` (Int): number of stages in the stochastic multistage problem
+- `u_bounds` (list of tuple): bounds upon control, defined as a sequence of tuple :code:`(umin, umax)`.
 - `x0` (`Vec{Float64}`): initial state
 - `cost` (`Function`): cost function as a function of time, state, control and noise returning a Float
 - `dynamic` (`Function`): system's dynamic as a function of time, state, control and noise returning a vector

@@ -87,12 +87,12 @@ function noiselaw_product(law, laws...)
         nw1 = law.supportSize
         nw2 = n2.supportSize
         # and dimensions of aleas:
-        ndim1 = size(law.support)[1]
-        ndim2 = size(n2.support)[1]
+        n_dim1 = size(law.support)[1]
+        n_dim2 = size(n2.support)[1]
 
         # proba and support will defined the output discrete law
         proba = zeros(nw1*nw2)
-        support = zeros(ndim1 + ndim2, nw1*nw2)
+        support = zeros(n_dim1 + n_dim2, nw1*nw2)
 
         count = 1
         # Use an iterator to find all permutations:

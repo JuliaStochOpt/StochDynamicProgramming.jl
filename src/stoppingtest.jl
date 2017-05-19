@@ -42,7 +42,7 @@ Estimate upperbound during SDDP iterations.
 * `iteration_count::Int64`:
     current iteration number
 * `upperbound_scenarios`
-* `verbose::Int64`
+* `verbosity::Int64`
 
 # Return
 * `upb::Float64`:
@@ -51,14 +51,14 @@ Estimate upperbound during SDDP iterations.
 function in_iteration_upb_estimation(model::SPModel,
                                      param::SDDPparameters,
                                      iteration_count::Int64,
-                                     verbose::Int64,
+                                     verbosity::Int64,
                                      upperbound_scenarios,
                                      current_upb,
                                      problems)
     upb, σ, tol = current_upb
     # If specified, compute upper-bound:
     if (param.compute_ub > 0) && (iteration_count%param.compute_ub==0)
-        (verbose > 0) && println("Compute upper-bound with ",
+        (verbosity > 0) && println("Compute upper-bound with ",
                                     param.in_iter_mc, " scenarios...")
         # estimate upper-bound with Monte-Carlo estimation:
         upb, σ, tol = estimate_upper_bound(model, param, upperbound_scenarios, problems)
