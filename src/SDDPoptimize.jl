@@ -568,7 +568,9 @@ function get_lower_bound(model::SPModel, param::SDDPparameters,
                             V::Vector{PolyhedralFunction})
     return get_bellman_value(model, param, 1, V[1], model.initialState)
 end
-
+function get_lower_bound(sddp::SDDPInterface)
+    return lowerbound(sddp::SDDPInterface)
+end
 
 """
 Compute optimal control at point xt and time t.
@@ -628,4 +630,3 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         end
     end
 end
-

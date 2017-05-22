@@ -51,7 +51,7 @@ function solve_one_step_one_alea(model,
                                  xi::Vector{Float64};
                                  relaxation=false::Bool,
                                  init=false::Bool,
-                                 verbosity::Int64=0)
+                                 verbosity=0::Int64)
     # Get var defined in JuMP.model:
     x = getvariable(m, :x)
     u = getvariable(m, :u)
@@ -165,14 +165,14 @@ function regularize(model, param,
                     regularizer::AbstractRegularization,
                     m::JuMP.Model,
                     t::Int64,
-                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64},verbosity::Int64=0)
+                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64};verbosity=0::Int64)
     # store current objective:
     pobj = m.obj
     xf = getvariable(m, :xf)
     qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
-    res = solve_one_step_one_alea(model, param, m, t, xt, xi,verbosity)
+    res = solve_one_step_one_alea(model, param, m, t, xt, xi,verbosity=verbosity)
     m.obj = pobj
 
     return res
@@ -191,4 +191,3 @@ function solve_mip!(m, param,verbosity::Int64=0)
     status = solve(m, relaxation=false)
     return status == :Optimal
 end
-
