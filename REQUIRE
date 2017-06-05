@@ -5,4 +5,4 @@ ProgressMeter
 Interpolations
 Iterators
 CutPruners 0.0.1 
-StochasticDualDynamicProgramming
+Compat 0.18

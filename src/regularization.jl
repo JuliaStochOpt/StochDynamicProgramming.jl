@@ -9,7 +9,7 @@
 
 export SDDPRegularization
 
-abstract AbstractRegularization
+@compat abstract type AbstractRegularization end
 
 
 type SDDPRegularization <: AbstractRegularization
