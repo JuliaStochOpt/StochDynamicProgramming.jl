@@ -272,6 +272,8 @@ type NLDSSolution
     ρe::Array{Float64, 1}
     # cost-to-go:
     θ::Float64
+    # cuts' multipliers
+    πc::Vector{Float64}
 end
 
 NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf)

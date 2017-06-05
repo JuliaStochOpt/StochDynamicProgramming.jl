@@ -138,7 +138,7 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # cut pruning
-        prune!(sddp, trajectories)
+        (param.prune) && prune!(sddp, trajectories)
 
         ####################
         # In iteration lower bound estimation
@@ -211,6 +211,7 @@ function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass, trajectories)
     # this step can be useful if MathProgBase interface takes too much
     # room in memory, rendering necessary a call to GC
     if checkit(sddp.params.reload, sddp.stats.niterations)
+        (sddp.params.prune) && sync!(sddp)
         sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
                                              sddp.params,
                                              sddp.bellmanfunctions)
@@ -331,6 +332,9 @@ function build_model(model, param, t)
         end
         @objective(m, Min, cost + alpha)
     end
+
+    # store number of cuts
+    m.ext[:ncuts] = 0
 
     # Add binary variable if problem is a SMIP:
     if model.IS_SMIP
@@ -609,5 +613,6 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
             end
         end
     end
+    problem.ext[:ncuts] = V.numCuts
 end
 

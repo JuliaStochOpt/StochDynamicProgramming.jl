@@ -84,7 +84,8 @@ function solve_one_step_one_alea(model,
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
                           getdual(m.ext[:cons]),
-                          getvalue(alpha))
+                          getvalue(alpha),
+                          getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
         result = NLDSSolution()
@@ -159,3 +160,8 @@ function solve_mip!(m, param)
     return status == :Optimal
 end
 
+
+getcutsmultipliers(m::JuMP.Model)=_getdual(m)[end-m.ext[:ncuts]+1:end]
+function _getdual(m::JuMP.Model)
+    return MathProgBase.SolverInterface.getconstrduals(m.internalModel)
+end
