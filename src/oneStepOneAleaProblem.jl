@@ -53,9 +53,9 @@ function solve_one_step_one_alea(model,
                                  init=false::Bool,
                                  verbosity::Int64=0)
     # Get var defined in JuMP.model:
-    u = getvariable(m, :u)
-    w = getvariable(m, :w)
-    alpha = getvariable(m, :alpha)
+    u = m[:u]
+    w = m[:w]
+    alpha = m[:alpha]
 
     # Update value of w:
     for ii in 1:model.dimNoises
@@ -106,9 +106,9 @@ end
 """Solve model in Decision-Hazard."""
 function solve_dh(model, param, t, xt, m,
                                  verbosity::Int64=0)
-    xf = getvariable(m, :xf)
-    u = getvariable(m, :u)
-    alpha = getvariable(m, :alpha)
+    xf = m[:xf]
+    u = m[:u]
+    alpha = m[:alpha]
     for i in 1:model.dimStates
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
@@ -148,7 +148,7 @@ function regularize(model, param,
                     xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64},verbosity::Int64=0)
     # store current objective:
     pobj = m.obj
-    xf = getvariable(m, :xf)
+    xf = m[:xf]
     qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)

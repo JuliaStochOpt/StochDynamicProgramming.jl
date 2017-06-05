@@ -224,8 +224,8 @@ Add a cut to the JuMP linear problem.
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
                             t::Int64, beta::Float64, lambda::Vector{Float64},verbosity=verbosity)
     (verbosity > 4) && println("adding cut to model at time t=",t)
-    alpha = getvariable(problem, :alpha)
-    xf = getvariable(problem, :xf)
+    alpha = problem[:alpha]
+    xf = problem[:xf]
     @constraint(problem, beta + dot(lambda, xf) <= alpha)
     problem.ext[:ncuts] += 1
 end
@@ -233,8 +233,8 @@ end
 function add_cut_dh!(model::SPModel, problem::JuMP.Model,
                      t::Int64, beta::Float64, lambda::Vector{Float64}, verbosity=verbosity)
     (verbosity > 4) && println("adding cut to dh model at time t=",t)
-    alpha = getvariable(problem, :alpha)
-    xf = getvariable(problem, :xf)
+    alpha = problem[:alpha]
+    xf = problem[:xf]
 
     for j=1:length(model.noises[t].proba)
         @constraint(problem, beta + dot(lambda, xf[:, j]) <= alpha[j])

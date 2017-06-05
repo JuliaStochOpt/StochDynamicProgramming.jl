@@ -257,8 +257,8 @@ function build_terminal_cost!(model::SPModel,
                               Vt::PolyhedralFunction,
                               verbosity::Int64=0)
     # if shape is PolyhedralFunction, build terminal cost with it:
-    alpha = getvariable(problem, :alpha)
-    xf = getvariable(problem, :xf)
+    alpha = problem[:alpha]
+    xf = problem[:xf]
     t = model.stageNumber -1
     if isa(Vt, PolyhedralFunction)
         (verbosity >3) && println("Building final cost")
@@ -617,8 +617,8 @@ $(SIGNATURES)
     Cuts are stored in V
 """
 function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::PolyhedralFunction)
-    alpha = getvariable(problem, :alpha)
-    xf = getvariable(problem, :xf)
+    alpha = problem[:alpha]
+    xf = problem[:xf]
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])

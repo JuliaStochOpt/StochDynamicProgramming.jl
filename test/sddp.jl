@@ -132,7 +132,7 @@ using Base.Test
     # Test definition of final cost with a JuMP.Model:
     @testset "Final cost" begin
         function fcost(model, m)
-            alpha = getvariable(m, :alpha)
+            alpha = m[:alpha]
             @constraint(m, alpha == 0.)
         end
         # Store final cost in model:
