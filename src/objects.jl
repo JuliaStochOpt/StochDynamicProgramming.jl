@@ -20,7 +20,7 @@ type PolyhedralFunction
     newcuts::Int
 end
 
-PolyhedralFunction(ndim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, ndim), 0, UInt64[], 0)
+PolyhedralFunction(n_dim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, n_dim), 0, UInt64[], 0)
 PolyhedralFunction(beta, lambda) = PolyhedralFunction(beta, lambda, length(beta), UInt64[], 0)
 
 function fetchnewcuts!(V::PolyhedralFunction)
@@ -57,8 +57,8 @@ type LinearSPModel <: SPModel
 
     IS_SMIP::Bool
 
-    function LinearSPModel(nstage,             # number of stages
-                           ubounds,            # bounds of control
+    function LinearSPModel(n_stage,             # number of stages
+                           u_bounds,            # bounds of control
                            x0,                 # initial state
                            cost,               # cost function
                            dynamic,            # dynamic
@@ -70,7 +70,7 @@ type LinearSPModel <: SPModel
                            control_cat=nothing) # category of controls
 
         dimStates = length(x0)
-        dimControls = length(ubounds)
+        dimControls = length(u_bounds)
         dimNoises = length(aleas[1].support[:, 1])
 
         # First step: process terminal costs.
@@ -84,20 +84,20 @@ type LinearSPModel <: SPModel
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimControls]
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
-        xbounds = [(-Inf, Inf) for i=1:dimStates]
+        x_bounds = [(-Inf, Inf) for i=1:dimStates]
 
-        return new(nstage, dimControls, dimStates, dimNoises, xbounds, ubounds,
+        return new(n_stage, dimControls, dimStates, dimNoises, x_bounds, u_bounds,
                    x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip)
     end
 end
 
 
 """Set bounds on state."""
-function set_state_bounds(model::SPModel, xbounds)
-    if length(xbounds) != model.dimStates
+function set_state_bounds(model::SPModel, x_bounds)
+    if length(x_bounds) != model.dimStates
         error("Bounds dimension, must be ", model.dimStates)
     else
-        model.xlim = xbounds
+        model.xlim = x_bounds
     end
 end
 

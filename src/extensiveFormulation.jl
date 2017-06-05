@@ -13,14 +13,14 @@ measurability constraints.
 # Arguments:
 * `model::SPModel`
 * `param::SDDPparameters`
-* `verbose`::Int`
+* `verbosity`::Int`
     Optionnal, default is 0
 # Returns
 * `objective value`
 * `first control`
 * `status of optimization problem`
 """
-function extensive_formulation(model, param; verbose=0)
+function extensive_formulation(model, param; verbosity=0)
 
     #Recover all the constant in the model or in param
     laws = model.noises
@@ -103,7 +103,7 @@ function extensive_formulation(model, param; verbose=0)
     solved = (status == :Optimal)
 
     if solved
-        (verbose > 0) && println("EF value: "*string(getobjectivevalue(mod)))
+        (verbosity > 0) && println("EF value: "*string(getobjectivevalue(mod)))
         firstControl = collect(values(getvalue(u)))[1:DIM_CONTROL*laws[1].supportSize]
         return getobjectivevalue(mod), firstControl, status
     else

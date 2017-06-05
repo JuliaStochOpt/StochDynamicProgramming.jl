@@ -33,7 +33,7 @@ function benchmark_parameters(model,
                                SDDParametersCollection,
                                scenarios::Array{Float64,3},
                                seeds::Int;
-                               verbose=0)
+                               verbosity=0)
 
     #Execute a first time each function to compile them
     (V, pbs, callsolver), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0)
@@ -65,7 +65,7 @@ function benchmark_parameters(model,
         push!(solving_mem, m1)
         push!(gap_sols, g)
 
-        if verbose > 0
+        if verbosity > 0
             print("Instance \t")
             print("Solving time = ",round(solvingtime,4),"\t")
             print("Solving memory = ", solvingmemory,"\t")

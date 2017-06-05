@@ -37,7 +37,7 @@ function forward_pass!(sddp::SDDPInterface)
     # law specified in model.noises:
     noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
-    # If acceleration is ON, need to build a new array of problem to
+    # If regularization is ON, need to build a new array of problem to
     # avoid side effect:
     problems_fp = isregularized(sddp) ? hotstart_SDDP(model, param, V) : problems
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
@@ -45,7 +45,8 @@ function forward_pass!(sddp::SDDPInterface)
                         problems_fp,
                         noise_scenarios,
                         pruner=sddp.pruner,
-                        regularizer=sddp.regularizer)
+                        regularizer=sddp.regularizer,
+                        verbosity = sddp.verbosity)
 
     sddp.stats.nsolved += callsolver_forward
     sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
@@ -90,7 +91,8 @@ function forward_simulations(model::SPModel,
                             solverProblems::Vector{JuMP.Model},
                             xi::Array{Float64};
                             pruner=Nullable{AbstractCutPruner}(),
-                            regularizer=Nullable{SDDPRegularization}())
+                            regularizer=Nullable{SDDPRegularization}(),
+                            verbosity::Int64=0)
 
     callsolver::Int = 0
     solvertime = Float64[]
@@ -132,14 +134,14 @@ function forward_simulations(model::SPModel,
                 reg = get(regularizer)
                 xp = getincumbent(reg, t, k)
                 sol, ts = regularize(model, param, reg,
-                                                  solverProblems[t], t, state_t, alea_t, xp)
+                                                  solverProblems[t], t, state_t, alea_t, xp,verbosity = verbosity)
             else
                 if model.info == :HD
                     sol, ts = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t)
+                                                           solverProblems[t], t, state_t, alea_t,verbosity=verbosity)
                 else
                     sol, ts = solve_dh(model, param, t, state_t,
-                                                solverProblems[t])
+                                                solverProblems[t],verbosity=verbosity)
                 end
             end
             push!(solvertime, ts)
@@ -191,7 +193,8 @@ $(SIGNATURES)
 """
 function add_cut!(model::SPModel,
                   t::Int64, Vt::PolyhedralFunction,
-                  beta::Float64, lambda::Vector{Float64})
+                  beta::Float64, lambda::Vector{Float64},verbosity=verbosity)
+    (verbosity > 4) && println("adding cut to polyhedral function at time t=",t)
     Vt.lambdas = vcat(Vt.lambdas, lambda')
     Vt.betas = vcat(Vt.betas, beta)
     Vt.hashcuts = vcat(Vt.hashcuts, hash(lambda))
@@ -219,7 +222,8 @@ Add a cut to the JuMP linear problem.
   subgradient of the cut to add
 """
 function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
-                            t::Int64, beta::Float64, lambda::Vector{Float64})
+                            t::Int64, beta::Float64, lambda::Vector{Float64},verbosity=verbosity)
+    (verbosity > 4) && println("adding cut to model at time t=",t)
     alpha = getvariable(problem, :alpha)
     xf = getvariable(problem, :xf)
     @constraint(problem, beta + dot(lambda, xf) <= alpha)
@@ -227,7 +231,8 @@ function add_cut_to_model!(model::SPModel, problem::JuMP.Model,
 end
 
 function add_cut_dh!(model::SPModel, problem::JuMP.Model,
-                     t::Int64, beta::Float64, lambda::Vector{Float64})
+                     t::Int64, beta::Float64, lambda::Vector{Float64}, verbosity=verbosity)
+    (verbosity > 4) && println("adding cut to dh model at time t=",t)
     alpha = getvariable(problem, :alpha)
     xf = getvariable(problem, :xf)
 
@@ -276,9 +281,9 @@ function backward_pass!(sddp::SDDPInterface,
             # We collect current state:
             state_t = stockTrajectories[t, k, :]
             if model.info == :HD
-                compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime)
+                compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             else
-                compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime)
+                compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             end
 
         end
@@ -293,7 +298,7 @@ end
 function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
                           V::Vector{PolyhedralFunction},
                           solverProblems::Vector{JuMP.Model}, t::Int,
-                          state_t::Vector{Float64}, solvertime::Vector{Float64})
+                          state_t::Vector{Float64}, solvertime::Vector{Float64},verbosity::Int64)
     law = model.noises
     costs = zeros(Float64, model.noises[t].supportSize)
     subgradient_array = zeros(Float64, model.dimStates, model.noises[t].supportSize)
@@ -339,9 +344,9 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
 
         # Add cut to polyhedral function and JuMP model:
         if ~isinside(V[t], subgradient)
-            add_cut!(model, t, V[t], beta, subgradient)
+            add_cut!(model, t, V[t], beta, subgradient, verbosity)
             if t > 1
-                add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient)
+                add_cut_to_model!(model, solverProblems[t-1], t, beta, subgradient, verbosity)
             end
         end
     end
@@ -352,7 +357,7 @@ end
 function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
                           V::Vector{PolyhedralFunction},
                           solverProblems::Vector{JuMP.Model}, t::Int,
-                          state_t::Vector{Float64}, solvertime::Vector{Float64})
+                          state_t::Vector{Float64}, solvertime::Vector{Float64},verbosity::Int64)
     # We solve LP problem in decision-hazard, considering all possible
     # outcomes of randomness:
     sol, ts = solve_dh(model, param, t, state_t, solverProblems[t])
@@ -372,7 +377,7 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
         # Add cut to polyhedral function and JuMP model:
         add_cut!(model, t, V[t], beta, subgradient)
         if t > 1
-            add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient)
+            add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
         end
     end
 end
