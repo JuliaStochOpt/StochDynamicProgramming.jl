@@ -8,7 +8,6 @@
 # - add functions to build scenarios with given probability laws
 #############################################################################
 
-using Iterators
 
 type NoiseLaw
     # Number of points in distribution:
@@ -96,7 +95,7 @@ function noiselaw_product(law, laws...)
 
         count = 1
         # Use an iterator to find all permutations:
-        for tup in product(1:nw1, 1:nw2)
+        for tup in Base.product(1:nw1, 1:nw2)
             i, j = tup
             # P(X = (x_i, y_i)) = pi1_i * pi2_i
             proba[count] = law.proba[i] * n2.proba[j]
