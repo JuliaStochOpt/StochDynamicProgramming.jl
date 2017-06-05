@@ -138,7 +138,7 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # cut pruning
-        prune!(sddp, trajectories)
+        (param.prune) && prune!(sddp, trajectories)
 
         ####################
         # In iteration lower bound estimation
@@ -211,7 +211,7 @@ function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass, trajectories)
     # this step can be useful if MathProgBase interface takes too much
     # room in memory, rendering necessary a call to GC
     if checkit(sddp.params.reload, sddp.stats.niterations)
-        sync!(sddp)
+        (sddp.params.prune) && sync!(sddp)
         sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
                                              sddp.params,
                                              sddp.bellmanfunctions)

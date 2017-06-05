@@ -23,16 +23,18 @@ type SDDPparameters
     in_iter_mc::Int64
     # Refresh JuMP Model:
     reload::Int
+    # Pruning:
+    prune::Bool
 
     function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="none",
                             compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
                             mipsolver=nothing,
-                            rho0=0., alpha=1., reload=-1)
+                            rho0=0., alpha=1., reload=-1, prune=false)
 
         return new(solver, mipsolver, passnumber, confidence,
-                   compute_ub, montecarlo_final, montecarlo_in_iter, reload)
+                   compute_ub, montecarlo_final, montecarlo_in_iter, reload, prune)
     end
 end
 

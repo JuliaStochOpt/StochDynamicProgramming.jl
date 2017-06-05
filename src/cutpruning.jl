@@ -6,6 +6,7 @@
 #############################################################################
 
 
+using Clp
 
 """
 Exact pruning of all polyhedral functions in input array.
@@ -33,6 +34,16 @@ end
 function sync!(sddp::SDDPInterface)
     for t in 1:sddp.spmodel.stageNumber-1
         sddp.bellmanfunctions[t] = PolyhedralFunction(sddp.pruner[t].b, sddp.pruner[t].A)
+    end
+end
+
+
+"""Prune cuts with exact pruning."""
+function cleancuts!(sddp::SDDPInterface)
+    ub = [x[2] for x in sddp.spmodel.xlim]
+    lb = [x[1] for x in sddp.spmodel.xlim]
+    for t in 1:sddp.spmodel.stageNumber-1
+        exactpruning!(sddp.pruner[t], ClpSolver(), ub=ub, lb=lb)
     end
 end
 

@@ -138,8 +138,9 @@ function forward_simulations(model::SPModel,
                                                   solverProblems[t], t, state_t, alea_t)
             end
             push!(solvertime, ts)
+
             # update cutpruners status with new point
-            if ~isnull(pruner) && t < T-1
+            if param.prune && ~isnull(pruner) && t < T-1
                 update!(pruner[t+1], sol.xf, sol.πc)
             end
 
