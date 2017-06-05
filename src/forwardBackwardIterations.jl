@@ -282,7 +282,7 @@ function backward_pass!(sddp::SDDPInterface,
             state_t = stockTrajectories[t, k, :]
             if model.info == :HD
                 compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
-            else
+            elseif model.info == :DH
                 compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             end
 
@@ -375,7 +375,7 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
         beta = costs_npass - dot(subgradient, state_t)
 
         # Add cut to polyhedral function and JuMP model:
-        add_cut!(model, t, V[t], beta, subgradient)
+        add_cut!(model, t, V[t], beta, subgradient, verbosity)
         if t > 1
             add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
         end

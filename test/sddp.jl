@@ -1,7 +1,7 @@
 ################################################################################
 # Test SDDP functions
 ################################################################################
-using StochDynamicProgramming, JuMP, Clp
+using StochDynamicProgramming, JuMP, Clp, CutPruners
 using Base.Test
 
 # Test SDDP with a one dimensional stock:
@@ -119,14 +119,45 @@ using Base.Test
         @test mean(sddp_costs) ≈ mean(sddp_costs2)
     end
 
+    @testset "Decision-Hazard" begin
+        model_dh = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
+                                                      x0, cost, dynamic, laws,
+                                                      info=:DH)
+        set_state_bounds(model_dh, x_bounds)
+        param_dh = StochDynamicProgramming.SDDPparameters(solver,
+                                                       passnumber=1,
+                                                       gap=0.001,
+                                                       max_iterations=10)
+        sddp_dh = solve_SDDP(model_dh, param_dh, 1)
+    end
+
+    @testset "Cut-pruning" begin
+        param_pr = StochDynamicProgramming.SDDPparameters(solver,
+                                                       passnumber=1,
+                                                       gap=0.001,
+                                                       reload=2, prune=true)
+
+        sddppr = SDDPInterface(model, param_pr,
+                     StochDynamicProgramming.IterLimit(10),
+                     CutPruners.DeMatosPruningAlgo(-1),
+                     verbosity=0)
+        # solve SDDP
+        solve!(sddppr)
+
+        # test exact cuts pruning
+        ncutini = StochDynamicProgramming.ncuts(sddppr.bellmanfunctions)
+        StochDynamicProgramming.cleancuts!(sddppr)
+        @test StochDynamicProgramming.ncuts(sddppr.bellmanfunctions) <= ncutini
+    end
+
     @testset "Quadratic regularization" begin
         param2 = StochDynamicProgramming.SDDPparameters(solver,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
                                                     max_iterations=max_iterations)
         #TODO: fix solver, as Clp cannot solve QP
-        #@test_throws ErrorException solve_SDDP(model, param2, 0,
-        #                                       regularization=SDDPRegularization(1., .99))
+        @test_throws ErrorException solve_SDDP(model, param2, 0,
+                                               regularization=SDDPRegularization(1., .99))
     end
 
     # Test definition of final cost with a JuMP.Model:
@@ -188,6 +219,7 @@ using Base.Test
         @test V[1].betas == Vdump[1].betas
         @test V[1].lambdas == Vdump[1].lambdas
     end
+
 
     #= @testset "Compare parameters" begin =#
     #=     paramDDP = [param for i in 1:3] =#

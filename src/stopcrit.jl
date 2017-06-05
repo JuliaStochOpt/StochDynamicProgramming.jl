@@ -1,3 +1,8 @@
+################################################################################
+# SDDP's stopping criterion
+# credits to @blegat
+# https://github.com/blegat/StochasticDualDynamicProgramming.jl/blob/master/src/stopcrit.jl
+################################################################################
 import Base.|, Base.&
 export stop, AbstractStoppingCriterion, OrStoppingCriterion, AndStoppingCriterion, IterLimit, Pereira, CutLimit, TimeLimit
 

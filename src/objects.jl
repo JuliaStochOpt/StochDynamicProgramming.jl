@@ -276,4 +276,4 @@ type NLDSSolution
     πc::Vector{Float64}
 end
 
-NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf)
+NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf, Array{Float64, 1}())

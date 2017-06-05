@@ -127,7 +127,7 @@ function solve!(sddp::SDDPInterface)
     stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
-    (sddp.verbosity > 0) && println("Starting sddp iterations")
+    (sddp.verbosity > 0) && println("Starting SDDP iterations")
     while !stop(sddp.stopcrit, stats, stats)
         # Time execution of current pass:
         tic()
@@ -266,14 +266,15 @@ function build_terminal_cost!(model::SPModel,
             lambda = vec(Vt.lambdas[i, :])
             if model.info == :HD
                 @constraint(problem, Vt.betas[i] + dot(lambda, xf) <= alpha)
-            else
+            elseif model.info == :DH
                 for ww=1:length(model.noises[t].proba)
                     @constraint(problem, Vt.betas[i] + dot(lambda, xf[:, ww]) <= alpha[ww])
                 end
             end
         end
     else
-        @constraint(problem, alpha >= 0)
+        # else, by default terminal cost is equal to 0
+        @constraint(problem, alpha .>= 0)
     end
 end
 
@@ -395,6 +396,10 @@ function build_model_dh(model, param, t, verbosity::Int64=0)
                         sum(πp[j]*(model.costFunctions(m, t, x, u, ξ[:, j]) +
                         alpha[j]) for j in 1:ns))
     end
+
+    # store number of cuts
+    m.ext[:ncuts] = 0
+
     (verbosity >5) && print(m)
     return m
 end
@@ -441,6 +446,7 @@ function initialize_value_functions(model::SPModel,
     end
     return V, solverProblems
 end
+
 getemptyvaluefunctions(model) = PolyhedralFunction[PolyhedralFunction(model.dimStates) for i in 1:model.stageNumber]
 
 

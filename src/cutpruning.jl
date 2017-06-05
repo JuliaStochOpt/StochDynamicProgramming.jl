@@ -4,9 +4,9 @@
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
+# Wrapper of cut's pruning algorithm from CutPruners
+#############################################################################
 
-
-using Clp
 
 """
 Exact pruning of all polyhedral functions in input array.
@@ -30,6 +30,7 @@ function prune!(sddp::SDDPInterface,
     end
 end
 
+
 """Synchronise cuts between `sddp.pruner` and `sddp.bellmanfunctions`."""
 function sync!(sddp::SDDPInterface)
     for t in 1:sddp.spmodel.stageNumber-1
@@ -43,7 +44,7 @@ function cleancuts!(sddp::SDDPInterface)
     ub = [x[2] for x in sddp.spmodel.xlim]
     lb = [x[1] for x in sddp.spmodel.xlim]
     for t in 1:sddp.spmodel.stageNumber-1
-        exactpruning!(sddp.pruner[t], ClpSolver(), ub=ub, lb=lb)
+        exactpruning!(sddp.pruner[t], sddp.params.SOLVER, ub=ub, lb=lb)
     end
 end
 

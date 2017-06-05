@@ -104,8 +104,7 @@ end
 
 
 """Solve model in Decision-Hazard."""
-function solve_dh(model, param, t, xt, m,
-                                 verbosity::Int64=0)
+function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     xf = m[:xf]
     u = m[:u]
     alpha = m[:alpha]
@@ -118,6 +117,10 @@ function solve_dh(model, param, t, xt, m,
 
     status = solve(m)
     solved = status == :Optimal
+    if ~solved
+        println(m)
+        error("Foo")
+    end
 
     solvetime = try getsolvetime(m) catch 0 end
 
@@ -129,7 +132,8 @@ function solve_dh(model, param, t, xt, m,
                               getvalue(xf)[:, 1],
                               getvalue(u),
                               λ,
-                              getvalue(alpha)[1])
+                              getvalue(alpha)[1],
+                              getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
         result = NLDSSolution()
