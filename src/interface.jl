@@ -36,6 +36,7 @@ type SDDPInterface
                            regularization=nothing,
                            verbosity::Int=2,
                            verbose_it::Int=1)
+
         check_SDDPparameters(model, param, verbosity)
         # initialize value functions:
         V, problems = initialize_value_functions(model, param)
@@ -47,6 +48,7 @@ type SDDPInterface
         return new(false, model, param, stats, stopcrit, pruner, regularization, V,
                    problems, verbosity,verbose_it)
     end
+
     function SDDPInterface(model::SPModel,
                         params::SDDPparameters,
                         stopcrit::AbstractStoppingCriterion,
@@ -55,6 +57,7 @@ type SDDPInterface
                         regularization=nothing,
                         verbosity::Int=2,
                         verbose_it::Int=1)
+
         check_SDDPparameters(model, params, verbosity)
         # First step: process value functions if hotstart is called
         problems = hotstart_SDDP(model, params, V)
@@ -71,7 +74,6 @@ function initpruner(algo, n_stages, n_dim)
     # Initialize cuts container for cuts pruning:
     return [CutPruners.CutPruner{n_dim, Float64}(algo, :Max) for i in 1:n_stages-1]
 end
-
 
 isregularized(sddp::SDDPInterface) = !isnull(sddp.regularizer)
 

@@ -37,16 +37,16 @@ fulfilled.
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, verbose_it=1::Int64;
-                    stopcrit::AbstractStoppingCriterion=IterLimit(20),
+                    stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
-    # Run SDDP:
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo,
                          verbosity=verbosity,
                          verbose_it=verbose_it,
                          regularization=regularization)
+    # Run SDDP:
     solve!(sddp)
     sddp
 end
@@ -78,9 +78,11 @@ fulfilled.
 # Returns
 * `SDDPInterface`
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbosity=0::Int64, verbose_it=1::Int64;
-                    stopcrit::AbstractStoppingCriterion=IterLimit(20),
+function solve_SDDP(model::SPModel, param::SDDPparameters,
+                    V::Vector{PolyhedralFunction}, verbosity=0::Int64, verbose_it=1::Int64;
+                    stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
+
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo, V,

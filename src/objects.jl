@@ -69,6 +69,7 @@ type LinearSPModel <: SPModel
                            info=:HD,           # information structure
                            control_cat=nothing) # category of controls
 
+        # infer the problem's dimension
         dimStates = length(x0)
         dimControls = length(u_bounds)
         dimNoises = length(aleas[1].support[:, 1])
@@ -81,6 +82,7 @@ type LinearSPModel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1, UInt64[], 0)
         end
 
+        # control's category
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimControls]
         is_smip = (:Int in isbu)||(:Bin in isbu)
 

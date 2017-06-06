@@ -66,7 +66,7 @@ function solve_determinist_problem()
     @variable(m,  0.          <= u[1:N_STAGES-1]  <= 7)
     @variable(m,  0.          <= s[1:N_STAGES-1]  <= 7)
 
-    @objective(m, Min, sum{COST[i]*u[i], i = 1:N_STAGES-1})
+    @objective(m, Min, sum(COST[i]*u[i] for i = 1:N_STAGES-1))
 
     for i in 1:(N_STAGES-1)
         @constraint(m, x[i+1] - x[i] + u[i] + s[i] - alea_year[i] == 0)

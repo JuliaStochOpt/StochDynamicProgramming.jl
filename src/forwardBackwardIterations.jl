@@ -40,6 +40,8 @@ function forward_pass!(sddp::SDDPInterface)
     # If regularization is ON, need to build a new array of problem to
     # avoid side effect:
     problems_fp = isregularized(sddp) ? hotstart_SDDP(model, param, V) : problems
+
+    # run forward pass
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
@@ -48,6 +50,7 @@ function forward_pass!(sddp::SDDPInterface)
                         regularizer=sddp.regularizer,
                         verbosity = sddp.verbosity)
 
+    # update SDDP's stats
     sddp.stats.nsolved += callsolver_forward
     sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
     return costs, stockTrajectories
@@ -71,6 +74,12 @@ scenario according to the current value functions.
 * `xi::Array{float}`:
     the noise scenarios on which we simulate, each column being one scenario :
     xi[t,k,:] is the alea at time t of scenario k.
+* `pruner::AbstractCutPruner`
+    Cut pruner
+* `regularizer::SDDPRegularization`
+    SDDP regularization to use in forward pass
+* `verbosity::Int`
+    Log-level
 
 # Returns
 * `costs::Array{float,1}`:
@@ -84,6 +93,8 @@ scenario according to the current value functions.
     scenario k at time t.
 * `callsolver::Int64`:
     the number of solver's call'
+* `solvertime::Vector{Float64}`
+    Solver's call execution time
 
 """
 function forward_simulations(model::SPModel,
@@ -136,6 +147,7 @@ function forward_simulations(model::SPModel,
                 sol, ts = regularize(model, param, reg,
                                                   solverProblems[t], t, state_t, alea_t, xp,verbosity = verbosity)
             else
+                # switch between HD and DH info structure
                 if model.info == :HD
                     sol, ts = solve_one_step_one_alea(model, param,
                                                            solverProblems[t], t, state_t, alea_t,verbosity=verbosity)
@@ -144,6 +156,8 @@ function forward_simulations(model::SPModel,
                                                 solverProblems[t],verbosity=verbosity)
                 end
             end
+
+            # update solvertime with ts
             push!(solvertime, ts)
 
             # update cutpruners status with new point
@@ -202,9 +216,7 @@ function add_cut!(model::SPModel,
     Vt.newcuts += 1
 end
 
-function isinside(Vt::PolyhedralFunction, lambda::Vector{Float64})
-    hash(lambda) in Vt.hashcuts
-end
+isinside(Vt::PolyhedralFunction, lambda::Vector{Float64})=hash(lambda) in Vt.hashcuts
 
 """
 Add a cut to the JuMP linear problem.
@@ -257,8 +269,6 @@ the current estimation of Vt.
 * `stockTrajectories::Array{Float64,3}`:
     stockTrajectories[t,k,:] is the vector of stock where the cut is computed
     for scenario k and time t.
-* `law::Array{NoiseLaw}`:
-    Conditionnal distributions of perturbation, for each timestep
 """
 function backward_pass!(sddp::SDDPInterface,
                         stockTrajectories::Array{Float64, 3})

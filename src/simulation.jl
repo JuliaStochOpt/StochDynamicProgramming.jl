@@ -13,16 +13,18 @@ Estimate upperbound during SDDP iterations.
 # Arguments
 * `model::SPModel`:
 * `params::SDDPparameters`:
-* `Vector{PolyhedralFunction}`:
-    Polyhedral functions where cuts will be removed
 * `iteration_count::Int64`:
     current iteration number
 * `upperbound_scenarios`
 * `verbosity::Int64`
+* `current_upb::Tuple{Float64}`
+    Current upper-bound
+* `problem::Vector{JuMP.Model}`
+    Stages' models
 
 # Return
-* `upb::Float64`:
-    estimation of upper bound
+* `upb, σ, tol`:
+    estimation of upper bound with confidence level
 """
 function in_iteration_upb_estimation(model::SPModel,
                                      param::SDDPparameters,
@@ -59,10 +61,8 @@ Estimate upper bound with Monte Carlo.
     Number of scenarios to use to compute Monte-Carlo estimation
 
 # Return
-* `upb::Float64`:
+* `upb, σ, tol`:
     estimation of upper bound
-* `costs::Vector{Float64}`:
-    Costs along different trajectories
 """
 function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 V::Vector{PolyhedralFunction},

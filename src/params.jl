@@ -13,6 +13,8 @@ type SDDPparameters
     MIPSOLVER::Nullable{MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
+    # max iterations
+    max_iterations::Int64
     # tolerance upon confidence interval:
     confidence_level::Float64
     # Estimate upper-bound every %% iterations:
@@ -33,7 +35,7 @@ type SDDPparameters
                             mipsolver=nothing,
                             rho0=0., alpha=1., reload=-1, prune=false)
 
-        return new(solver, mipsolver, passnumber, confidence,
+        return new(solver, mipsolver, passnumber, max_iterations, confidence,
                    compute_ub, montecarlo_final, montecarlo_in_iter, reload, prune)
     end
 end

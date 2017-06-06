@@ -38,10 +38,10 @@ problem with respect to the initial state x
     If specified, approximate future cost as 0
 
 # Returns
-* `solved::Bool`:
-    True if the solution is feasible, false otherwise
 * `NextStep`:
     Store solution of the problem
+* `ts::Float64`:
+    Solver's execution time
 """
 function solve_one_step_one_alea(model,
                                  param,
@@ -143,7 +143,6 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
 end
 
 
-
 # Solve local problem with a quadratic penalization:
 function regularize(model, param,
                     regularizer::AbstractRegularization,
@@ -161,6 +160,7 @@ function regularize(model, param,
 
     return res
 end
+
 
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param,verbosity::Int64=0)
