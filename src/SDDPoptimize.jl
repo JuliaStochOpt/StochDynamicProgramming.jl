@@ -313,9 +313,9 @@ function build_model(model, param, t,verbosity::Int64=0)
     nw = model.dimNoises
 
     # define variables in JuMP:
-    @variable(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-    @variable(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
-    @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+    @variable(m,  model.xlim[i,t][1] <= x[i=1:nx] <= model.xlim[i,t][2])
+    @variable(m,  model.xlim[i,t][1] <= xf[i=1:nx]<= model.xlim[i,t][2])
+    @variable(m,  model.ulim[i,t][1] <= u[i=1:nu] <=  model.ulim[i,t][2])
     @variable(m, alpha)
 
     @variable(m, w[1:nw] == 0)
@@ -371,9 +371,9 @@ function build_model_dh(model, param, t, verbosity::Int64=0)
     ξ = collect(law[t].support[:, :])
     πp = law[t].proba
 
-    @variable(m, model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-    @variable(m, model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
-    @variable(m, model.xlim[i][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i][2])
+    @variable(m, model.xlim[i,t][1] <= x[i=1:nx] <= model.xlim[i,t][2])
+    @variable(m, model.ulim[i,t][1] <= u[i=1:nu] <=  model.ulim[i,t][2])
+    @variable(m, model.xlim[i,t][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i,t][2])
     @variable(m, alpha[1:ns])
 
     m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
