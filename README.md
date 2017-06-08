@@ -55,13 +55,12 @@ control strategies.
 
 ## Installation
 Installing StochDynamicProgramming is an easy process.
-Currently, the package depends upon `CutPruners.jl`, which is not
+Currently, the package depends upon `StochasticDualDynamicProgramming.jl`, which is not
 yet registered in Julia's METADATA. To install the package,
 open Julia and enter
 
 ```julia
 julia> Pkg.update()
-julia> Pkg.clone("https://github.com/JuliaPolyhedra/CutPruners.jl")
 julia> Pkg.clone("https://github.com/blegat/StochasticDualDynamicProgramming.jl")
 julia> Pkg.add("StochDynamicProgramming")
 

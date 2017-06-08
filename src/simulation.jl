@@ -8,45 +8,23 @@
 
 
 """
-Test if the stopping criteria is fulfilled.
-
-Return true if |upper_bound - lower_bound|/lower_bound < epsilon
-or iteration_count > maxItNumber
-
-# Arguments
-*`param::SDDPparameters`:
-    stopping test type defined in SDDPparameters
-* `stats::SDDPStat`:
-    statistics of the current algorithm
-
-# Return
-`Bool`
-"""
-function test_stopping_criterion(param::SDDPparameters, stats::SDDPStat)
-    lb = stats.lower_bounds[end]
-    ub = stats.upper_bounds[end] + stats.upper_bounds_tol[end]
-    check_gap = (abs((ub-lb)/lb) < param.gap)
-    check_iter = stats.niterations >= param.maxItNumber
-    return check_gap || check_iter
-end
-
-
-"""
 Estimate upperbound during SDDP iterations.
 
 # Arguments
 * `model::SPModel`:
 * `params::SDDPparameters`:
-* `Vector{PolyhedralFunction}`:
-    Polyhedral functions where cuts will be removed
 * `iteration_count::Int64`:
     current iteration number
 * `upperbound_scenarios`
 * `verbosity::Int64`
+* `current_upb::Tuple{Float64}`
+    Current upper-bound
+* `problem::Vector{JuMP.Model}`
+    Stages' models
 
 # Return
-* `upb::Float64`:
-    estimation of upper bound
+* `upb, σ, tol`:
+    estimation of upper bound with confidence level
 """
 function in_iteration_upb_estimation(model::SPModel,
                                      param::SDDPparameters,
@@ -83,10 +61,8 @@ Estimate upper bound with Monte Carlo.
     Number of scenarios to use to compute Monte-Carlo estimation
 
 # Return
-* `upb::Float64`:
+* `upb, σ, tol`:
     estimation of upper bound
-* `costs::Vector{Float64}`:
-    Costs along different trajectories
 """
 function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 V::Vector{PolyhedralFunction},
@@ -109,6 +85,12 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
     return μ, σ, tol
 end
 
+
+"""Run `nsimu` simulations of SDDP."""
+function simulate(sddp::SDDPInterface, nsimu::Int)
+    scenarios = simulate_scenarios(sddp.spmodel.noises, nsimu)
+    forward_simulations(sddp.spmodel, sddp.params, sddp.solverinterface, scenarios)[1:3]
+end
 
 """
 Estimate the upper bound with a distribution of costs

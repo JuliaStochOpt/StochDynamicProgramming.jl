@@ -11,7 +11,6 @@ script:
  - julia -e 'Pkg.clone(pwd()); Pkg.build("StochDynamicProgramming"); Pkg.test("StochDynamicProgramming"; coverage=true)'
 before_script:
   - julia -e 'Pkg.clone("https://github.com/StructJuMP/StructJuMP.jl.git")'
-  - julia -e 'Pkg.clone("https://github.com/JuliaPolyhedra/CutPruners.jl")'
   - julia -e 'Pkg.clone("https://github.com/blegat/StochasticDualDynamicProgramming.jl")'
 after_success:
   - echo $TRAVIS_JULIA_VERSION

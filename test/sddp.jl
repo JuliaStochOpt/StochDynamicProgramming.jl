@@ -5,8 +5,10 @@
 
 include("framework.jl")
 using Base.Test
+
 # Test SDDP with a one dimensional stock:
 @testset "SDDP algorithm: 1D case" begin
+    solver = ClpSolver()
 
     # test reshaping of bounds
     @test StochDynamicProgramming.test_and_reshape_bounds(u_bounds,2,2,"control") == [(0.0,7.0) (0.0,7.0);(0.0,Inf) (0.0,Inf)]
@@ -84,7 +86,7 @@ using Base.Test
     # Test definition of final cost with a JuMP.Model:
     @testset "Final cost" begin
         function fcost(model, m)
-            alpha = getvariable(m, :alpha)
+            alpha = getindex(m, :alpha)
             @constraint(m, alpha == 0.)
         end
         # Store final cost in model:
@@ -249,3 +251,4 @@ end
         @test V[1].lambdas == Vdump[1].lambdas
     end
 end
+

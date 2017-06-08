@@ -37,16 +37,16 @@ fulfilled.
 
 """
 function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, verbose_it=1::Int64;
-                    stopcrit::AbstractStoppingCriterion=IterLimit(20),
+                    stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
-    # Run SDDP:
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo,
                          verbosity=verbosity,
                          verbose_it=verbose_it,
                          regularization=regularization)
+    # Run SDDP:
     solve!(sddp)
     sddp
 end
@@ -78,9 +78,11 @@ fulfilled.
 # Returns
 * `SDDPInterface`
 """
-function solve_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction}, verbosity=0::Int64, verbose_it=1::Int64;
-                    stopcrit::AbstractStoppingCriterion=IterLimit(20),
+function solve_SDDP(model::SPModel, param::SDDPparameters,
+                    V::Vector{PolyhedralFunction}, verbosity=0::Int64, verbose_it=1::Int64;
+                    stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
+
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo, V,
@@ -127,7 +129,7 @@ function solve!(sddp::SDDPInterface)
     stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
-    (sddp.verbosity > 0) && println("Starting sddp iterations")
+    (sddp.verbosity > 0) && println("Starting SDDP iterations")
     while !stop(sddp.stopcrit, stats, stats)
         # Time execution of current pass:
         tic()
@@ -148,8 +150,7 @@ function solve!(sddp::SDDPInterface)
 
         ####################
         # cut pruning
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start cut prunning")
-        prune!(sddp, trajectories)
+        (param.prune) && prune!(sddp, trajectories)
 
         ####################
         # In iteration lower bound estimation
@@ -222,6 +223,7 @@ function updateSDDP!(sddp::SDDPInterface, lwb, upb, time_pass, trajectories)
     # this step can be useful if MathProgBase interface takes too much
     # room in memory, rendering necessary a call to GC
     if checkit(sddp.params.reload, sddp.stats.niterations)
+        (sddp.params.prune) && sync!(sddp)
         (sddp.verbosity >2 )&& println("Reloading JuMP model")
         sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
                                              sddp.params,
@@ -257,8 +259,8 @@ function build_terminal_cost!(model::SPModel,
                               Vt::PolyhedralFunction,
                               verbosity::Int64=0)
     # if shape is PolyhedralFunction, build terminal cost with it:
-    alpha = getvariable(problem, :alpha)
-    xf = getvariable(problem, :xf)
+    alpha = problem[:alpha]
+    xf = problem[:xf]
     t = model.stageNumber -1
     if isa(Vt, PolyhedralFunction)
         (verbosity >3) && println("Building final cost")
@@ -266,14 +268,15 @@ function build_terminal_cost!(model::SPModel,
             lambda = vec(Vt.lambdas[i, :])
             if model.info == :HD
                 @constraint(problem, Vt.betas[i] + dot(lambda, xf) <= alpha)
-            else
+            elseif model.info == :DH
                 for ww=1:length(model.noises[t].proba)
                     @constraint(problem, Vt.betas[i] + dot(lambda, xf[:, ww]) <= alpha[ww])
                 end
             end
         end
     else
-        @constraint(problem, alpha >= 0)
+        # else, by default terminal cost is equal to 0
+        @constraint(problem, alpha .>= 0)
     end
 end
 
@@ -349,6 +352,9 @@ function build_model(model, param, t,verbosity::Int64=0)
         @objective(m, Min, cost + alpha)
     end
 
+    # store number of cuts
+    m.ext[:ncuts] = 0
+
     # Add binary variable if problem is a SMIP:
     if model.IS_SMIP
         m.colCat[2*nx+1:2*nx+nu] = model.controlCat
@@ -392,6 +398,10 @@ function build_model_dh(model, param, t, verbosity::Int64=0)
                         sum(πp[j]*(model.costFunctions(m, t, x, u, ξ[:, j]) +
                         alpha[j]) for j in 1:ns))
     end
+
+    # store number of cuts
+    m.ext[:ncuts] = 0
+
     (verbosity >5) && print(m)
     return m
 end
@@ -438,6 +448,7 @@ function initialize_value_functions(model::SPModel,
     end
     return V, solverProblems
 end
+
 getemptyvaluefunctions(model) = PolyhedralFunction[PolyhedralFunction(model.dimStates) for i in 1:model.stageNumber]
 
 
@@ -616,8 +627,8 @@ $(SIGNATURES)
     Cuts are stored in V
 """
 function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::PolyhedralFunction)
-    alpha = getvariable(problem, :alpha)
-    xf = getvariable(problem, :xf)
+    alpha = problem[:alpha]
+    xf = problem[:xf]
 
     for i in 1:V.numCuts
         lambda = vec(V.lambdas[i, :])
@@ -629,6 +640,7 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
             end
         end
     end
+    problem.ext[:ncuts] = V.numCuts
 end
 
 """

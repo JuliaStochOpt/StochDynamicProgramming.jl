@@ -40,5 +40,5 @@ include("extensiveFormulation.jl")
 include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")
-include("stoppingtest.jl")
+include("simulation.jl")
 end

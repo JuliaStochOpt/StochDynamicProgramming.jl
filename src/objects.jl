@@ -99,7 +99,7 @@ end
 
 """Set bounds on state."""
 function set_state_bounds(model::SPModel, x_bounds)
-nx = model.dimStates
+   nx = model.dimStates
    ns = model.stageNumber
    model.xlim = test_and_reshape_bounds(x_bounds, nx,ns, "State")
 end

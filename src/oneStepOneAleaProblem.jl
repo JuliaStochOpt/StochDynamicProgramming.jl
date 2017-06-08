@@ -51,12 +51,12 @@ function solve_one_step_one_alea(model,
                                  xi::Vector{Float64};
                                  relaxation=false::Bool,
                                  init=false::Bool,
-                                 verbosity=0::Int64)
+                                 verbosity::Int64=0)
     # Get var defined in JuMP.model:
-    x = getvariable(m, :x)
-    u = getvariable(m, :u)
-    w = getvariable(m, :w)
-    alpha = getvariable(m, :alpha)
+    x = getindex(m, :x)
+    u = getindex(m, :u)
+    w = getindex(m, :w)
+    alpha = getindex(m, :alpha)
 
     # Update value of w:
     JuMP.fix.(w,xi)
@@ -74,7 +74,7 @@ function solve_one_step_one_alea(model,
         end
 
     elseif isa(model.costFunctions, Vector{Function})
-        cost = getvariable(m, :cost)
+        cost = getindex(m, :cost)
         for i in 1:length(model.costFunctions)
             @constraint(m, cost >= model.costFunctions[i](t, x, u, xi))
         end
@@ -126,9 +126,9 @@ end
 """Solve model in Decision-Hazard."""
 function solve_dh(model, param, t, xt, m,
                                  verbosity::Int64=0)
-    xf = getvariable(m, :xf)
-    u = getvariable(m, :u)
-    alpha = getvariable(m, :alpha)
+    xf = getindex(m, :xf)
+    u = getindex(m, :u)
+    alpha = getindex(m, :alpha)
     for i in 1:model.dimStates
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
@@ -168,7 +168,7 @@ function regularize(model, param,
                     xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64};verbosity=0::Int64)
     # store current objective:
     pobj = m.obj
-    xf = getvariable(m, :xf)
+    xf = getindex(m, :xf)
     qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
@@ -191,3 +191,4 @@ function solve_mip!(m, param,verbosity::Int64=0)
     status = solve(m, relaxation=false)
     return status == :Optimal
 end
+
