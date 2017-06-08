@@ -630,3 +630,48 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
         end
     end
 end
+
+"""
+Compute subgradient of the problem at time t and state x.
+
+# Arguments
+* `V::Vector{Polyhedral function}`:
+    Estimation of bellman function as Polyhedral function
+* `t::Int64`:
+    Timestep used to compute the derivative
+* `x::Vector{Float64}`:
+    State for which the derivative is computed
+
+# Return
+subgradient of the problem at time t and state x (Float64)
+"""
+function get_subgradient(V::Vector{PolyhedralFunction}, t::Int64, x::Vector{Int64})
+    return get_subgradient(V[t],x)
+end
+
+"""
+Compute subgradient of the problem at time t and state x.
+
+# Arguments
+* `Vt::PolyhedralFunction`:
+    Estimation of bellman function as Polyhedral function
+* `t::Int64`:
+    Timestep used to compute the subgradient
+* `x::Vector{Float64}`:
+    State for which the subgradient is computed
+
+# Return
+subgradient of the problem at time t and state x (Float64)
+"""
+function get_subgradient(Vt::PolyhedralFunction, x::Vector{Int64})
+    maxvalue = -Inf
+    index = 0
+    for i in 1:Vt.numCuts
+        lambda = vec(Vt.lambdas[i, :])
+        if Vt.betas[i] + dot(lambda, x) >= maxvalue
+            maxvalue = Vt.betas[i] + dot(lambda, x)
+            index = i
+        end
+    end
+return Vt.lambdas[index, :]
+end
