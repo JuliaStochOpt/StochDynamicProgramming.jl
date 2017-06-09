@@ -4,7 +4,7 @@
 **WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
 
-**Latest release:** 0.3.0
+**Latest release:** 0.4.0
 
 | **Documentation** | **Build Status** | **Social** |
 |:-----------------:|:----------------:|:----------:|
@@ -28,13 +28,13 @@ It is built upon [JuMP]
 - Linear dynamics
 - Linear or convex piecewise linear cost
 
-Extension to non-linear formulation are under development. 
+Extension to non-linear formulation are under development.
 Extension to more complex alea dependance are under developpment.
 
 ## Why Extensive formulation ?
 
 An extensive formulation approach consists in representing the stochastic problem as a deterministic
-one with more variable and call a standard deterministic solver. Mainly usable in a linear 
+one with more variable and call a standard deterministic solver. Mainly usable in a linear
 setting. Computational complexity is exponential in the number of stages.
 
 ## Why Stochastic Dynamic Programming ?
@@ -54,7 +54,10 @@ control strategies.
 
 
 ## Installation
-Installing StochDynamicProgramming is an easy process. Open Julia and enter
+Installing StochDynamicProgramming is an easy process.
+Currently, the package depends upon `StochasticDualDynamicProgramming.jl`, which is not
+yet registered in Julia's METADATA. To install the package,
+open Julia and enter
 
 ```julia
 julia> Pkg.update()

@@ -6,7 +6,9 @@
 # Set a seed for reproductability:
 srand(2713)
 
-using StochDynamicProgramming, JuMP, CPLEX
+using StochDynamicProgramming, JuMP
+
+include("solver.jl")
 ##################################################
 
 
@@ -58,11 +60,11 @@ end
 function final_cost_dams(model, m)
     # Here, model is the optimization problem at time T - 1
     # so that xf (x future) is the final stock
-    alpha = JuMP.getvariable(m, :alpha)
-    w = JuMP.getvariable(m, :w)
-    x = JuMP.getvariable(m, :x)
-    u = JuMP.getvariable(m, :u)
-    xf = JuMP.getvariable(m, :xf)
+    alpha = m[:alpha]
+    w = m[:w]
+    x = m[:x]
+    u = m[:u]
+    xf = m[:xf]
     @JuMP.variable(m, z1 >= 0)
     @JuMP.variable(m, z2 >= 0)
     @JuMP.variable(m, z3 >= 0)
@@ -115,10 +117,8 @@ function init_problem()
     # Add bounds for stocks:
     set_state_bounds(model, x_bounds)
 
-    # We need to use CPLEX to solve QP at final stages:
-    solver = CPLEX.CplexSolver(CPX_PARAM_SIMDISPLAY=0, CPX_PARAM_BARDISPLAY=0)
 
-    params = SDDPparameters(solver,
+    params = SDDPparameters(SOLVER,
                             passnumber=FORWARD_PASS,
                             compute_ub=10,
                             gap=EPSILON,
@@ -128,5 +128,5 @@ end
 
 # Solve the problem:
 model, params = init_problem()
-V, pbs = @time solve_SDDP(model, params, 1)
+sddp = @time solve_SDDP(model, params, 2, 1)
 

@@ -16,8 +16,8 @@ using StochDynamicProgramming, Clp
 println("library loaded")
 
 run_sddp = true # false if you don't want to run sddp
-run_sdp  = true # false if you don't want to run sdp
-test_simulation = true # false if you don't want to test your strategies
+run_sdp  = false # false if you don't want to run sdp
+test_simulation = false # false if you don't want to test your strategies
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -25,7 +25,7 @@ const SOLVER = ClpSolver() 			   # require "using Clp"
 #const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 
 # convergence test
-const MAX_ITER = 10 # number of iterations of SDDP
+const MAX_ITER = 100 # number of iterations of SDDP
 
 const step = 0.1   # discretization step of SDP
 
@@ -81,10 +81,11 @@ if run_sddp
     println("Starting resolution by SDDP")
     # 10 forward pass, stop at MAX_ITER
     paramSDDP = SDDPparameters(SOLVER,
-                               passnumber=10,
+                               passnumber=1,
                                max_iterations=MAX_ITER)
-    V, pbs = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
-    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
+    sddp = @time solve_SDDP(spmodel, paramSDDP, 2,  # display information every 2 iterations
+                      stopcrit=IterLimit(MAX_ITER))
+    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellmanfunctions)
     println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
     toc(); println();
 end
@@ -101,7 +102,7 @@ if run_sdp
     spmodel_sdp = StochDynamicProgramming.build_sdpmodel_from_spmodel(spmodel)
     spmodel_sdp.constraints = constraints_dp
 
-    Vs = solve_DP(spmodel_sdp, paramSDP, 1)
+    Vs = solve_dp(spmodel_sdp, paramSDP, 1)
     value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
     println("Value obtained by SDP: "*string(round(value_sdp,4)))
     toc(); println();
@@ -111,8 +112,8 @@ end
 #srand(1234) # to fix the random seed accross runs
 if run_sddp && run_sdp && test_simulation
     scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
-    costsdp, states, controls = sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
+    costsddp, stocks = forward_simulations(spmodel, paramSDDP, sddp.solverinterface, scenarios)
+    costsdp, states, controls = forward_simulations(spmodel,paramSDP, Vs, scenarios)
     println("Simulated relative gain of sddp over sdp: "
             *string(round(200*mean(costsdp-costsddp)/abs(mean(costsddp+costsdp)),3))*"%")
 end

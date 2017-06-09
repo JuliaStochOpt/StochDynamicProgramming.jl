@@ -1,36 +1,10 @@
-#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2017, V.Leclere, H.Gerard, F.Pacaud, T.Rigaut
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
 #############################################################################
-#  Implement the SDDP solver and initializers:
-#  - functions to initialize value functions
-#  - functions to build terminal cost
+#  SDDP stopping criterion
 #############################################################################
-
-
-"""
-Test if the stopping criteria is fulfilled.
-
-Return true if |upper_bound - lower_bound|/lower_bound < epsilon
-or iteration_count > maxItNumber
-
-# Arguments
-*`param::SDDPparameters`:
-    stopping test type defined in SDDPparameters
-* `stats::SDDPStat`:
-    statistics of the current algorithm
-
-# Return
-`Bool`
-"""
-function test_stopping_criterion(param::SDDPparameters, stats::SDDPStat)
-    lb = stats.lower_bounds[end]
-    ub = stats.upper_bounds[end] + stats.upper_bounds_tol[end]
-    check_gap = (abs((ub-lb)/lb) < param.gap)
-    check_iter = stats.niterations >= param.maxItNumber
-    return check_gap || check_iter
-end
 
 
 """
@@ -39,28 +13,30 @@ Estimate upperbound during SDDP iterations.
 # Arguments
 * `model::SPModel`:
 * `params::SDDPparameters`:
-* `Vector{PolyhedralFunction}`:
-    Polyhedral functions where cuts will be removed
 * `iteration_count::Int64`:
     current iteration number
 * `upperbound_scenarios`
-* `verbose::Int64`
+* `verbosity::Int64`
+* `current_upb::Tuple{Float64}`
+    Current upper-bound
+* `problem::Vector{JuMP.Model}`
+    Stages' models
 
 # Return
-* `upb::Float64`:
-    estimation of upper bound
+* `upb, σ, tol`:
+    estimation of upper bound with confidence level
 """
 function in_iteration_upb_estimation(model::SPModel,
                                      param::SDDPparameters,
                                      iteration_count::Int64,
-                                     verbose::Int64,
+                                     verbosity::Int64,
                                      upperbound_scenarios,
                                      current_upb,
                                      problems)
     upb, σ, tol = current_upb
     # If specified, compute upper-bound:
     if (param.compute_ub > 0) && (iteration_count%param.compute_ub==0)
-        (verbose > 0) && println("Compute upper-bound with ",
+        (verbosity > 0) && println("Compute upper-bound with ",
                                     param.in_iter_mc, " scenarios...")
         # estimate upper-bound with Monte-Carlo estimation:
         upb, σ, tol = estimate_upper_bound(model, param, upperbound_scenarios, problems)
@@ -85,10 +61,8 @@ Estimate upper bound with Monte Carlo.
     Number of scenarios to use to compute Monte-Carlo estimation
 
 # Return
-* `upb::Float64`:
+* `upb, σ, tol`:
     estimation of upper bound
-* `costs::Vector{Float64}`:
-    Costs along different trajectories
 """
 function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 V::Vector{PolyhedralFunction},
@@ -104,13 +78,19 @@ function estimate_upper_bound(model::SPModel, param::SDDPparameters,
                                 problem::Vector{JuMP.Model})
     costs = forward_simulations(model, param, problem, aleas)[1]
     # discard unvalid values:
-    costs = costs[isfinite(costs)]
+    costs = costs[isfinite.(costs)]
     μ = mean(costs)
     σ = std(costs)
     tol = upper_bound_confidence(costs, param.confidence_level)
     return μ, σ, tol
 end
 
+
+"""Run `nsimu` simulations of SDDP."""
+function simulate(sddp::SDDPInterface, nsimu::Int)
+    scenarios = simulate_scenarios(sddp.spmodel.noises, nsimu)
+    forward_simulations(sddp.spmodel, sddp.params, sddp.solverinterface, scenarios)[1:3]
+end
 
 """
 Estimate the upper bound with a distribution of costs

@@ -1,4 +1,4 @@
-#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2017, V.Leclere, H.Gerard, F.Pacaud, T.Rigaut
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -8,7 +8,6 @@
 # - add functions to build scenarios with given probability laws
 #############################################################################
 
-using Iterators
 
 type NoiseLaw
     # Number of points in distribution:
@@ -87,16 +86,16 @@ function noiselaw_product(law, laws...)
         nw1 = law.supportSize
         nw2 = n2.supportSize
         # and dimensions of aleas:
-        ndim1 = size(law.support)[1]
-        ndim2 = size(n2.support)[1]
+        n_dim1 = size(law.support)[1]
+        n_dim2 = size(n2.support)[1]
 
         # proba and support will defined the output discrete law
         proba = zeros(nw1*nw2)
-        support = zeros(ndim1 + ndim2, nw1*nw2)
+        support = zeros(n_dim1 + n_dim2, nw1*nw2)
 
         count = 1
         # Use an iterator to find all permutations:
-        for tup in product(1:nw1, 1:nw2)
+        for tup in Base.product(1:nw1, 1:nw2)
             i, j = tup
             # P(X = (x_i, y_i)) = pi1_i * pi2_i
             proba[count] = law.proba[i] * n2.proba[j]

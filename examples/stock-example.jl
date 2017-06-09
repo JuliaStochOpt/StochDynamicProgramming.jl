@@ -21,26 +21,26 @@ test_simulation = true # false if you don't want to test your strategies
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
-const SOLVER = ClpSolver() 			   # require "using Clp"
+SOLVER = ClpSolver() 			   # require "using Clp"
 #const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 
 # convergence test
-const MAX_ITER = 10 # number of iterations of SDDP
-const step = 0.1   # discretization step of SDP
+MAX_ITER = 10 # number of iterations of SDDP
+step = 0.01   # discretization step of SDP
 
 ######## Stochastic Model  Parameters  ########
-const N_STAGES = 6              # number of stages of the SP problem
-const COSTS = [sin(3*t)-1 for t in 1:N_STAGES]
+N_STAGES = 6              # number of stages of the SP problem
+COSTS = [sin(3*t)-1 for t in 1:N_STAGES-1]
 #const COSTS = rand(N_STAGES)    # randomly generating deterministic costs
 
-const CONTROL_MAX = 0.5         # bounds on the control
-const CONTROL_MIN = 0
+CONTROL_MAX = 0.5         # bounds on the control
+CONTROL_MIN = 0
 
-const XI_MAX = 0.3              # bounds on the noise
-const XI_MIN = 0
-const N_XI = 10                 # discretization of the noise
+XI_MAX = 0.3              # bounds on the noise
+XI_MIN = 0
+N_XI = 10                 # discretization of the noise
 
-const S0 = 0.5                  # initial stock
+S0 = 0.5                  # initial stock
 
 # create law of noises
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
@@ -73,8 +73,8 @@ if run_sddp
     paramSDDP = SDDPparameters(SOLVER,
                                passnumber=10,
                                max_iterations=MAX_ITER)
-    V, pbs = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
-    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, V)
+    sddp = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
+    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellmanfunctions)
     println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
     toc(); println();
 end
@@ -87,7 +87,7 @@ if run_sdp
     controlSteps = [step] # discretization step of the control
     infoStruct = "HD" # noise at time t is known before taking the decision at time t
     paramSDP = SDPparameters(spmodel, stateSteps, controlSteps, infoStruct)
-    Vs = solve_DP(spmodel,paramSDP, 1)
+    Vs = solve_dp(spmodel,paramSDP, 1)
     value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
     println("Value obtained by SDP: "*string(round(value_sdp,4)))
     toc(); println();
@@ -109,8 +109,8 @@ end
 #srand(1234) # to fix the random seed accross runs
 if run_sddp && run_sdp && test_simulation
     scenarios = StochDynamicProgramming.simulate_scenarios(xi_laws,1000)
-    costsddp, stocks = forward_simulations(spmodel, paramSDDP, pbs, scenarios)
-    costsdp, states, controls = sdp_forward_simulation(spmodel,paramSDP,scenarios,Vs)
+    costsddp, stocks = forward_simulations(spmodel, paramSDDP, sddp.solverinterface, scenarios)
+    costsdp, states, controls = forward_simulations(spmodel,paramSDP, Vs, scenarios)
     println("Simulated relative gain of sddp over sdp: "
             *string(round(200*mean(costsdp-costsddp)/abs(mean(costsddp+costsdp)),3))*"%")
 end

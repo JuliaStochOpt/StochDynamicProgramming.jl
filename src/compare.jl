@@ -1,4 +1,4 @@
-#  Copyright 2015, Vincent Leclere, Francois Pacaud and Henri Gerard
+#  Copyright 2017, V.Leclere, H.Gerard, F.Pacaud, T.Rigaut
 #  This Source Code Form is subject to the terms of the Mozilla Public
 #  License, v. 2.0. If a copy of the MPL was not distributed with this
 #  file, You can obtain one at http://mozilla.org/MPL/2.0/.
@@ -33,7 +33,7 @@ function benchmark_parameters(model,
                                SDDParametersCollection,
                                scenarios::Array{Float64,3},
                                seeds::Int;
-                               verbose=0)
+                               verbosity=0)
 
     #Execute a first time each function to compile them
     (V, pbs, callsolver), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0)
@@ -60,19 +60,19 @@ function benchmark_parameters(model,
         simulationmemory = m2+m3
         g = round(100*(upb-V0)/V0)
 
-        push!(solver_calls, sddpstats.ncallsolver)
+        push!(solver_calls, sddpstats.nsolved)
         push!(solving_times, t1)
         push!(solving_mem, m1)
         push!(gap_sols, g)
 
-        if verbose > 0
+        if verbosity > 0
             print("Instance \t")
             print("Solving time = ",round(solvingtime,4),"\t")
             print("Solving memory = ", solvingmemory,"\t")
             print("Simulation time = ",round(simulationtime,4),"\t")
             print("Simulation memory = ", simulationmemory,"\t")
             print("Gap < ", g,"% with prob 97.5%\t")
-            println("number external solver call = ", sddpstats.ncallsolver)
+            println("number external solver call = ", sddpstats.nsolved)
         end
     end
     return solver_calls, solving_times, solving_mem, gap_sols
