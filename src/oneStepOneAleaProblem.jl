@@ -155,7 +155,7 @@ function regularize(model, param,
     qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
-    res = solve_one_step_one_alea(model, param, m, t, xt, xi,verbosity)
+    res = solve_one_step_one_alea(model, param, m, t, xt, xi,verbosity=verbosity)
     m.obj = pobj
 
     return res
