@@ -56,18 +56,21 @@ type LinearSPModel <: SPModel
     info::Symbol
 
     IS_SMIP::Bool
+    
+    beta::Float64
 
     function LinearSPModel(n_stage,             # number of stages
                            u_bounds,            # bounds of control
-                           x0,                 # initial state
-                           cost,               # cost function
-                           dynamic,            # dynamic
-                           aleas;              # modelling of noises
-                           Vfinal=nothing,     # final cost
-                           eqconstr=nothing,   # equality constraints
-                           ineqconstr=nothing, # inequality constraints
-                           info=:HD,           # information structure
-                           control_cat=nothing) # category of controls
+                           x0,                  # initial state
+                           cost,                # cost function
+                           dynamic,             # dynamic
+                           aleas;               # modelling of noises
+                           Vfinal=nothing,      # final cost
+                           eqconstr=nothing,    # equality constraints
+                           ineqconstr=nothing,  # inequality constraints
+                           info=:HD,            # information structure
+                           control_cat=nothing, # category of controls
+                           beta = nothing)
 
         # infer the problem's dimension
         dimStates = length(x0)
@@ -89,7 +92,7 @@ type LinearSPModel <: SPModel
         x_bounds = [(-Inf, Inf) for i=1:dimStates]
 
         return new(n_stage, dimControls, dimStates, dimNoises, x_bounds, u_bounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip, 1)
     end
 end
 

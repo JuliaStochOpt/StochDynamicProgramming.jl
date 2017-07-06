@@ -41,4 +41,5 @@ include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")
 include("simulation.jl")
+include("risk.jl")
 end

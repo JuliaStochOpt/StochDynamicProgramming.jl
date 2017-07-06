@@ -303,7 +303,6 @@ function backward_pass!(sddp::SDDPInterface,
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
 end
 
-
 """Compute cuts in Hazard-Decision (classical SDDP)."""
 function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
                           V::Vector{PolyhedralFunction},
@@ -317,7 +316,8 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
     # It is initialized at 0. If all problem are infeasible for
     # current timestep, then proba remains equal to 0 and not cut is added.
     proba = zeros(model.noises[t].supportSize)
-
+    
+    beta = model.beta
     # We iterate other the possible realization of noise:
     for w in 1:model.noises[t].supportSize
 
@@ -344,7 +344,9 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
     if sum(proba) > 0
         # Scale probability (useful when some problems where infeasible):
         proba /= sum(proba)
-
+         
+        proba = change_proba_risk(proba,beta,sortperm(costs,rev = true))
+        
         # Compute expectation of subgradient λ:
         subgradient = vec(sum(proba' .* subgradient_array, 2))
         # ... expectation of cost:
