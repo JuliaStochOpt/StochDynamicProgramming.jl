@@ -28,8 +28,17 @@ and renormalized it
     a new probability distribution taking risk into account.
 
 """
+function change_proba_risk(prob, riskMeasure::RiskMeasure,perm)
+    erro("'change_proba_risk' not defined for $(typedof(s))")
+end
+
+"""
+$(TYPEDEF)
+
+Update the probability distribution to calculate a Conditional Value at Risk of level beta.
+"""
 function change_proba_risk(prob,riskMeasure::CVaR,perm)
-    beta = riskMeasure.beta
+    beta = 1-riskMeasure.beta
     proba = zeros(length(prob))
     for i in 1:length(perm)
         proba[i] = prob[perm[i]]
@@ -49,18 +58,34 @@ function change_proba_risk(prob,riskMeasure::CVaR,perm)
     return aux
 end
 
+"""
+$(TYPEDEF)
+
+Leave the probability distribution unchanged to calculate the expectation.
+"""
 function change_proba_risk(prob,riskMeasure::Expectation,perm)
     return prob
 end
 
+"""
+$(TYPEDEF)
+
+Return a dirac on the worst cost as a probability distribution.
+"""
 function change_proba_risk(prob,riskMeasure::WorstCase,perm)
     proba = zeros(length(prob))
     proba[perm[1]] = 1
     return proba
 end
 
+"""
+$(TYPEDEF)
+
+Update the probability distribution to calculate a convex combination
+between expactation and a Condiational Value at Risk of level beta.
+"""
 function change_proba_risk(prob,riskMeasure::ConvexCombi,perm)
-    beta = riskMeasure.beta
+    beta = 1-riskMeasure.beta
     lambda = riskMeasure.lambda
     proba = zeros(length(prob))
     for i in 1:length(perm)
