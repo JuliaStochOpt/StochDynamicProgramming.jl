@@ -51,7 +51,7 @@ using Base.Test
 
     V = nothing
     model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
-                                                  x0, cost, dynamic, laws)
+                                                  x0, cost, dynamic, laws, Expectation())
 
     set_state_bounds(model, x_bounds)
     # Test error if bounds are not well specified:
@@ -121,7 +121,7 @@ using Base.Test
 
     @testset "Decision-Hazard" begin
         model_dh = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
-                                                      x0, cost, dynamic, laws,
+                                                      x0, cost, dynamic, laws, Expectation(),
                                                       info=:DH)
         set_state_bounds(model_dh, x_bounds)
         param_dh = StochDynamicProgramming.SDDPparameters(solver,
@@ -177,7 +177,7 @@ using Base.Test
         model = StochDynamicProgramming.LinearSPModel(n_stages,
                                                       u_bounds, x0,
                                                       [cost],
-                                                      dynamic, laws)
+                                                      dynamic, laws, Expectation())
         set_state_bounds(model, x_bounds)
         sddp = solve_SDDP(model, param, 0)
     end
@@ -189,6 +189,7 @@ using Base.Test
                                                       u_bounds, x0,
                                                       cost,
                                                       dynamic, laws,
+                                                      Expectation(),
                                                       control_cat=controlCat)
         set_state_bounds(model2, x_bounds)
         @test_throws ErrorException solve_SDDP(model2, param, 0)
@@ -278,7 +279,7 @@ end
         model = StochDynamicProgramming.LinearSPModel(n_stages,
                                                       u_bounds, x0,
                                                       cost,
-                                                      dynamic, laws)
+                                                      dynamic, laws, Expectation())
         set_state_bounds(model, x_bounds)
 
 
@@ -327,4 +328,3 @@ end
         @test V[1].lambdas == Vdump[1].lambdas
     end
 end
-

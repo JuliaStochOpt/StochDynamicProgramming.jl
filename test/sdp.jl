@@ -133,13 +133,13 @@ end
             modelSDPPiecewise = StochDynamicProgramming.LinearSPModel(TF,
             u_bounds, x0,
             [cost_t],
-            dynamic, aleas)
+            dynamic, aleas, Expectation())
             set_state_bounds(modelSDPPiecewise, x_bounds)
 
             modelSDPLinear = StochDynamicProgramming.LinearSPModel(TF,
                                                                    u_bounds, x0,
                                                                    cost_t,
-                                                                   dynamic, aleas)
+                                                                   dynamic, aleas, Expectation())
 
             set_state_bounds(modelSDPLinear, x_bounds)
 

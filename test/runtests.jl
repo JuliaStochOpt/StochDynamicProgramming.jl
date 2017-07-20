@@ -15,6 +15,9 @@ using Base.Test
 # Test utility functions:
 include("prob.jl")
 
+# Test risk measures:
+include("changeprob.jl")
+
 # Test SDDP:
 include("sddp.jl")
 
