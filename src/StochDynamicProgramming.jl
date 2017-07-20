@@ -24,7 +24,7 @@ export solve_SDDP,
         PolyhedralFunction, forward_simulations,
         StochDynProgModel, SDPparameters, solve_dp,
         sampling, get_control, get_bellman_value,
-        benchmark_parameters, SDDPInterface
+        benchmark_parameters, SDDPInterface, CVaR, Expectation, WorstCase, ConvexCombi
 
 include("noises.jl")
 include("objects.jl")

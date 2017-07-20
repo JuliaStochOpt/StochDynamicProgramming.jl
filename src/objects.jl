@@ -7,6 +7,40 @@
 #############################################################################
 
 
+@compat abstract type RiskMeasure end
+
+# Define an object to
+type Expectation <: RiskMeasure
+    function Expectation()
+        return new()
+    end
+end
+
+type CVaR <: RiskMeasure
+    # level of risk aversity (0 = Expectation, 1 = Worst Case):
+    beta::Float64
+    function CVaR(beta)
+        return new(beta)
+    end
+end
+
+type WorstCase <: RiskMeasure
+    function WorstCase()
+        return new()
+    end
+end
+
+type ConvexCombi <: RiskMeasure
+    # level of risk aversity (0 = Expectation, 1 = Worst Case):
+    beta::Float64
+    #Convex coefficient
+    lambda::Float64
+    function ConvexCombi(beta,lambda)
+        return new(beta,lambda)
+    end
+end
+
+
 @compat abstract type SPModel end
 
 
@@ -56,21 +90,22 @@ type LinearSPModel <: SPModel
     info::Symbol
 
     IS_SMIP::Bool
-    
-    beta::Float64
+
+    riskMeasure::RiskMeasure
 
     function LinearSPModel(n_stage,             # number of stages
                            u_bounds,            # bounds of control
                            x0,                  # initial state
                            cost,                # cost function
                            dynamic,             # dynamic
-                           aleas;               # modelling of noises
+                           aleas,               # modelling of noises
+                           riskMeasure;
                            Vfinal=nothing,      # final cost
                            eqconstr=nothing,    # equality constraints
                            ineqconstr=nothing,  # inequality constraints
                            info=:HD,            # information structure
                            control_cat=nothing, # category of controls
-                           beta = nothing)
+                           )
 
         # infer the problem's dimension
         dimStates = length(x0)
@@ -90,9 +125,11 @@ type LinearSPModel <: SPModel
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
         x_bounds = [(-Inf, Inf) for i=1:dimStates]
+        
+        #riskMeasure = CVaR(1)
 
         return new(n_stage, dimControls, dimStates, dimNoises, x_bounds, u_bounds,
-                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip, 1)
+                   x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip, riskMeasure)
     end
 end
 

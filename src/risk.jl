@@ -28,7 +28,8 @@ and renormalized it
     a new probability distribution taking risk into account.
 
 """
-function change_proba_risk(prob,beta,perm)
+function change_proba_risk(prob,riskMeasure::CVaR,perm)
+    beta = riskMeasure.beta
     proba = zeros(length(prob))
     for i in 1:length(perm)
         proba[i] = prob[perm[i]]
@@ -44,6 +45,38 @@ function change_proba_risk(prob,beta,perm)
     aux = zeros(length(prob))
     for i in 1:length(perm)
         aux[perm[i]] = proba[i]
-    end 
+    end
     return aux
+end
+
+function change_proba_risk(prob,riskMeasure::Expectation,perm)
+    return prob
+end
+
+function change_proba_risk(prob,riskMeasure::WorstCase,perm)
+    proba = zeros(length(prob))
+    proba[perm[1]] = 1
+    return proba
+end
+
+function change_proba_risk(prob,riskMeasure::ConvexCombi,perm)
+    beta = riskMeasure.beta
+    lambda = riskMeasure.lambda
+    proba = zeros(length(prob))
+    for i in 1:length(perm)
+        proba[i] = prob[perm[i]]
+    end
+    index = findfirst(x -> x>=beta ,cumsum(proba))
+    if index > 1
+        proba[index] = (beta - cumsum(proba)[index - 1])
+    end
+    for i in (index + 1):length(proba)
+        proba[i] = 0
+    end
+    proba = proba / sum(proba)
+    aux = zeros(length(prob))
+    for i in 1:length(perm)
+        aux[perm[i]] = proba[i]
+    end
+    return lambda*prob + (1-lambda)*aux
 end

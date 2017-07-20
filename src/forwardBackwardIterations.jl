@@ -317,7 +317,6 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
     # current timestep, then proba remains equal to 0 and not cut is added.
     proba = zeros(model.noises[t].supportSize)
     
-    beta = model.beta
     # We iterate other the possible realization of noise:
     for w in 1:model.noises[t].supportSize
 
@@ -345,7 +344,7 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
         # Scale probability (useful when some problems where infeasible):
         proba /= sum(proba)
          
-        proba = change_proba_risk(proba,beta,sortperm(costs,rev = true))
+        proba = change_proba_risk(proba,model.riskMeasure,sortperm(costs,rev = true))
         
         # Compute expectation of subgradient λ:
         subgradient = vec(sum(proba' .* subgradient_array, 2))
