@@ -1,4 +1,4 @@
-using StochDynamicProgramming, JuMP, Clp, CutPruners
+using StochDynamicProgramming, JuMP, Clp
 using Base.Test
 
 EPSILON = 0.0001
@@ -48,4 +48,26 @@ end
         prob = 1/n*ones(n)
         @test change_proba_risk(prob, CVaR(betamax), 1:n)'*(n:-1:1) - change_proba_risk(prob, CVaR(betamin), 1:n)'*(n:-1:1) >= 0
     end
+end
+
+@testset "Equality CVaR linear program" begin
+    n = 100
+    X = rand(-100:100,100)
+    beta = rand()
+    prob = 1/n*ones(n)
+
+    m = Model(solver = ClpSolver())
+
+    @variable(m, alpha)
+    @variable(m,theta[1:n] >= 0)
+
+    @constraint(m, theta[1:n] .>= X[1:n] - alpha)
+
+    @objective(m, Min, alpha + 1/(1-beta)*sum(prob[i]*theta[i] for i in 1:n))
+
+    status = solve(m)
+
+    probaCVaR = change_proba_risk(prob, CVaR(beta), sortperm(X, rev = true))
+
+    @test abs(probaCVaR'*X - getobjectivevalue(m)) <= EPSILON
 end
