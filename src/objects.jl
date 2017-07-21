@@ -91,6 +91,7 @@ type LinearSPModel <: SPModel
 
     IS_SMIP::Bool
 
+    #Define the risk measure used at each stage
     riskMeasure::RiskMeasure
 
     function LinearSPModel(n_stage,             # number of stages
@@ -125,8 +126,6 @@ type LinearSPModel <: SPModel
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
         x_bounds = [(-Inf, Inf) for i=1:dimStates]
-        
-        #riskMeasure = CVaR(1)
 
         return new(n_stage, dimControls, dimStates, dimNoises, x_bounds, u_bounds,
                    x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip, riskMeasure)
