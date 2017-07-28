@@ -118,6 +118,27 @@ function test_and_reshape_bounds(bounds, nx,ns, variable)
      end
  end
 
+
+function iswithinbounds(x, bounds::Array)
+    test = true
+    for (i, xi) in enumerate(x)
+        test = test&(xi <= bounds[i][2])&(xi >= bounds[i][1])
+    end
+    test
+end
+
+function max_bounds(bounds::Array)
+    warn("Varying bounds badly not in sdp, define in constraint function")
+    m_bounds = ones(size(bounds)[1],2)
+    for j in 1:size(bounds)[2]
+        for i in 1:size(bounds)[1]
+            m_bounds[i,1] = min(m_bounds[i,1], bounds[i,j][1])
+            m_bounds[i,2] = max(m_bounds[i,2], bounds[i,j][2])
+        end
+    end
+    [(m_bounds[i,1], m_bounds[i,2]) for i in 1:size(bounds)[1]]
+end
+
 type StochDynProgModel <: SPModel
     # problem dimension
     stageNumber::Int64
@@ -126,11 +147,11 @@ type StochDynProgModel <: SPModel
     dimNoises::Int64
 
     # Bounds of states and controls:
-    xlim::Array{Tuple{Float64,Float64},2}
-    ulim::Array{Tuple{Float64,Float64},2}
+    xlim::Array
+    ulim::Array
 
 
-    initialState::Array{Float64, 1}
+    initialState::Array
 
     costFunctions::Function
     finalCostFunction::Function
@@ -158,16 +179,32 @@ type StochDynProgModel <: SPModel
                  model.noises)
     end
 
-    function StochDynProgModel(TF, x_bounds, u_bounds, x0, costFunctions,
+    function StochDynProgModel(TF::Int, x_bounds, u_bounds, x0, costFunctions,
                                 finalCostFunction, dynamic, constraints, aleas, search_space_builder = Nullable{Function}())
         dimState = length(x0)
         dimControls = size(u_bounds)[1]
-        u_bounds = test_and_reshape_bounds(u_bounds, dimControls,TF, "Controls")
-        x_bounds = test_and_reshape_bounds(x_bounds, dimState,TF, "State")
+        u_bounds1 = ndims(u_bounds) == 1? u_bounds : max_bounds(u_bounds)
+        x_bounds1 = ndims(x_bounds) == 1? x_bounds : max_bounds(x_bounds)
+        
+        # cons_fun_x(t,x,u,w) = true
+        # cons_fun_u(t,x,u,w) = true
+
+        # if ndims(x_bounds) > 1 
+        #     cons_fun_x(t,x,u,w) = iswithinbounds(x, x_bounds[:,t]) 
+        # end
+
+        # println(cons_fun_x(2,[1. 1.],[1.,1.],[1.,1.]))
+        # if ndims(u_bounds) > 1 
+        #     cons_fun_u(t,x,u,w) = iswithinbounds(u, u_bounds[:,t])
+        # end
+
+        # cons_fun(t,x,u,w) = return constraints(t,x,u,w)&&cons_fun_x(t,x,u,w)&&cons_fun_u(t,x,u,w)
+
         return new(TF, dimControls, dimState, length(aleas[1].support[:, 1]),
-                    x_bounds, u_bounds, x0, costFunctions, finalCostFunction, dynamic,
+                    x_bounds1, u_bounds1, x0, costFunctions, finalCostFunction, dynamic,
                     constraints, aleas, search_space_builder)
     end
+
 
 end
 
