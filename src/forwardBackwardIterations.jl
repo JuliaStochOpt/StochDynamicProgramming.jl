@@ -145,7 +145,7 @@ function forward_simulations(model::SPModel,
                 reg = get(regularizer)
                 xp = getincumbent(reg, t, k)
                 sol, ts = regularize(model, param, reg,
-                                                  solverProblems[t], t, state_t, alea_t, xp,verbosity=verbosity)
+                                                  solverProblems[t], t, state_t, alea_t, xp,verbosity = verbosity)
             else
                 # switch between HD and DH info structure
                 if model.info == :HD

@@ -3,15 +3,13 @@ os:
   - linux
 julia:
   - 0.5
+  - 0.6
 notifications:
   email: false
 
 script:
  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
  - julia -e 'Pkg.clone(pwd()); Pkg.build("StochDynamicProgramming"); Pkg.test("StochDynamicProgramming"; coverage=true)'
-before_script:
-  - julia -e 'Pkg.clone("https://github.com/StructJuMP/StructJuMP.jl.git")'
-  - julia -e 'Pkg.clone("https://github.com/blegat/StochasticDualDynamicProgramming.jl")'
 after_success:
   - echo $TRAVIS_JULIA_VERSION
   - julia -e 'Pkg.add("Coverage"); cd(Pkg.dir("StochDynamicProgramming")); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(Codecov.process_folder())'

@@ -3,5 +3,5 @@ JuMP 0.17
 Distributions
 ProgressMeter
 Interpolations
-CutPruners 0.0.1 
+CutPruners 0.0.2 
 Compat 0.18

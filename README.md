@@ -4,7 +4,7 @@
 **WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
 
-**Latest release:** 0.3.0
+**Latest release:** 0.4.0
 
 | **Documentation** | **Build Status** | **Social** |
 |:-----------------:|:----------------:|:----------:|
@@ -61,7 +61,6 @@ open Julia and enter
 
 ```julia
 julia> Pkg.update()
-julia> Pkg.clone("https://github.com/blegat/StochasticDualDynamicProgramming.jl")
 julia> Pkg.add("StochDynamicProgramming")
 
 ```
