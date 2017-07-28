@@ -1,8 +1,8 @@
-using StochDynamicProgramming,  JuMP, Clp, Cbc,Gurobi, CPLEX#
+using StochDynamicProgramming,  JuMP, Clp, Cbc#, ECOS#,Gurobi, CPLEX#
 
     solverLP = ClpSolver()
-    solverQP = GurobiSolver(OutputFlag=0)# ECOSSolver()# #CplexSolver(CPX_PARAM_SIMDISPLAY=0)
-    solverMILP = GurobiSolver(OutputFlag=0)# CbcSolver(OutputFlag=0)
+    solverQP = ClpSolver() #ECOSSolver()# GurobiSolver(OutputFlag=0)#  #CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+    solverMILP = CbcSolver(logLevel=0) #GurobiSolver(OutputFlag=0)# CbcSolver(OutputFlag=0)
 
     # SDDP's tolerance:
     epsilon = .05
