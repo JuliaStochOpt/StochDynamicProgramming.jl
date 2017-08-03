@@ -74,7 +74,7 @@ type LinearSPModel <: SPModel
         dimStates   = length(x0)
         dimControls = size(u_bounds,1)
         dimNoises   = aleas[1].dimNoises
-        
+
         # First step: process terminal costs.
         # If not specified, default value is null function
         if isa(Vfinal, Function) || isa(Vfinal, PolyhedralFunction)
@@ -86,7 +86,7 @@ type LinearSPModel <: SPModel
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimControls]
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
-        if (x_bounds == nothing) 
+        if (x_bounds == nothing)
             x_bounds = repmat([(-Inf,Inf)],dimStates,n_stage)
         end
         u_bounds = test_and_reshape_bounds(u_bounds, dimControls,n_stage, "Controls")
@@ -106,11 +106,11 @@ end
 
 """ Checking state and control bounds and duplicating if needed
 
-If bounds is a vector of length nx (or nx*1 array) duplicate to a matrix nx*ns, 
+If bounds is a vector of length nx (or nx*1 array) duplicate to a matrix nx*ns,
 if already a matrix keep it this way, else return an error"""
 function test_and_reshape_bounds(bounds, nx,ns, variable)
     if (ndims(bounds) == 1 && length(bounds) == nx)||(ndims(bounds) == 2 && size(bounds) == (nx,1))
-        return repmat(bounds,1,ns) 
+        return repmat(bounds,1,ns)
     elseif ndims(bounds) == 2 && size(bounds) == (nx,ns)
         return bounds
      else
@@ -185,16 +185,16 @@ type StochDynProgModel <: SPModel
         dimControls = size(u_bounds)[1]
         u_bounds1 = ndims(u_bounds) == 1? u_bounds : max_bounds(u_bounds)
         x_bounds1 = ndims(x_bounds) == 1? x_bounds : max_bounds(x_bounds)
-        
+
         # cons_fun_x(t,x,u,w) = true
         # cons_fun_u(t,x,u,w) = true
 
-        # if ndims(x_bounds) > 1 
-        #     cons_fun_x(t,x,u,w) = iswithinbounds(x, x_bounds[:,t]) 
+        # if ndims(x_bounds) > 1
+        #     cons_fun_x(t,x,u,w) = iswithinbounds(x, x_bounds[:,t])
         # end
 
         # println(cons_fun_x(2,[1. 1.],[1.,1.],[1.,1.]))
-        # if ndims(u_bounds) > 1 
+        # if ndims(u_bounds) > 1
         #     cons_fun_u(t,x,u,w) = iswithinbounds(u, u_bounds[:,t])
         # end
 
@@ -330,6 +330,8 @@ type NLDSSolution
     ρe::Array{Float64, 1}
     # cost-to-go:
     θ::Float64
+    # cuts' multipliers
+    πc::Vector{Float64}
 end
 
-NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf)
+NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf, Array{Float64, 1}())

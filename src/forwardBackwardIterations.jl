@@ -45,7 +45,7 @@ function forward_pass!(sddp::SDDPInterface)
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
-                        noise_scenarios,
+                        noise_scenarios;
                         pruner=sddp.pruner,
                         regularizer=sddp.regularizer,
                         verbosity = sddp.verbosity)

@@ -42,6 +42,8 @@ problem with respect to the initial state x
     True if the solution is feasible, false otherwise
 * `NextStep`:
     Store solution of the problem
+* `ts::Float64`:
+   Solver's execution time
 """
 function solve_one_step_one_alea(model,
                                  param,
@@ -113,7 +115,8 @@ function solve_one_step_one_alea(model,
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
                           getdual(m.ext[:cons]),
-                          getvalue(alpha))
+                          getvalue(alpha),
+                          getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
         result = NLDSSolution()
@@ -124,7 +127,7 @@ end
 
 
 """Solve model in Decision-Hazard."""
-function solve_dh(model, param, t, xt, m,
+function solve_dh(model, param, t, xt, m;
                                  verbosity::Int64=0)
     xf = getindex(m, :xf)
     u = getindex(m, :u)
@@ -138,6 +141,11 @@ function solve_dh(model, param, t, xt, m,
 
     status = solve(m)
     solved = status == :Optimal
+    if ~solved
+        warn("dh model not solved at time t=",t)
+        #println(m)
+        #error("Foo")
+    end
 
     solvetime = try getsolvetime(m) catch 0 end
 
@@ -149,7 +157,8 @@ function solve_dh(model, param, t, xt, m,
                               getvalue(xf)[:, 1],
                               getvalue(u),
                               λ,
-                              getvalue(alpha)[1])
+                              getvalue(alpha)[1],
+                              getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
         result = NLDSSolution()
@@ -192,3 +201,7 @@ function solve_mip!(m, param,verbosity::Int64=0)
     return status == :Optimal
 end
 
+getcutsmultipliers(m::JuMP.Model)=_getdual(m)[end-m.ext[:ncuts]+1:end]
+function _getdual(m::JuMP.Model)
+    return MathProgBase.SolverInterface.getconstrduals(m.internalModel)
+end
