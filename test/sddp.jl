@@ -100,36 +100,36 @@ using Base.Test
                                                           gap=0.001,
                                                           max_iterations=10)
            sddp_dh = solve_SDDP(model_dh, param_dh, 1)
-       end
+    end
 
-    #    @testset "Cut-pruning" begin
-    #        param_pr = StochDynamicProgramming.SDDPparameters(solver,
-    #                                                       passnumber=1,
-    #                                                       gap=0.001,
-    #                                                       reload=2, prune=true)
-       #
-    #        sddppr = SDDPInterface(model, param_pr,
-    #                     StochDynamicProgramming.IterLimit(10),
-    #                     CutPruners.DeMatosPruningAlgo(-1),
-    #                     verbosity=0)
-    #        # solve SDDP
-    #        solve!(sddppr)
-       #
-    #        # test exact cuts pruning
-    #        ncutini = StochDynamicProgramming.ncuts(sddppr.bellmanfunctions)
-    #        StochDynamicProgramming.cleancuts!(sddppr)
-    #        @test StochDynamicProgramming.ncuts(sddppr.bellmanfunctions) <= ncutini
-    #    end
+    @testset "Cut-pruning" begin
+        param_pr = StochDynamicProgramming.SDDPparameters(solver,
+                                                       passnumber=1,
+                                                       gap=0.001,
+                                                       reload=2, prune=true)
 
-       @testset "Quadratic regularization" begin
-           param2 = StochDynamicProgramming.SDDPparameters(solver,
-                                                       passnumber=n_scenarios,
-                                                       gap=epsilon,
-                                                       max_iterations=max_iterations)
-           #TODO: fix solver, as Clp cannot solve QP
-           @test_throws ErrorException solve_SDDP(model, param2, 0,
-                                                  regularization=SDDPRegularization(1., .99))
-       end
+        sddppr = SDDPInterface(model, param_pr,
+                     StochDynamicProgramming.IterLimit(10),
+                     CutPruners.DeMatosPruningAlgo(-1),
+                     verbosity=0)
+        # solve SDDP
+        solve!(sddppr)
+
+        # test exact cuts pruning
+        ncutini = StochDynamicProgramming.ncuts(sddppr.bellmanfunctions)
+        StochDynamicProgramming.cleancuts!(sddppr)
+        @test StochDynamicProgramming.ncuts(sddppr.bellmanfunctions) <= ncutini
+    end
+
+    @testset "Quadratic regularization" begin
+        param2 = StochDynamicProgramming.SDDPparameters(solver,
+                                                    passnumber=n_scenarios,
+                                                    gap=epsilon,
+                                                    max_iterations=max_iterations)
+        #TODO: fix solver, as Clp cannot solve QP
+        @test_throws ErrorException solve_SDDP(model, param2, 0,
+                                                regularization=SDDPRegularization(1., .99))
+    end
 
 
     # Test definition of final cost with a JuMP.Model:
