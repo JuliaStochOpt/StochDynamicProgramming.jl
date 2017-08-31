@@ -137,11 +137,11 @@ Stops if the lower bound is stabilized
 total time of execution is greater than the time limit specified.
 For instance, `TimeLimit(100)` stops after 100s.
 """
-type Stabilization <: AbstractStoppingCriterion
+type LBStabilization <: AbstractStoppingCriterion
     epsilon::Float64
     n_back::Int
 end
 
-function stop(s::Stabilization, stats::AbstractSDDPStats, totalstats::AbstractSDDPStats)
+function stop(s::LBStabilization, stats::AbstractSDDPStats, totalstats::AbstractSDDPStats)
     totalstats.niterations > s.n_back && ((stats.lowerbound[end] - stats.lowerbound[end-s.n_back]) < epsilon)
 end

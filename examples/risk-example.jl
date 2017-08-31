@@ -61,7 +61,7 @@ s_bounds = [(0, 1)] 			# bounds on the state
 u_bounds = [(CONTROL_MIN, CONTROL_MAX)] # bounds on controls
 
 println("Initialzing functions to compare execution time")
-spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, Expectation())
+spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = Expectation())
 set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
 # 10 forward pass, stop at MAX_ITER
 paramSDDP = SDDPparameters(SOLVER,
@@ -73,7 +73,7 @@ lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellm
 ######### Solving the problem via SDDP with Expectation
 if run_expectation
     tic()
-    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, Expectation())
+    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = Expectation())
     set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
     println("Expectation's model set up")
     println("Starting resolution with Expectation")
@@ -107,7 +107,7 @@ end
 ######### Solving the problem via SDDP with Worst Case
 if run_WorstCase
     tic()
-    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, WorstCase())
+    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = WorstCase())
     set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
     println("Worst Case's model set up")
     println("Starting resolution with Worst Case")

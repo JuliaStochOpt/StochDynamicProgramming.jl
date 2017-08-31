@@ -16,10 +16,14 @@ type Expectation <: RiskMeasure
     end
 end
 
-type CVaR <: RiskMeasure
-    # level of risk aversity (0 = Expectation, 1 = Worst Case):
+type AVaR <: RiskMeasure
+    # If the random variable is a cost and beta = 0.05,
+    # it returns the average of the five worst costs solving the problem
+    # minimize alpha + 1/beta * E[max(X - alpha; 0)]
+    # beta = 1 ==> AVaR = Expectation
+    # beta = 0 ==> AVaR = WorstCase
     beta::Float64
-    function CVaR(beta)
+    function AVaR(beta)
         return new(beta)
     end
 end
@@ -31,15 +35,28 @@ type WorstCase <: RiskMeasure
 end
 
 type ConvexCombi <: RiskMeasure
-    # level of risk aversity (0 = Expectation, 1 = Worst Case):
+    # Define a convex combination between Expectation and AVaR_{beta}
+    # with form lambda*E + (1-lambda)*AVaR
+    # lambda = 1 ==> Expectation
+    # lambda = 0 ==> AVaR
     beta::Float64
-    #Convex coefficient
     lambda::Float64
     function ConvexCombi(beta,lambda)
         return new(beta,lambda)
     end
 end
 
+type PolyhedralRisk <: RiskMeasure
+    # Define a convex polyhedral set P of probability distributions
+    # by its extreme points p1, ..., pn
+    # In the case of costs X, the problem solved is
+    #   maximize     E_{pi}[X]
+    # p1, ..., pn
+    polyset::Array{Float64,2}
+    function PolyhedralRisk(polyset)
+        return new(polyset)
+    end
+end
 
 @compat abstract type SPModel end
 
@@ -100,12 +117,12 @@ type LinearSPModel <: SPModel
                            cost,                # cost function
                            dynamic,             # dynamic
                            aleas,               # modelling of noises
-                           riskMeasure;
                            Vfinal=nothing,      # final cost
                            eqconstr=nothing,    # equality constraints
                            ineqconstr=nothing,  # inequality constraints
                            info=:HD,            # information structure
                            control_cat=nothing, # category of controls
+                           riskMeasure = Expectation();
                            )
 
         # infer the problem's dimension

@@ -25,8 +25,8 @@ export solve_SDDP,
         StochDynProgModel, SDPparameters, solve_dp,
         sampling, get_control, get_bellman_value,
         benchmark_parameters, SDDPInterface,
-        change_proba_risk,
-        RiskMeasure, CVaR, Expectation, WorstCase, ConvexCombi
+        argsup_proba_risk,
+        RiskMeasure, AVaR, Expectation, WorstCase, ConvexCombi
 
 include("noises.jl")
 include("objects.jl")

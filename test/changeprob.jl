@@ -3,54 +3,64 @@ using Base.Test
 
 EPSILON = 0.0001
 
+# Check that there is no problem of definition
 @testset "Risk measure definition" begin
     @test isa(Expectation(), RiskMeasure)
     @test isa(WorstCase(), RiskMeasure)
-    for i in 0:10
-        @test isa(CVaR(i/10), RiskMeasure)
-        for j in 0:10
-          @test isa(ConvexCombi(i/10, j/10), RiskMeasure)
-        end
-    end
+    @test isa(AVaR(0), RiskMeasure)
+    @test isa(AVaR(0.5), RiskMeasure)
+    @test isa(AVaR(1), RiskMeasure)
+    @test isa(ConvexCombi(0,0), RiskMeasure)
+    @test isa(ConvexCombi(0,1), RiskMeasure)
+    @test isa(ConvexCombi(1,0), RiskMeasure)
+    @test isa(ConvexCombi(1,1), RiskMeasure)
+    @test isa(ConvexCombi(0.5,0.5), RiskMeasure)
 end
 
-
+# Test limit cases
+# An AVaR with beta = 0 is a WorstCase
+# An AVaR with beta = 1 is an Expectation
+# A ConvexCombi with lambda = 0 is an AVaR
+# A ConvexCombi with lambda = 1 is an Expectation
 @testset "Equality formulations" begin
-    @testset "Equality WorstCase CVaR(1)" begin
+    @testset "Equality WorstCase AVaR(0)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(change_proba_risk(prob,CVaR(1),1:n)-change_proba_risk(prob,WorstCase(),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(argsup_proba_risk(prob,AVaR(0),1:n)-argsup_proba_risk(prob,WorstCase(),1:n)) .<= EPSILON*ones(n)) == n
     end
 
-    @testset "Equality Expectation CVaR(0)" begin
+    @testset "Equality Expectation AVaR(1)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(change_proba_risk(prob,CVaR(0),1:n)-change_proba_risk(prob,Expectation(),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(argsup_proba_risk(prob,AVaR(0),1:n)-argsup_proba_risk(prob,Expectation(),1:n)) .<= EPSILON*ones(n)) == n
     end
 
     @testset "Equality Expectation ConvexCombi(beta,1)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(change_proba_risk(prob,Expectation(),1:n)-change_proba_risk(prob,ConvexCombi(rand(),1),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(argsup_proba_risk(prob,Expectation(),1:n)-argsup_proba_risk(prob,ConvexCombi(rand(),1),1:n)) .<= EPSILON*ones(n)) == n
     end
 
-    @testset "Equality CVaR(beta) ConvexCombi(beta,0)" begin
+    @testset "Equality AVaR(beta) ConvexCombi(beta,0)" begin
         n = 100
         beta = rand()
         prob = 1/n*ones(n)
-        @test sum(abs.(change_proba_risk(prob,CVaR(beta),1:n)-change_proba_risk(prob,ConvexCombi(beta,0),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(argsup_proba_risk(prob,AVaR(beta),1:n)-argsup_proba_risk(prob,ConvexCombi(beta,0),1:n)) .<= EPSILON*ones(n)) == n
     end
 
-    @testset "Right sense of CVaR" begin
-        betamin = rand()/2
-        betamax = rand()/2+0.5
+    # Check that in the case of minimization, AVaR find the worst costs
+    @testset "Right sense of AVaR" begin
+        betamax = rand()/2
+        betamin = rand()/2+0.5
         n = 100
         prob = 1/n*ones(n)
-        @test change_proba_risk(prob, CVaR(betamax), 1:n)'*(n:-1:1) - change_proba_risk(prob, CVaR(betamin), 1:n)'*(n:-1:1) >= 0
+        @test argsup_proba_risk(prob, AVaR(betamax), 1:n)'*(n:-1:1) - argsup_proba_risk(prob, AVaR(betamin), 1:n)'*(n:-1:1) >= 0
     end
 end
 
-@testset "Equality CVaR linear program" begin
+# AVaR can be computed as a linear program
+# We check equality between the formulation of Rockafellar and Urysev
+@testset "Equality AVaR linear program" begin
     n = 100
     X = rand(-100:100,100)
     beta = rand()
@@ -63,11 +73,11 @@ end
 
     @constraint(m, theta[1:n] .>= X[1:n] - alpha)
 
-    @objective(m, Min, alpha + 1/(1-beta)*sum(prob[i]*theta[i] for i in 1:n))
+    @objective(m, Min, alpha + 1/(beta)*sum(prob[i]*theta[i] for i in 1:n))
 
     status = solve(m)
 
-    probaCVaR = change_proba_risk(prob, CVaR(beta), sortperm(X, rev = true))
+    probaAVaR = argsup_proba_risk(prob, AVaR(beta), sortperm(X, rev = true))
 
-    @test abs(probaCVaR'*X - getobjectivevalue(m)) <= EPSILON
+    @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON
 end

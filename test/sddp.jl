@@ -51,7 +51,7 @@ using Base.Test
 
     V = nothing
     model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
-                                                  x0, cost, dynamic, laws, Expectation())
+                                                  x0, cost, dynamic, laws)
 
     set_state_bounds(model, x_bounds)
     # Test error if bounds are not well specified:
@@ -121,7 +121,7 @@ using Base.Test
 
     @testset "Decision-Hazard" begin
         model_dh = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
-                                                      x0, cost, dynamic, laws, Expectation(),
+                                                      x0, cost, dynamic, laws,
                                                       info=:DH)
         set_state_bounds(model_dh, x_bounds)
         param_dh = StochDynamicProgramming.SDDPparameters(solver,
@@ -177,7 +177,7 @@ using Base.Test
         model = StochDynamicProgramming.LinearSPModel(n_stages,
                                                       u_bounds, x0,
                                                       [cost],
-                                                      dynamic, laws, Expectation())
+                                                      dynamic, laws)
         set_state_bounds(model, x_bounds)
         sddp = solve_SDDP(model, param, 0)
     end
@@ -279,7 +279,7 @@ end
         model = StochDynamicProgramming.LinearSPModel(n_stages,
                                                       u_bounds, x0,
                                                       cost,
-                                                      dynamic, laws, Expectation())
+                                                      dynamic, laws)
         set_state_bounds(model, x_bounds)
 
 

@@ -7,38 +7,44 @@
 #############################################################################
 
 """
-Update probability distribution to consider only worst case scenarios
+Risk measures consider here can be written (in case of a minimization problem)
+   sup     E_{p}[x]
+  p in P
+where P is a convex set of probability distribution.
+The function returns the argsup allowing to compute the
+risk measure as a expectation
 
 $(SIGNATURES)
 
 # Description
-Keep only the tail of the probability distribution given an order
-and renormalized it
+Return the probability among the set of possible probabilities
+allowing to compute the risk
 
 # Arguments
-* `prob::probabilitydistribution`:
-    SDDP interface object
-* `beta::Float64`:
-    real number
-* `perm::Array{float,1}`:
-    array of permutations
+* `prob::Array{float,1}`:
+    probability distribution
+* `riskMeasure::RiskMeasure`:
+    risk Measure
+* `costs`:
+    array of costs
 
 # Returns
-* `aux::Array{float,1}`:
+* `proba::Array{float,1}`:
     a new probability distribution taking risk into account.
 
 """
-function change_proba_risk(prob, riskMeasure::RiskMeasure,perm)
-    erro("'change_proba_risk' not defined for $(typedof(s))")
+function argsup_proba_risk(prob, riskMeasure::RiskMeasure,costs)
+    error("'argsup_proba_risk' not defined for $(typedof(s))")
 end
 
 """
 $(TYPEDEF)
 
-Update the probability distribution to calculate a Conditional Value at Risk of level beta.
+Return the probability distribution to compute a Average Value at Risk of level beta.
 """
-function change_proba_risk(prob,riskMeasure::CVaR,perm)
-    beta = 1-riskMeasure.beta
+function argsup_proba_risk(prob,riskMeasure::AVaR,costs)
+    perm = sortperm(costs,rev = true)
+    beta = riskMeasure.beta
     proba = zeros(length(prob))
     for i in 1:length(perm)
         proba[i] = prob[perm[i]]
@@ -61,31 +67,32 @@ end
 """
 $(TYPEDEF)
 
-Leave the probability distribution unchanged to calculate the expectation.
+Leave the probability distribution unchanged to compute the expectation.
 """
-function change_proba_risk(prob,riskMeasure::Expectation,perm)
+function argsup_proba_risk(prob,riskMeasure::Expectation,costs)
     return prob
 end
 
 """
 $(TYPEDEF)
-
+perm
 Return a dirac on the worst cost as a probability distribution.
 """
-function change_proba_risk(prob,riskMeasure::WorstCase,perm)
+function argsup_proba_risk(prob,riskMeasure::WorstCase,costs)
     proba = zeros(length(prob))
-    proba[perm[1]] = 1
+    proba[indmax(prob)] = 1
     return proba
 end
 
 """
 $(TYPEDEF)
 
-Update the probability distribution to calculate a convex combination
-between expactation and a Condiational Value at Risk of level beta.
+Return the probability distribution to compute a convex combination
+between expactation and an Average Value at Risk of level beta.
 """
-function change_proba_risk(prob,riskMeasure::ConvexCombi,perm)
-    beta = 1-riskMeasure.beta
+function argsup_proba_risk(prob,riskMeasure::ConvexCombi,costs)
+    perm = sortperm(costs,rev = true)
+    beta = riskMeasure.beta
     lambda = riskMeasure.lambda
     proba = zeros(length(prob))
     for i in 1:length(perm)
@@ -104,4 +111,16 @@ function change_proba_risk(prob,riskMeasure::ConvexCombi,perm)
         aux[perm[i]] = proba[i]
     end
     return lambda*prob + (1-lambda)*aux
+end
+
+"""
+$(TYPEDEF)
+
+Return the worst extreme probability distribution
+defining the convex set P
+"""
+function argsup_proba_risk(prob,riskMeasure::PolyhedralRisk,costs)
+    P = riskMeasure.polyset
+    valuesup = P*costs
+    return P[indmax(valuesup),:]
 end
