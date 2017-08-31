@@ -15,7 +15,7 @@ using StochDynamicProgramming, Clp
 println("library loaded")
 
 run_expectation = true # false if you don't want to test expectation
-run_CVaR        = true # false if you don't want to test CVaR
+run_AVaR        = true # false if you don't want to test AVaR
 run_WorstCase   = true # false if you don't want to test WorstCase
 
 ######## Optimization parameters  ########
@@ -87,13 +87,13 @@ if run_expectation
     toc(); println();
 end
 
-######### Solving the problem via SDDP with CVaR
-if run_CVaR
+######### Solving the problem via SDDP with AVaR
+if run_AVaR
     tic()
-    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, CVaR(0.5))
+    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = AVaR(0.5))
     set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
-    println("CVaR's model set up")
-    println("Starting resolution with CVaR")
+    println("AVaR's model set up")
+    println("Starting resolution with AVaR")
     # 10 forward pass, stop at MAX_ITER
     paramSDDP = SDDPparameters(SOLVER,
                                passnumber=10,

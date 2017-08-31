@@ -32,7 +32,7 @@ end
     @testset "Equality Expectation AVaR(1)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(argsup_proba_risk(prob,AVaR(0),1:n)-argsup_proba_risk(prob,Expectation(),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(argsup_proba_risk(prob,AVaR(1),1:n)-argsup_proba_risk(prob,Expectation(),1:n)) .<= EPSILON*ones(n)) == n
     end
 
     @testset "Equality Expectation ConvexCombi(beta,1)" begin
@@ -54,7 +54,7 @@ end
         betamin = rand()/2+0.5
         n = 100
         prob = 1/n*ones(n)
-        @test argsup_proba_risk(prob, AVaR(betamax), 1:n)'*(n:-1:1) - argsup_proba_risk(prob, AVaR(betamin), 1:n)'*(n:-1:1) >= 0
+        @test argsup_proba_risk(prob, AVaR(betamin), 1:n)'*(n:-1:1) - argsup_proba_risk(prob, AVaR(betamax), 1:n)'*(n:-1:1) >= 0
     end
 end
 
@@ -77,7 +77,7 @@ end
 
     status = solve(m)
 
-    probaAVaR = argsup_proba_risk(prob, AVaR(beta), sortperm(X, rev = true))
+    probaAVaR = argsup_proba_risk(prob, AVaR(beta), X)
 
     @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON
 end

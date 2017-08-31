@@ -80,7 +80,7 @@ Return a dirac on the worst cost as a probability distribution.
 """
 function argsup_proba_risk(prob,riskMeasure::WorstCase,costs)
     proba = zeros(length(prob))
-    proba[indmax(prob)] = 1
+    proba[indmax(costs)] = 1
     return proba
 end
 

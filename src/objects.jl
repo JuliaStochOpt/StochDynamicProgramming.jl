@@ -116,13 +116,13 @@ type LinearSPModel <: SPModel
                            x0,                  # initial state
                            cost,                # cost function
                            dynamic,             # dynamic
-                           aleas,               # modelling of noises
+                           aleas;               # modelling of noises
                            Vfinal=nothing,      # final cost
                            eqconstr=nothing,    # equality constraints
                            ineqconstr=nothing,  # inequality constraints
                            info=:HD,            # information structure
                            control_cat=nothing, # category of controls
-                           riskMeasure = Expectation();
+                           riskMeasure = Expectation()
                            )
 
         # infer the problem's dimension

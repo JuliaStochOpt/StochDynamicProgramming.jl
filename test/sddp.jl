@@ -189,7 +189,6 @@ using Base.Test
                                                       u_bounds, x0,
                                                       cost,
                                                       dynamic, laws,
-                                                      Expectation(),
                                                       control_cat=controlCat)
         set_state_bounds(model2, x_bounds)
         @test_throws ErrorException solve_SDDP(model2, param, 0)
