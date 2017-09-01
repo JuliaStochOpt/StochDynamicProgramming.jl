@@ -15,6 +15,7 @@ EPSILON = 0.0001
     @test isa(ConvexCombi(1,0), RiskMeasure)
     @test isa(ConvexCombi(1,1), RiskMeasure)
     @test isa(ConvexCombi(0.5,0.5), RiskMeasure)
+    @test isa(PolyhedralRisk(1/100*ones(1,100)), RiskMeasure)
 end
 
 # Test limit cases
@@ -80,4 +81,24 @@ end
     probaAVaR = argsup_proba_risk(prob, AVaR(beta), X)
 
     @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON
+end
+
+# The convex set of probabilty distributions of AVaR_{beta} is defined by
+# {Q | dQ/dP <= 1/beta}
+# We check equality between polyhedral formulation and AVaR formulation
+@testset "Equality AVaR Polyhedral" begin
+    n = 10
+    X = rand(-10:10,10)
+    beta = (n-1)/n+rand()*(1-(n-1)/n)
+    prob = 1/n*ones(n)
+
+    polyset = repmat(1/beta*prob',n)
+    for i = 1:n
+        polyset[i,i] = (beta*n-n+1)/(n*beta)
+    end
+
+    probaAVaR = argsup_proba_risk(prob, AVaR(beta), X)
+    probaPolyhedral = argsup_proba_risk(prob, PolyhedralRisk(polyset), X)
+
+    @test sum(abs.(probaAVaR-probaPolyhedral) .<= EPSILON*ones(n)) == n
 end

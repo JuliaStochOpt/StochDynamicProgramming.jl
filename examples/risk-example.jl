@@ -14,9 +14,11 @@
 using StochDynamicProgramming, Clp
 println("library loaded")
 
-run_expectation = true # false if you don't want to test expectation
-run_AVaR        = true # false if you don't want to test AVaR
-run_WorstCase   = true # false if you don't want to test WorstCase
+run_Expectation   = true # false if you don't want to test Expectation
+run_AVaR          = true # false if you don't want to test AVaR
+run_WorstCase     = true # false if you don't want to test WorstCase
+run_ConvexCombi   = true # false if you don't want to test Convex Combination
+run_Polyhedral    = true # false if you don't want to test Polyhedral Risk Measure
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
@@ -71,7 +73,7 @@ sddp = solve_SDDP(spmodel, paramSDDP, 0) # display information every 2 iteration
 lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellmanfunctions)
 
 ######### Solving the problem via SDDP with Expectation
-if run_expectation
+if run_Expectation
     tic()
     spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = Expectation())
     set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
@@ -90,7 +92,7 @@ end
 ######### Solving the problem via SDDP with AVaR
 if run_AVaR
     tic()
-    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = AVaR(0.5))
+    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = AVaR((N_XI-1)/N_XI))
     set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
     println("AVaR's model set up")
     println("Starting resolution with AVaR")
@@ -111,6 +113,44 @@ if run_WorstCase
     set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
     println("Worst Case's model set up")
     println("Starting resolution with Worst Case")
+    # 10 forward pass, stop at MAX_ITER
+    paramSDDP = SDDPparameters(SOLVER,
+                               passnumber=10,
+                               max_iterations=MAX_ITER)
+    sddp = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
+    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellmanfunctions)
+    println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
+    toc(); println();
+end
+
+if run_ConvexCombi
+    tic()
+    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = ConvexCombi((N_XI-1)/N_XI,0.5))
+    set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
+    println("Convex Combination's model set up")
+    println("Starting resolution with Convex Combination")
+    # 10 forward pass, stop at MAX_ITER
+    paramSDDP = SDDPparameters(SOLVER,
+                               passnumber=10,
+                               max_iterations=MAX_ITER)
+    sddp = solve_SDDP(spmodel, paramSDDP, 2) # display information every 2 iterations
+    lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellmanfunctions)
+    println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
+    toc(); println();
+end
+
+if run_Polyhedral
+    beta = (N_XI-1)/N_XI
+    prob = 1/N_XI*ones(N_XI)
+    polyset = repmat(1/beta*prob',N_XI)
+    for i = 1:N_XI
+        polyset[i,i] = (beta*N_XI-N_XI+1)/(N_XI*beta)
+    end
+    tic()
+    spmodel = LinearSPModel(N_STAGES,u_bounds,[S0],cost_t,dynamic,xi_laws, riskMeasure = PolyhedralRisk(polyset))
+    set_state_bounds(spmodel, s_bounds) 	# adding the bounds to the model
+    println("Polyhedral's model set up")
+    println("Starting resolution with Polyhedral")
     # 10 forward pass, stop at MAX_ITER
     paramSDDP = SDDPparameters(SOLVER,
                                passnumber=10,

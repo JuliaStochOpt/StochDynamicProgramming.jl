@@ -26,7 +26,7 @@ export solve_SDDP,
         sampling, get_control, get_bellman_value,
         benchmark_parameters, SDDPInterface,
         argsup_proba_risk,
-        RiskMeasure, AVaR, Expectation, WorstCase, ConvexCombi
+        RiskMeasure, AVaR, Expectation, WorstCase, ConvexCombi, PolyhedralRisk
 
 include("noises.jl")
 include("objects.jl")

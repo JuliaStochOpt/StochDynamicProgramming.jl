@@ -51,26 +51,26 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
 
     V = nothing
     model = StochDynamicProgramming.LinearSPModel(n_stages, u_bounds,
-                                                  x0, cost, dynamic, laws)
-    model.beta = 0.0
-    println(model.beta)
+                                                  x0, cost, dynamic, laws, riskMeasure = WorstCase())
+
+
     set_state_bounds(model, x_bounds)
     # Test error if bounds are not well specified:
-    
+
 
     # Generate scenarios for forward simulations:
     noise_scenarios = simulate_scenarios(model.noises,param.forwardPassNumber)
 
     sddp_costs = 0
 
-    
+
         # Compute bellman functions with SDDP:
         sddp = solve_SDDP(model, param, 0)
-        
+
 
         V = sddp.bellmanfunctions
         # Test if the first subgradient has the same dimension as state:
-        
+
 
         # Test upper bounds estimation with Monte-Carlo:
         n_simulations = 100
@@ -79,29 +79,21 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
                                                            V,
                                                            sddp.solverinterface,
                                                            n_simulations)[1]
-        
+
 
         pbs = sddp.solverinterface
         sddp_costs, stocks = forward_simulations(model, param, pbs,
                                                  noise_scenarios)
         # Test error if scenarios are not given in the right shape:
-       
+
 
         # Test computation of optimal control:
         aleas = noise_scenarios[1, 1, :]
         opt = StochDynamicProgramming.get_control(model, param,
                                                   sddp.solverinterface,
                                                   1, model.initialState, aleas)
-        
+
 
         # Test display:
         param.compute_ub = 0
         sddp = solve_SDDP(model, param, V, 2)
-   
-
-
-
-
-
-
-
