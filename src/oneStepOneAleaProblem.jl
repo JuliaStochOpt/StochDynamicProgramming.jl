@@ -54,6 +54,7 @@ function solve_one_step_one_alea(model,
                                  relaxation=false::Bool,
                                  init=false::Bool,
                                  verbosity::Int64=0)
+
     # Get var defined in JuMP.model:
     x = getindex(m, :x)
     u = getindex(m, :u)
@@ -62,9 +63,6 @@ function solve_one_step_one_alea(model,
 
     # Update value of w:
     JuMP.fix.(w,xi)
-    # for ii in 1:model.dimNoises
-    #     JuMP.fix(w[ii], xi[ii])
-    # end
 
     #update objective
     if isa(model.costFunctions, Function)
@@ -82,7 +80,6 @@ function solve_one_step_one_alea(model,
         end
         @objective(m, Min, cost + alpha)
      end
-
 
     # Update constraint x == xt
     for i in 1:model.dimStates
@@ -127,8 +124,7 @@ end
 
 
 """Solve model in Decision-Hazard."""
-function solve_dh(model, param, t, xt, m;
-                                 verbosity::Int64=0)
+function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     xf = getindex(m, :xf)
     u = getindex(m, :u)
     alpha = getindex(m, :alpha)
@@ -141,10 +137,9 @@ function solve_dh(model, param, t, xt, m;
 
     status = solve(m)
     solved = status == :Optimal
+
     if ~solved
         warn("dh model not solved at time t=",t)
-        #println(m)
-        #error("Foo")
     end
 
     solvetime = try getsolvetime(m) catch 0 end
@@ -187,6 +182,7 @@ function regularize(model, param,
     return res
 end
 
+
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param,verbosity::Int64=0)
     setsolver(m, param.SOLVER)
@@ -194,12 +190,14 @@ function solve_relaxed!(m, param,verbosity::Int64=0)
     return status == :Optimal
 end
 
+
 """Solve original MILP problem."""
 function solve_mip!(m, param,verbosity::Int64=0)
     setsolver(m, get(param.MIPSOLVER))
     status = solve(m, relaxation=false)
     return status == :Optimal
 end
+
 
 getcutsmultipliers(m::JuMP.Model)=_getdual(m)[end-m.ext[:ncuts]+1:end]
 function _getdual(m::JuMP.Model)

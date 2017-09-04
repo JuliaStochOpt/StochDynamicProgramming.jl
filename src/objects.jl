@@ -64,7 +64,7 @@ type LinearSPModel <: SPModel
                            cost,               # cost function
                            dynamic,            # dynamic
                            aleas;              # modelling of noises
-                           x_bounds =nothing,  # state bounds
+                           x_bounds=nothing,  # state bounds
                            Vfinal=nothing,     # final cost
                            eqconstr=nothing,   # equality constraints
                            ineqconstr=nothing, # inequality constraints
@@ -186,19 +186,6 @@ type StochDynProgModel <: SPModel
         u_bounds1 = ndims(u_bounds) == 1? u_bounds : max_bounds(u_bounds)
         x_bounds1 = ndims(x_bounds) == 1? x_bounds : max_bounds(x_bounds)
 
-        # cons_fun_x(t,x,u,w) = true
-        # cons_fun_u(t,x,u,w) = true
-
-        # if ndims(x_bounds) > 1
-        #     cons_fun_x(t,x,u,w) = iswithinbounds(x, x_bounds[:,t])
-        # end
-
-        # println(cons_fun_x(2,[1. 1.],[1.,1.],[1.,1.]))
-        # if ndims(u_bounds) > 1
-        #     cons_fun_u(t,x,u,w) = iswithinbounds(u, u_bounds[:,t])
-        # end
-
-        # cons_fun(t,x,u,w) = return constraints(t,x,u,w)&&cons_fun_x(t,x,u,w)&&cons_fun_u(t,x,u,w)
 
         return new(TF, dimControls, dimState, length(aleas[1].support[:, 1]),
                     x_bounds1, u_bounds1, x0, costFunctions, finalCostFunction, dynamic,

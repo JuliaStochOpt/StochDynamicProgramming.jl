@@ -40,12 +40,10 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, v
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
-    sddp = SDDPInterface(model, param,
-                         stopcrit,
-                         prunalgo,
-                         verbosity=verbosity,
-                         verbose_it=verbose_it,
-                         regularization=regularization)
+
+    # Define SDDP interface:
+    sddp = SDDPInterface(model, param, stopcrit, prunalgo, verbosity=verbosity,
+                         verbose_it=verbose_it, regularization=regularization)
     # Run SDDP:
     solve!(sddp)
     sddp
@@ -83,10 +81,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters,
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
 
-    sddp = SDDPInterface(model, param,
-                         stopcrit,
-                         prunalgo, V,
-                         verbosity=verbosity,
+    sddp = SDDPInterface(model, param, stopcrit, prunalgo, V, verbosity=verbosity,
                          verbose_it=verbose_it)
     solve!(sddp)
     sddp
@@ -254,10 +249,8 @@ $(SIGNATURES)
 * `verbosity::Int64`:
     Default is `0`, higher gives more printed information
 """
-function build_terminal_cost!(model::SPModel,
-                              problem::JuMP.Model,
-                              Vt::PolyhedralFunction,
-                              verbosity::Int64=0)
+function build_terminal_cost!(model::SPModel, problem::JuMP.Model,
+                              Vt::PolyhedralFunction, verbosity::Int64=0)
     # if shape is PolyhedralFunction, build terminal cost with it:
     alpha = problem[:alpha]
     xf = problem[:xf]
@@ -363,6 +356,7 @@ function build_model(model, param, t,verbosity::Int64=0)
     (verbosity >5) && print(m)
     return m
 end
+
 
 """Build model in Decision-Hazard."""
 function build_model_dh(model, param, t, verbosity::Int64=0)
@@ -552,11 +546,9 @@ Get lower bound of SDDP instance `sddp`.
 $(SIGNATURES)
 
 """
-function lowerbound(sddp::SDDPInterface)
-    return get_bellman_value(sddp.spmodel, sddp.params, 1,
-                             sddp.bellmanfunctions[1],
-                             sddp.spmodel.initialState)
-end
+lowerbound(sddp::SDDPInterface) = get_bellman_value(sddp.spmodel, sddp.params, 1,
+                                                    sddp.bellmanfunctions[1],
+                                                    sddp.spmodel.initialState)
 
 
 """
@@ -579,9 +571,8 @@ function get_lower_bound(model::SPModel, param::SDDPparameters,
                             V::Vector{PolyhedralFunction})
     return get_bellman_value(model, param, 1, V[1], model.initialState)
 end
-function get_lower_bound(sddp::SDDPInterface)
-    return lowerbound(sddp::SDDPInterface)
-end
+get_lower_bound(sddp::SDDPInterface)=lowerbound(sddp::SDDPInterface)
+
 
 """
 Compute optimal control at point xt and time t.
@@ -643,6 +634,7 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
     problem.ext[:ncuts] = V.numCuts
 end
 
+
 """
 Compute subgradient of the problem at time t and state x.
 
@@ -660,6 +652,7 @@ subgradient of the problem at time t and state x (Float64)
 function get_subgradient(V::Vector{PolyhedralFunction}, t::Int64, x::Vector{Int64})
     return get_subgradient(V[t],x)
 end
+
 
 """
 Compute subgradient of the problem at time t and state x.
@@ -685,5 +678,5 @@ function get_subgradient(Vt::PolyhedralFunction, x::Vector{Int64})
             index = i
         end
     end
-return Vt.lambdas[index, :]
+    return Vt.lambdas[index, :]
 end
