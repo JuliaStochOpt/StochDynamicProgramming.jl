@@ -153,7 +153,7 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
         result = NLDSSolution(solved,
                               getobjectivevalue(m),
                               getvalue(xf)[:, 1],
-                              getvalue(u),
+                              getvalue(u)[:, 1],
                               λ,
                               getvalue(alpha)[1],
                               getcutsmultipliers(m))

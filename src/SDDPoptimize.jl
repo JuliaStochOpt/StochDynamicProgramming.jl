@@ -125,7 +125,7 @@ function solve!(sddp::SDDPInterface)
     # Launch execution of forward and backward passes:
     (sddp.verbosity > 0) && println("Starting SDDP iterations")
     while !stop(sddp.stopcrit, stats, stats)
-        iteration!(sddp, stats)
+        iteration!(sddp, stats, upperbound_scenarios)
     end
 
     ##########
@@ -135,7 +135,7 @@ end
 
 
 """Run SDDP iteration."""
-function iteration!(sddp::SDDPInterface, stats)
+function iteration!(sddp::SDDPInterface, stats, upperbound_scenarios)
     # Time execution of current pass:
     tic()
 
@@ -153,7 +153,7 @@ function iteration!(sddp::SDDPInterface, stats)
 
     ####################
     # cut pruning
-    (param.prune) && prune!(sddp, states)
+    (sddp.params.prune) && prune!(sddp, states)
 
     ####################
     # In iteration lower bound estimation
@@ -161,9 +161,42 @@ function iteration!(sddp::SDDPInterface, stats)
 
     ####################
     # In iteration upper bound estimation
-    upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbosity,
-                                        upperbound_scenarios, upb,
-                                        sddp.solverinterface)
+    upb = upperbound(sddp, upperbound_scenarios)
+
+    updateSDDP!(sddp, lwb, upb, time_pass, states)
+
+    checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+end
+
+function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
+    # Time execution of current pass:
+    tic()
+
+    ####################
+    # Forward pass : compute stockTrajectories
+    costs, states = forward_pass!(sddp)
+
+    ####################
+    # Backward pass : update polyhedral approximation of Bellman functions
+    costates = backward_pass!(sddp, states)
+    stateback = backward_pass!(sddpdual, costates)
+
+    ####################
+    # Time execution of current pass
+    time_pass = toq()
+
+    ####################
+    # cut pruning
+    (sddp.params.prune) && prune!(sddp, states)
+
+    ####################
+    # In iteration lower bound estimation
+    lwb = lowerbound(sddp)
+
+    ####################
+    # In iteration upper bound estimation
+    lwbdual = lowerbound(sddpdual) - 1/size(states, 2) * dot(states[1, :, 1], costates[1, :, 1])
+    upb = [-lwbdual, 0., 0.]
 
     updateSDDP!(sddp, lwb, upb, time_pass, states)
 
