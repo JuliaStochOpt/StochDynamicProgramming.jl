@@ -86,7 +86,7 @@ function solve_one_step_one_alea(model,
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
-    if verbosity > 5
+    if false
         println("One step one alea problem at time t=",t)
         println("for x =",xt)
         println("and w=",xi)
@@ -115,6 +115,9 @@ function solve_one_step_one_alea(model,
                           getvalue(alpha),
                           getcutsmultipliers(m))
     else
+        println(m)
+        println(status)
+        error("Foo")
         # If no solution is found, then return nothing
         result = NLDSSolution()
     end

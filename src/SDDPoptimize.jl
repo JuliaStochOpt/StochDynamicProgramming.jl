@@ -42,7 +42,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, v
                     regularization=nothing)
 
     # Define SDDP interface:
-    sddp = SDDPInterface(model, param, stopcrit, prunalgo, verbosity=verbosity,
+    sddp = SDDPInterface(model, param, stopcrit, pruner=prunalgo, verbosity=verbosity,
                          verbose_it=verbose_it, regularization=regularization)
     # Run SDDP:
     solve!(sddp)
@@ -81,7 +81,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters,
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
 
-    sddp = SDDPInterface(model, param, stopcrit, prunalgo, V, verbosity=verbosity,
+    sddp = SDDPInterface(model, param, stopcrit, V, pruner=prunalgo, verbosity=verbosity,
                          verbose_it=verbose_it)
     solve!(sddp)
     sddp
@@ -649,7 +649,7 @@ Compute subgradient of the problem at time t and state x.
 # Return
 subgradient of the problem at time t and state x (Float64)
 """
-function get_subgradient(V::Vector{PolyhedralFunction}, t::Int64, x::Vector{Int64})
+function get_subgradient(V::Vector{PolyhedralFunction}, t::Int64, x::Vector{Float64})
     return get_subgradient(V[t],x)
 end
 
@@ -668,7 +668,7 @@ Compute subgradient of the problem at time t and state x.
 # Return
 subgradient of the problem at time t and state x (Float64)
 """
-function get_subgradient(Vt::PolyhedralFunction, x::Vector{Int64})
+function get_subgradient(Vt::PolyhedralFunction, x::Vector{Float64})
     maxvalue = -Inf
     index = 0
     for i in 1:Vt.numCuts
