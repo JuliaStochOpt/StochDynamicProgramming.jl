@@ -284,6 +284,8 @@ function backward_pass!(sddp::SDDPInterface,
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
 
+    costates = zeros(T, nb_forward, model.dimStates)
+
 
     for t = T-1:-1:1
         for k = 1:nb_forward
@@ -291,16 +293,19 @@ function backward_pass!(sddp::SDDPInterface,
             # We collect current state:
             state_t = stockTrajectories[t, k, :]
             if model.info == :HD
-                compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
+                λ = compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             elseif model.info == :DH
-                compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
+                λ = compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             end
 
+            costates[t, k, :] = λ
         end
     end
     # update stats
     sddp.stats.nsolved += length(solvertime)
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
+
+    return costates
 end
 
 
@@ -361,6 +366,8 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
             end
         end
     end
+
+    return subgradient
 end
 
 
@@ -391,4 +398,6 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
             add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
         end
     end
+
+    return subgradient
 end

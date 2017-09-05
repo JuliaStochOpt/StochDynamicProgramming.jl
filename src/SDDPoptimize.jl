@@ -121,51 +121,53 @@ function solve!(sddp::SDDPInterface)
     upperbound_scenarios = simulate_scenarios(sddp.spmodel.noises, sddp.params.in_iter_mc)
 
     upb = [Inf, Inf, Inf]
-    stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
     (sddp.verbosity > 0) && println("Starting SDDP iterations")
     while !stop(sddp.stopcrit, stats, stats)
-        # Time execution of current pass:
-        tic()
-
-        ####################
-        # Forward pass : compute stockTrajectories
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start forward pass")
-        costs, trajectories = forward_pass!(sddp)
-
-        ####################
-        # Backward pass : update polyhedral approximation of Bellman functions
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start backward pass")
-        backward_pass!(sddp, trajectories)
-
-        ####################
-        # Time execution of current pass
-        time_pass = toq()
-
-        ####################
-        # cut pruning
-        (param.prune) && prune!(sddp, trajectories)
-
-        ####################
-        # In iteration lower bound estimation
-        lwb = lowerbound(sddp)
-
-        ####################
-        # In iteration upper bound estimation
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start in-iteration upperbound estimation")
-        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbosity,
-                                          upperbound_scenarios, upb,
-                                          sddp.solverinterface)
-
-        updateSDDP!(sddp, lwb, upb, time_pass, trajectories)
-
-        (sddp.verbosity > 1) && checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+        iteration!(sddp, stats)
     end
 
     ##########
     # Estimate final upper bound with param.monteCarloSize simulations:
     finalpass!(sddp)
+end
+
+
+"""Run SDDP iteration."""
+function iteration!(sddp::SDDPInterface, stats)
+    # Time execution of current pass:
+    tic()
+
+    ####################
+    # Forward pass : compute stockTrajectories
+    costs, states = forward_pass!(sddp)
+
+    ####################
+    # Backward pass : update polyhedral approximation of Bellman functions
+    costates = backward_pass!(sddp, states)
+
+    ####################
+    # Time execution of current pass
+    time_pass = toq()
+
+    ####################
+    # cut pruning
+    (param.prune) && prune!(sddp, states)
+
+    ####################
+    # In iteration lower bound estimation
+    lwb = lowerbound(sddp)
+
+    ####################
+    # In iteration upper bound estimation
+    upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbosity,
+                                        upperbound_scenarios, upb,
+                                        sddp.solverinterface)
+
+    updateSDDP!(sddp, lwb, upb, time_pass, states)
+
+    checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
 end
 
 
