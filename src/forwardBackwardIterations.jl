@@ -135,8 +135,8 @@ function forward_simulations(model::SPModel,
     for t=1:T-1
         for k = 1:nb_forward
             # Collect current state and noise:
-            state_t = collect(stockTrajectories[t, k, :])
-            alea_t = collect(xi[t, k, :])
+            state_t = stockTrajectories[t, k, :]
+            wt = xi[t, k, :]
 
             callsolver += 1
 
@@ -145,15 +145,17 @@ function forward_simulations(model::SPModel,
                 reg = get(regularizer)
                 xp = getincumbent(reg, t, k)
                 sol, ts = regularize(model, param, reg,
-                                     solverProblems[t], t, state_t, alea_t, xp,verbosity = verbosity)
+                                     solverProblems[t], t, state_t, wt, xp,verbosity = verbosity)
             else
                 # switch between HD and DH info structure
                 if model.info == :HD
                     sol, ts = solve_one_step_one_alea(model, param,
-                                                      solverProblems[t], t, state_t, alea_t,verbosity=verbosity)
-                else
+                                                      solverProblems[t], t,
+                                                      state_t, wt,
+                                                      verbosity=verbosity)
+                elseif model.info == :DH
                     sol, ts = solve_dh(model, param, t, state_t,
-                                       solverProblems[t],verbosity=verbosity)
+                                       solverProblems[t], verbosity=verbosity)
                 end
             end
 
@@ -168,13 +170,16 @@ function forward_simulations(model::SPModel,
             # Check if the problem is effectively solved:
             if sol.status
                 # Get the next position:
-                stockTrajectories[t+1, k, :] = sol.xf
+                idx = getindexnoise(model.noises[t], wt)
+                xf, θ = getnextposition(sol, idx)
+
+                stockTrajectories[t+1, k, :] = xf
                 # the optimal control just computed:
                 controls[t, k, :] = sol.uopt
                 # and the current cost:
-                costs[k] += sol.objval - sol.θ
+                costs[k] += sol.objval - θ
                 if t==T-1
-                    costs[k] += sol.θ
+                    costs[k] += θ
                 end
             else
                 # if problem is not properly solved, next position if equal

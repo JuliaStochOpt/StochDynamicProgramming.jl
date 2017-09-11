@@ -150,12 +150,12 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     if solved
         # Computation of subgradient:
         λ = Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]
-        result = NLDSSolution(solved,
+        result = DHNLDSSolution(solved,
                               getobjectivevalue(m),
-                              getvalue(xf)[:, 1],
+                              getvalue(xf),
                               getvalue(u)[:, 1],
                               λ,
-                              getvalue(alpha)[1],
+                              getvalue(alpha),
                               getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing

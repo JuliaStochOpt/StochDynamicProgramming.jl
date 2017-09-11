@@ -22,7 +22,7 @@ type NoiseLaw
     function NoiseLaw(dimNoises, supportSize, support, proba)
         dimNoises = convert(Int64,dimNoises)
         supportSize = convert(Int64,supportSize)
-        
+
         support, proba = reshaping_noise(support, proba)
 
         if length(proba) !=  supportSize
@@ -35,6 +35,19 @@ type NoiseLaw
 
         return new(dimNoises,supportSize,support,proba)
     end
+end
+
+
+function getindexnoise(law::NoiseLaw, wt::Vector{Float64})
+    idx = 0
+
+    for idx in 1:law.supportSize
+        if law.support[:, idx] == wt
+            break
+        end
+    end
+
+    return idx
 end
 
 

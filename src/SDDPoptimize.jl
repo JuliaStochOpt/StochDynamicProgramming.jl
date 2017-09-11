@@ -135,7 +135,7 @@ end
 
 
 """Run SDDP iteration."""
-function iteration!(sddp::SDDPInterface, stats, upperbound_scenarios)
+function iteration!(sddp::SDDPInterface)
     # Time execution of current pass:
     tic()
 
@@ -159,14 +159,13 @@ function iteration!(sddp::SDDPInterface, stats, upperbound_scenarios)
     # In iteration lower bound estimation
     lwb = lowerbound(sddp)
 
-    ####################
-    # In iteration upper bound estimation
-    upb = upperbound(sddp, upperbound_scenarios)
-
+    # TODO
+    upb = [Inf, Inf, Inf]
     updateSDDP!(sddp, lwb, upb, time_pass, states)
 
     checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
 end
+
 
 function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
     # Time execution of current pass:
@@ -195,7 +194,7 @@ function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
 
     ####################
     # In iteration upper bound estimation
-    lwbdual = lowerbound(sddpdual) - 1/size(states, 2) * dot(states[1, :, 1], costates[1, :, 1])
+    lwbdual = lowerbound(sddpdual)
     upb = [-lwbdual, 0., 0.]
 
     updateSDDP!(sddp, lwb, upb, time_pass, states)

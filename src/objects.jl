@@ -304,7 +304,8 @@ function updateSDDPStat!(stats::SDDPStat,
 end
 
 
-type NLDSSolution
+abstract type AbstractNLDSSolution end
+type NLDSSolution <: AbstractNLDSSolution
     # solver status:
     status::Bool
     # cost:
@@ -320,5 +321,25 @@ type NLDSSolution
     # cuts' multipliers
     πc::Vector{Float64}
 end
+
+type DHNLDSSolution <: AbstractNLDSSolution
+    # solver status:
+    status::Bool
+    # cost:
+    objval::Float64
+    # next position:
+    xf::Array{Float64, 2}
+    # optimal control:
+    uopt::Array{Float64}
+    # Subgradient:
+    ρe::Array{Float64, 1}
+    # cost-to-go:
+    θ::Vector{Float64}
+    # cuts' multipliers
+    πc::Vector{Float64}
+end
+
+getnextposition(sol::NLDSSolution, idx::Int) = sol.xf, sol.θ
+getnextposition(sol::DHNLDSSolution, idx::Int) = sol.xf[:, idx], sol.θ[idx]
 
 NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf, Array{Float64, 1}())
