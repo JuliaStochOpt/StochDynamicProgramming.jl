@@ -66,12 +66,7 @@ function solve_one_step_one_alea(model,
 
     #update objective
     if isa(model.costFunctions, Function)
-        try
-            @objective(m, Min, model.costFunctions(t, x, u, xi) + alpha)
-        catch
-            #FIXME: hacky redefinition of costs as JuMP Model
-            @objective(m, Min, model.costFunctions(m, t, x, u, xi) + alpha)
-        end
+        @objective(m, Min, model.costFunctions(t, x, u, xi) + alpha)
 
     elseif isa(model.costFunctions, Vector{Function})
         cost = getindex(m, :cost)
@@ -96,7 +91,7 @@ function solve_one_step_one_alea(model,
     if model.IS_SMIP
         solved = relaxation ? solve_relaxed!(m, param,verbosity): solve_mip!(m, param,verbosity)
     else
-        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=true)
+        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=false)
         solved = (status == :Optimal)
     end
 
@@ -142,6 +137,10 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     solved = status == :Optimal
 
     if ~solved
+        println(m)
+        println(getvalue(u))
+        println(getvalue(alpha))
+        println(getvalue(xf))
         warn("dh model not solved at time t=",t)
     end
 

@@ -125,7 +125,7 @@ function solve!(sddp::SDDPInterface)
     # Launch execution of forward and backward passes:
     (sddp.verbosity > 0) && println("Starting SDDP iterations")
     while !stop(sddp.stopcrit, stats, stats)
-        iteration!(sddp, stats, upperbound_scenarios)
+        iteration!(sddp)
     end
 
     ##########
@@ -205,7 +205,7 @@ end
 
 """Init `sddp::SDDPInterface` object."""
 function init!(sddp::SDDPInterface)
-    random_pass!(sddp)
+    initialpass!(sddp)
     sddp.init = true
 end
 
@@ -363,12 +363,7 @@ function build_model(model, param, t,verbosity::Int64=0)
 
     # Define objective function (could be linear or piecewise linear)
     if isa(model.costFunctions, Function)
-        try
             @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
-        catch
-            #FIXME: hacky redefinition of costs as JuMP Model
-            @objective(m, Min, model.costFunctions(m, t, x, u, w) + alpha)
-        end
 
     elseif isa(model.costFunctions, Vector{Function})
         @variable(m, cost)
@@ -489,7 +484,7 @@ $(SIGNATURES)
 * `sddp:SDDPInterface`
     SDDP instance
 """
-function random_pass!(sddp::SDDPInterface)
+function initialpass!(sddp::SDDPInterface)
     model = sddp.spmodel
     param = sddp.params
 
