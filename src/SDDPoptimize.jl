@@ -160,7 +160,7 @@ function iteration!(sddp::SDDPInterface)
     lwb = lowerbound(sddp)
 
     # TODO
-    upb = [Inf, Inf, Inf]
+    upb = [mean(costs), Inf, Inf]
     updateSDDP!(sddp, lwb, upb, time_pass, states)
 
     checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
@@ -514,6 +514,14 @@ $(SIGNATURES)
 # Return
 * `Vector{JuMP.Model}`
 """
+function hotstart_SDDP end
+
+function reload!(sddp::SDDPInterface)
+    sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
+                                         sddp.params,
+                                         sddp.bellmanfunctions)
+end
+
 function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
 
     solverProblems = build_models(model, param)

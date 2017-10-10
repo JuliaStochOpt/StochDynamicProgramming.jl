@@ -406,3 +406,91 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
 
     return subgradient
 end
+
+function fwdcuts(sddp)
+
+    model = sddp.spmodel
+    param = sddp.params
+    solverProblems = sddp.solverinterface
+
+    callsolver::Int = 0
+    solvertime = Float64[]
+
+    T = model.stageNumber
+    nb_forward = size(xi)[2]
+
+    stockTrajectories = zeros(T, nb_forward, model.dimStates)
+    # We got T - 1 control, as terminal state is included into the total number of stages.
+    controls = zeros(T - 1, nb_forward, model.dimControls)
+
+    # Set first value of stocks equal to x0:
+    for k in 1:nb_forward
+        stockTrajectories[1, k, :] = model.initialState
+    end
+
+    # Store costs of different scenarios in an array:
+    costs = zeros(nb_forward)
+
+    for t=1:T-1
+        # Collect current state and noise:
+        state_t = stockTrajectories[t, k, :]
+        wt = xi[t, k, :]
+
+        callsolver += 1
+
+        # Solve optimization problem corresponding to current position:
+        # switch between HD and DH info structure
+        if model.info == :HD
+            sol, ts = solve_one_step_one_alea(model, param,
+                                                solverProblems[t], t,
+                                                state_t, wt,
+                                                verbosity=verbosity)
+        elseif model.info == :DH
+            sol, ts = solve_dh(model, param, t, state_t,
+                                solverProblems[t], verbosity=verbosity)
+        end
+
+        # update solvertime with ts
+        push!(solvertime, ts)
+
+
+        # Check if the problem is effectively solved:
+        if sol.status
+            # Get the next position:
+            idx = getindexnoise(model.noises[t], wt)
+            xf, θ = getnextposition(sol, idx)
+
+            stockTrajectories[t+1, k, :] = xf
+            # the optimal control just computed:
+            controls[t, k, :] = sol.uopt
+            # and the current cost:
+            costs[k] += sol.objval - θ
+            if t==T-1
+                costs[k] += θ
+            end
+
+            # Compute expectation of subgradient λ:
+            subgradient = sol.ρe
+            # ... expectation of cost:
+            costs_npass = sol.objval
+            # ... and expectation of slope β:
+            beta = costs_npass - dot(subgradient, state_t)
+
+            # Add cut to polyhedral function and JuMP model:
+            add_cut!(model, t, V[t], beta, subgradient, verbosity)
+            if t > 1
+                add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
+            end
+        else
+            # if problem is not properly solved, next position if equal
+            # to current one:
+            stockTrajectories[t+1, k, :] = state_t
+            # this trajectory is unvalid, the cost is set to Inf to discard it:
+            costs[k] += Inf
+        end
+    end
+
+    return costs, stockTrajectories, controls, callsolver, solvertime
+end
+
+
