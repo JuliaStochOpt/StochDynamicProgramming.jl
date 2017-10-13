@@ -407,16 +407,19 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
     return subgradient
 end
 
+
 function fwdcuts(sddp)
 
     model = sddp.spmodel
     param = sddp.params
     solverProblems = sddp.solverinterface
+    V = sddp.bellmanfunctions
 
     callsolver::Int = 0
     solvertime = Float64[]
 
     T = model.stageNumber
+    xi = simulate_scenarios(model.noises, param.forwardPassNumber)
     nb_forward = size(xi)[2]
 
     stockTrajectories = zeros(T, nb_forward, model.dimStates)
@@ -432,9 +435,11 @@ function fwdcuts(sddp)
     costs = zeros(nb_forward)
 
     for t=1:T-1
+        k = 1
         # Collect current state and noise:
         state_t = stockTrajectories[t, k, :]
         wt = xi[t, k, :]
+        verbosity = 0
 
         callsolver += 1
 

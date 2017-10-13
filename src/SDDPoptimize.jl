@@ -195,7 +195,7 @@ function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
     ####################
     # In iteration upper bound estimation
     lwbdual = lowerbound(sddpdual)
-    upb = [-lwbdual, 0., 0.]
+    upb = [mean(costs), 0., 0.]
 
     updateSDDP!(sddp, lwb, upb, time_pass, states)
 
@@ -496,6 +496,11 @@ function initialpass!(sddp::SDDPInterface)
     backward_pass!(sddp, stockTrajectories)
 end
 
+function initdry!(sddp::SDDPInterface)
+    stockTrajectories = zeros(model.stageNumber, param.forwardPassNumber, model.dimStates)
+    backward_pass!(sddp, stockTrajectories)
+end
+
 
 """
 Initialize JuMP.Model vector with a previously computed PolyhedralFunction
@@ -716,4 +721,12 @@ function get_subgradient(Vt::PolyhedralFunction, x::Vector{Float64})
         end
     end
     return Vt.lambdas[index, :]
+end
+
+"""Set upper bound to accelerate convergence."""
+function setupperbound!(sddp, ubp)
+    for m in sddp.solverinterface
+        alpha = m[:alpha]
+        JuMP.setupperbound.(alpha, ubp)
+    end
 end
