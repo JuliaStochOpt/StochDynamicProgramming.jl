@@ -178,11 +178,13 @@ function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
     ####################
     # Backward pass : update polyhedral approximation of Bellman functions
     costates = backward_pass!(sddp, states)
-    stateback = backward_pass!(sddpdual, costates)
-
-    ####################
-    # Time execution of current pass
     time_pass = toq()
+
+    # Dual Backward pass
+    tic()
+    stateback = backward_pass!(sddpdual, costates)
+    tdual = toq()
+
 
     ####################
     # cut pruning
@@ -200,6 +202,7 @@ function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
     updateSDDP!(sddp, lwb, upb, time_pass, states)
 
     checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+    return tdual
 end
 
 
