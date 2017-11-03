@@ -33,8 +33,8 @@ allowing to compute the risk
     a new probability distribution taking risk into account.
 
 """
-function argsup_proba_risk(prob, riskMeasure::RiskMeasure,costs)
-    error("'argsup_proba_risk' not defined for $(typedof(s))")
+function risk_proba(prob, riskMeasure::RiskMeasure,costs)
+    error("'risk_proba' not defined for $(typedof(s))")
 end
 
 """
@@ -42,7 +42,7 @@ $(TYPEDEF)
 
 Return the probability distribution to compute a Average Value at Risk of level beta.
 """
-function argsup_proba_risk(prob,riskMeasure::AVaR,costs)
+function risk_proba(prob,riskMeasure::AVaR,costs)
     perm = sortperm(costs,rev = true)
     beta = riskMeasure.beta
     proba = zeros(length(prob))
@@ -69,7 +69,7 @@ $(TYPEDEF)
 
 Leave the probability distribution unchanged to compute the expectation.
 """
-function argsup_proba_risk(prob,riskMeasure::Expectation,costs)
+function risk_proba(prob,riskMeasure::Expectation,costs)
     return prob
 end
 
@@ -78,7 +78,7 @@ $(TYPEDEF)
 perm
 Return a dirac on the worst cost as a probability distribution.
 """
-function argsup_proba_risk(prob,riskMeasure::WorstCase,costs)
+function risk_proba(prob,riskMeasure::WorstCase,costs)
     proba = zeros(length(prob))
     proba[indmax(costs)] = 1
     return proba
@@ -90,7 +90,7 @@ $(TYPEDEF)
 Return the probability distribution to compute a convex combination
 between expactation and an Average Value at Risk of level beta.
 """
-function argsup_proba_risk(prob,riskMeasure::ConvexCombi,costs)
+function risk_proba(prob,riskMeasure::ConvexCombi,costs)
     perm = sortperm(costs,rev = true)
     beta = riskMeasure.beta
     lambda = riskMeasure.lambda
@@ -119,7 +119,7 @@ $(TYPEDEF)
 Return the worst extreme probability distribution
 defining the convex set P
 """
-function argsup_proba_risk(prob,riskMeasure::PolyhedralRisk,costs)
+function risk_proba(prob,riskMeasure::PolyhedralRisk,costs)
     P = riskMeasure.polyset
     valuesup = P*costs
     return P[indmax(valuesup),:]

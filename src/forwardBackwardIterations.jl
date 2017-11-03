@@ -345,7 +345,7 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
         proba /= sum(proba)
 
         #Modify the probability vector to compute the value of the risk measure
-        proba = argsup_proba_risk(proba,model.riskMeasure,costs)
+        proba = risk_proba(proba,model.riskMeasure,costs)
 
         # Compute expectation of subgradient λ:
         subgradient = vec(sum(proba' .* subgradient_array, 2))

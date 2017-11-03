@@ -27,26 +27,26 @@ end
     @testset "Equality WorstCase AVaR(0)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(argsup_proba_risk(prob,AVaR(0),1:n)-argsup_proba_risk(prob,WorstCase(),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(risk_proba(prob,AVaR(0),1:n)-risk_proba(prob,WorstCase(),1:n)) .<= EPSILON*ones(n)) == n
     end
 
     @testset "Equality Expectation AVaR(1)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(argsup_proba_risk(prob,AVaR(1),1:n)-argsup_proba_risk(prob,Expectation(),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(risk_proba(prob,AVaR(1),1:n)-risk_proba(prob,Expectation(),1:n)) .<= EPSILON*ones(n)) == n
     end
 
     @testset "Equality Expectation ConvexCombi(beta,1)" begin
         n = 100
         prob = 1/n*ones(n)
-        @test sum(abs.(argsup_proba_risk(prob,Expectation(),1:n)-argsup_proba_risk(prob,ConvexCombi(rand(),1),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(risk_proba(prob,Expectation(),1:n)-risk_proba(prob,ConvexCombi(rand(),1),1:n)) .<= EPSILON*ones(n)) == n
     end
 
     @testset "Equality AVaR(beta) ConvexCombi(beta,0)" begin
         n = 100
         beta = rand()
         prob = 1/n*ones(n)
-        @test sum(abs.(argsup_proba_risk(prob,AVaR(beta),1:n)-argsup_proba_risk(prob,ConvexCombi(beta,0),1:n)) .<= EPSILON*ones(n)) == n
+        @test sum(abs.(risk_proba(prob,AVaR(beta),1:n)-risk_proba(prob,ConvexCombi(beta,0),1:n)) .<= EPSILON*ones(n)) == n
     end
 
     # Check that in the case of minimization, AVaR find the worst costs
@@ -55,7 +55,7 @@ end
         betamin = rand()/2+0.5
         n = 100
         prob = 1/n*ones(n)
-        @test argsup_proba_risk(prob, AVaR(betamin), 1:n)'*(n:-1:1) - argsup_proba_risk(prob, AVaR(betamax), 1:n)'*(n:-1:1) >= 0
+        @test risk_proba(prob, AVaR(betamin), 1:n)'*(n:-1:1) - risk_proba(prob, AVaR(betamax), 1:n)'*(n:-1:1) >= 0
     end
 end
 
@@ -78,7 +78,7 @@ end
 
     status = solve(m)
 
-    probaAVaR = argsup_proba_risk(prob, AVaR(beta), X)
+    probaAVaR = risk_proba(prob, AVaR(beta), X)
 
     @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON
 end
@@ -97,8 +97,8 @@ end
         polyset[i,i] = (beta*n-n+1)/(n*beta)
     end
 
-    probaAVaR = argsup_proba_risk(prob, AVaR(beta), X)
-    probaPolyhedral = argsup_proba_risk(prob, PolyhedralRisk(polyset), X)
+    probaAVaR = risk_proba(prob, AVaR(beta), X)
+    probaPolyhedral = risk_proba(prob, PolyhedralRisk(polyset), X)
 
     @test sum(abs.(probaAVaR-probaPolyhedral) .<= EPSILON*ones(n)) == n
 end
