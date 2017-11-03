@@ -40,6 +40,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, v
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
+                    
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo,

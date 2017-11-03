@@ -24,7 +24,9 @@ export solve_SDDP,
         PolyhedralFunction, forward_simulations,
         StochDynProgModel, SDPparameters, solve_dp,
         sampling, get_control, get_bellman_value,
-        benchmark_parameters, SDDPInterface
+        benchmark_parameters, SDDPInterface,
+        risk_proba,
+        RiskMeasure, AVaR, Expectation, WorstCase, ConvexCombi, PolyhedralRisk
 
 include("noises.jl")
 include("objects.jl")
@@ -41,4 +43,5 @@ include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")
 include("simulation.jl")
+include("risk.jl")
 end

@@ -303,7 +303,6 @@ function backward_pass!(sddp::SDDPInterface,
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
 end
 
-
 """Compute cuts in Hazard-Decision (classical SDDP)."""
 function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
                           V::Vector{PolyhedralFunction},
@@ -344,6 +343,9 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
     if sum(proba) > 0
         # Scale probability (useful when some problems where infeasible):
         proba /= sum(proba)
+
+        #Modify the probability vector to compute the value of the risk measure
+        proba = risk_proba(proba,model.riskMeasure,costs)
 
         # Compute expectation of subgradient λ:
         subgradient = vec(sum(proba' .* subgradient_array, 2))
