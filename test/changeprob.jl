@@ -55,7 +55,7 @@ end
         betamin = rand()/2+0.5
         n = 100
         prob = 1/n*ones(n)
-        @test (risk_proba(prob, AVaR(betamin), 1:n)'*(n:-1:1) - risk_proba(prob, AVaR(betamax), 1:n)'*(n:-1:1))[1] >= 0. 
+        @test (risk_proba(prob, AVaR(betamin), 1:n)'*(n:-1:1) - risk_proba(prob, AVaR(betamax), 1:n)'*(n:-1:1))[1] >= 0.
     end
 end
 
@@ -80,7 +80,7 @@ end
 
     probaAVaR = risk_proba(prob, AVaR(beta), X)
 
-    @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON
+    @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON[1]
 end
 
 # The convex set of probabilty distributions of AVaR_{beta} is defined by
