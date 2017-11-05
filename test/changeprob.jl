@@ -80,7 +80,7 @@ end
 
     probaAVaR = risk_proba(prob, AVaR(beta), X)
 
-    @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON[1]
+    @test abs(probaAVaR'*X - getobjectivevalue(m)) <= Float64(EPSILON)
 end
 
 # The convex set of probabilty distributions of AVaR_{beta} is defined by
