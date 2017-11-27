@@ -4,7 +4,7 @@
 **WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
 
-**Latest release:** 0.4.0
+**Latest release:** v0.5.0
 
 | **Documentation** | **Build Status** | **Social** |
 |:-----------------:|:----------------:|:----------:|
