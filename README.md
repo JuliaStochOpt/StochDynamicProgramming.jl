@@ -4,7 +4,7 @@
 **WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
 
 
-**Latest release:** 0.4.0
+**Latest release:** v0.5.0
 
 | **Documentation** | **Build Status** | **Social** |
 |:-----------------:|:----------------:|:----------:|
@@ -51,8 +51,6 @@ number of stage, and can accomodate higher dimension state than standard dynamic
 The algorithm return exact lower bound and estimated upper bound as well as approximate optimal
 control strategies.
 
-
-
 ## Installation
 Installing StochDynamicProgramming is an easy process.
 Currently, the package depends upon `StochasticDualDynamicProgramming.jl`, which is not
@@ -69,7 +67,7 @@ julia> Pkg.add("StochDynamicProgramming")
 ## Usage
 
 IJulia Notebooks will be provided to explain how this package work.
-A first example on a two dams valley [here.] (http://nbviewer.jupyter.org/github/leclere/StochDP-notebooks/blob/master/notebooks/damsvalley.ipynb)
+A first example on a two dams valley [here](http://nbviewer.jupyter.org/github/leclere/StochDP-notebooks/blob/master/notebooks/damsvalley.ipynb).
 
 
 ## Documentation

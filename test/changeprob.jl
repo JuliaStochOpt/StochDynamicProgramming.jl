@@ -55,7 +55,7 @@ end
         betamin = rand()/2+0.5
         n = 100
         prob = 1/n*ones(n)
-        @test risk_proba(prob, AVaR(betamin), 1:n)'*(n:-1:1) - risk_proba(prob, AVaR(betamax), 1:n)'*(n:-1:1) >= 0
+        @test (risk_proba(prob, AVaR(betamin), 1:n)'*(n:-1:1) - risk_proba(prob, AVaR(betamax), 1:n)'*(n:-1:1))[1] >= 0.
     end
 end
 
@@ -80,7 +80,7 @@ end
 
     probaAVaR = risk_proba(prob, AVaR(beta), X)
 
-    @test abs(probaAVaR'*X - getobjectivevalue(m)) <= EPSILON
+    @test abs(probaAVaR'*X - getobjectivevalue(m))[1] <= EPSILON
 end
 
 # The convex set of probabilty distributions of AVaR_{beta} is defined by
@@ -88,8 +88,8 @@ end
 # We check equality between polyhedral formulation and AVaR formulation
 @testset "Equality AVaR Polyhedral" begin
     n = 10
-    X = rand(-10:10,10)
-    beta = (n-1)/n+rand()*(1-(n-1)/n)
+    X = shuffle(collect(linspace(1,100,n)))
+    beta = 0.999
     prob = 1/n*ones(n)
 
     polyset = repmat(1/beta*prob',n)
