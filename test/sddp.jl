@@ -18,7 +18,7 @@ using Base.Test
 
     @testset "Linear cost" begin
         # Compute bellman functions with SDDP:
-        sddp = solve_SDDP(model, param, 0)
+        sddp = solve_SDDP(model, param, 0, 0)
         @test isa(sddp, SDDPInterface)
         @test typeof(sddp.bellmanfunctions) == Vector{StochDynamicProgramming.PolyhedralFunction}
         @test typeof(sddp.solverinterface) == Vector{JuMP.Model}
@@ -55,7 +55,7 @@ using Base.Test
 
         # Test display:
         param.compute_ub = 0
-        sddp = solve_SDDP(model, param, V, 1)
+        sddp = solve_SDDP(model, param, V, 1, 1)
     end
 
     @testset "Value functions calculation" begin
@@ -65,7 +65,7 @@ using Base.Test
 
     @testset "Hotstart" begin
         # Test hot start with previously computed value functions:
-        sddp = solve_SDDP(model, param, V, 0)
+        sddp = solve_SDDP(model, param, V, 0, 0)
         @test isa(sddp, SDDPInterface)
         # Test if costs are roughly the same:
         sddp_costs2, stocks = forward_simulations(model, param,
@@ -99,7 +99,7 @@ using Base.Test
                                                           passnumber=1,
                                                           gap=0.001,
                                                           max_iterations=10)
-           sddp_dh = solve_SDDP(model_dh, param_dh, 1)
+           sddp_dh = solve_SDDP(model_dh, param_dh, 0, 0)
     end
 
     @testset "Cut-pruning" begin
@@ -110,8 +110,8 @@ using Base.Test
 
         sddppr = SDDPInterface(model, param_pr,
                      StochDynamicProgramming.IterLimit(10),
-                     CutPruners.DeMatosPruningAlgo(-1),
-                     verbosity=0)
+                     pruner=CutPruners.DeMatosPruningAlgo(-1),
+                     verbosity=0, verbose_it=0)
         # solve SDDP
         solve!(sddppr)
 
@@ -127,7 +127,7 @@ using Base.Test
                                                     gap=epsilon,
                                                     max_iterations=max_iterations)
         #TODO: fix solver, as Clp cannot solve QP
-        @test_throws ErrorException solve_SDDP(model, param2, 0,
+        @test_throws ErrorException solve_SDDP(model, param2, 0, 0,
                                                 regularization=SDDPRegularization(1., .99))
     end
 
@@ -140,8 +140,8 @@ using Base.Test
         end
         # Store final cost in model:
         model.finalCost = fcost
-        solve_SDDP(model, param, 0)
-        solve_SDDP(model, param, V, 0)
+        solve_SDDP(model, param, 0, 0)
+        solve_SDDP(model, param, V, 0, 0)
     end
 
     @testset "Piecewise linear cost" begin
@@ -151,7 +151,7 @@ using Base.Test
                                                       [cost],
                                                       dynamic, laws)
         set_state_bounds(model, x_bounds)
-        sddp = solve_SDDP(model, param, 0)
+        sddp = solve_SDDP(model, param, 0, 0)
     end
 
     #FIXME correct MILP solver
@@ -174,7 +174,7 @@ using Base.Test
         # Compute upper bound every %% iterations:
         param.compute_ub = 1
         gap = .1
-        sddp = solve_SDDP(model, param, V, 0)
+        sddp = solve_SDDP(model, param, V, 0, 0)
         V0 = StochDynamicProgramming.get_lower_bound(model, param, sddp.bellmanfunctions)
         n_simulations = 1000
         upb = StochDynamicProgramming.estimate_upper_bound(model, param,
@@ -258,7 +258,7 @@ end
 
 
         # Compute bellman functions with SDDP:
-        sddp = solve_SDDP(model, param, 0)
+        sddp = solve_SDDP(model, param, 0, 0)
         @test isa(sddp, SDDPInterface)
         V = sddp.bellmanfunctions
         pbs = sddp.solverinterface

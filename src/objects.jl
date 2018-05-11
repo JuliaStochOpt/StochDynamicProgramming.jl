@@ -119,6 +119,7 @@ type LinearSPModel <: SPModel
                            dynamic,             # dynamic
                            aleas;               # modelling of noises
                            Vfinal=nothing,      # final cost
+                           x_bounds=nothing,
                            eqconstr=nothing,    # equality constraints
                            ineqconstr=nothing,  # inequality constraints
                            info=:HD,            # information structure
