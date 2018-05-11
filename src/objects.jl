@@ -7,7 +7,7 @@
 #############################################################################
 
 
-@compat abstract type RiskMeasure end
+abstract type RiskMeasure end
 
 # Define an object to
 type Expectation <: RiskMeasure
@@ -58,7 +58,7 @@ type PolyhedralRisk <: RiskMeasure
     end
 end
 
-@compat abstract type SPModel end
+abstract type SPModel end
 
 
 type PolyhedralFunction
@@ -291,7 +291,7 @@ type SDPparameters
 end
 
 
-@compat abstract type AbstractSDDPStats end
+abstract type AbstractSDDPStats end
 
 # Define an object to store evolution of solution
 # along iterations:

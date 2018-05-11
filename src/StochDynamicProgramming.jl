@@ -14,7 +14,6 @@ include("sdpLoops.jl")
 using MathProgBase, JuMP, Distributions
 using DocStringExtensions
 using CutPruners
-using Compat
 
 export solve_SDDP,
         NoiseLaw, simulate_scenarios, simulate,
