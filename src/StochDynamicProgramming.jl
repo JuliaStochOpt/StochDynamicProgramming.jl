@@ -9,7 +9,6 @@
 
 
 module StochDynamicProgramming
-include("sdpLoops.jl")
 
 using MathProgBase, JuMP, Distributions
 using DocStringExtensions
@@ -37,6 +36,7 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 include("extensiveFormulation.jl")
+include("sdpLoops.jl")
 include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")

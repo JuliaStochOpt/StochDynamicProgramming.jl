@@ -4,3 +4,4 @@ Distributions
 ProgressMeter
 Interpolations
 CutPruners 0.0.2 
+DocStringExtensions
