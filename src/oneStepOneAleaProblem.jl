@@ -38,10 +38,12 @@ problem with respect to the initial state x
     If specified, approximate future cost as 0
 
 # Returns
+* `solved::Bool`:
+    True if the solution is feasible, false otherwise
 * `NextStep`:
     Store solution of the problem
 * `ts::Float64`:
-    Solver's execution time
+   Solver's execution time
 """
 function solve_one_step_one_alea(model,
                                  param,
@@ -52,22 +54,34 @@ function solve_one_step_one_alea(model,
                                  relaxation=false::Bool,
                                  init=false::Bool,
                                  verbosity::Int64=0)
+
     # Get var defined in JuMP.model:
-    u = m[:u]
-    w = m[:w]
-    alpha = m[:alpha]
+    x = getindex(m, :x)
+    u = getindex(m, :u)
+    w = getindex(m, :w)
+    alpha = getindex(m, :alpha)
 
     # Update value of w:
-    for ii in 1:model.dimNoises
-        JuMP.fix(w[ii], xi[ii])
-    end
+    JuMP.fix.(w,xi)
+
+    #update objective
+    if isa(model.costFunctions, Function)
+        @objective(m, Min, model.costFunctions(t, x, u, xi) + alpha)
+
+    elseif isa(model.costFunctions, Vector{Function})
+        cost = getindex(m, :cost)
+        for i in 1:length(model.costFunctions)
+            @constraint(m, cost >= model.costFunctions[i](t, x, u, xi))
+        end
+        @objective(m, Min, cost + alpha)
+     end
 
     # Update constraint x == xt
     for i in 1:model.dimStates
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
 
-    if verbosity > 5
+    if false
         println("One step one alea problem at time t=",t)
         println("for x =",xt)
         println("and w=",xi)
@@ -77,10 +91,11 @@ function solve_one_step_one_alea(model,
     if model.IS_SMIP
         solved = relaxation ? solve_relaxed!(m, param,verbosity): solve_mip!(m, param,verbosity)
     else
-        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=true)
+        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=false)
         solved = (status == :Optimal)
     end
 
+    # get time taken by the solver:
     solvetime = try getsolvetime(m) catch 0 end
 
     if solved
@@ -95,6 +110,9 @@ function solve_one_step_one_alea(model,
                           getvalue(alpha),
                           getcutsmultipliers(m))
     else
+        println(m)
+        println(status)
+        error("Foo")
         # If no solution is found, then return nothing
         result = NLDSSolution()
     end
@@ -105,9 +123,9 @@ end
 
 """Solve model in Decision-Hazard."""
 function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
-    xf = m[:xf]
-    u = m[:u]
-    alpha = m[:alpha]
+    xf = getindex(m, :xf)
+    u = getindex(m, :u)
+    alpha = getindex(m, :alpha)
     for i in 1:model.dimStates
         JuMP.setRHS(m.ext[:cons][i], xt[i])
     end
@@ -117,9 +135,13 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
 
     status = solve(m)
     solved = status == :Optimal
+
     if ~solved
         println(m)
-        error("Foo")
+        println(getvalue(u))
+        println(getvalue(alpha))
+        println(getvalue(xf))
+        warn("dh model not solved at time t=",t)
     end
 
     solvetime = try getsolvetime(m) catch 0 end
@@ -127,12 +149,12 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     if solved
         # Computation of subgradient:
         λ = Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]
-        result = NLDSSolution(solved,
+        result = DHNLDSSolution(solved,
                               getobjectivevalue(m),
-                              getvalue(xf)[:, 1],
-                              getvalue(u),
+                              getvalue(xf),
+                              getvalue(u)[:, 1],
                               λ,
-                              getvalue(alpha)[1],
+                              getvalue(alpha),
                               getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
@@ -143,15 +165,16 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
 end
 
 
+
 # Solve local problem with a quadratic penalization:
 function regularize(model, param,
                     regularizer::AbstractRegularization,
                     m::JuMP.Model,
                     t::Int64,
-                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64},verbosity::Int64=0)
+                    xt::Vector{Float64}, xi::Vector{Float64}, xp::Vector{Float64};verbosity=0::Int64)
     # store current objective:
     pobj = m.obj
-    xf = m[:xf]
+    xf = getindex(m, :xf)
     qexp = getpenaltyexpr(regularizer, xf, xp)
     # and update model objective:
     @objective(m, :Min, m.obj + qexp)
@@ -168,6 +191,7 @@ function solve_relaxed!(m, param,verbosity::Int64=0)
     status = solve(m, relaxation=true)
     return status == :Optimal
 end
+
 
 """Solve original MILP problem."""
 function solve_mip!(m, param,verbosity::Int64=0)

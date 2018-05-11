@@ -40,13 +40,14 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, v
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
-                    
+
     sddp = SDDPInterface(model, param,
                          stopcrit,
-                         prunalgo,
+                         pruner=prunalgo,
                          verbosity=verbosity,
                          verbose_it=verbose_it,
                          regularization=regularization)
+
     # Run SDDP:
     solve!(sddp)
     sddp
@@ -84,10 +85,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters,
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1))
 
-    sddp = SDDPInterface(model, param,
-                         stopcrit,
-                         prunalgo, V,
-                         verbosity=verbosity,
+    sddp = SDDPInterface(model, param, stopcrit, V, pruner=prunalgo, verbosity=verbosity,
                          verbose_it=verbose_it)
     solve!(sddp)
     sddp
@@ -127,46 +125,11 @@ function solve!(sddp::SDDPInterface)
     upperbound_scenarios = simulate_scenarios(sddp.spmodel.noises, sddp.params.in_iter_mc)
 
     upb = [Inf, Inf, Inf]
-    stopping_test::Bool = false
 
     # Launch execution of forward and backward passes:
     (sddp.verbosity > 0) && println("Starting SDDP iterations")
     while !stop(sddp.stopcrit, stats, stats)
-        # Time execution of current pass:
-        tic()
-
-        ####################
-        # Forward pass : compute stockTrajectories
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start forward pass")
-        costs, trajectories = forward_pass!(sddp)
-
-        ####################
-        # Backward pass : update polyhedral approximation of Bellman functions
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start backward pass")
-        backward_pass!(sddp, trajectories)
-
-        ####################
-        # Time execution of current pass
-        time_pass = toq()
-
-        ####################
-        # cut pruning
-        (param.prune) && prune!(sddp, trajectories)
-
-        ####################
-        # In iteration lower bound estimation
-        lwb = lowerbound(sddp)
-
-        ####################
-        # In iteration upper bound estimation
-        (sddp.verbosity > 2) && checkit(sddp.verbose_it, sddp.stats.niterations) && println("start in-iteration upperbound estimation")
-        upb = in_iteration_upb_estimation(model, param, stats.niterations+1, sddp.verbosity,
-                                          upperbound_scenarios, upb,
-                                          sddp.solverinterface)
-
-        updateSDDP!(sddp, lwb, upb, time_pass, trajectories)
-
-        (sddp.verbosity > 1) && checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+        iteration!(sddp)
     end
 
     ##########
@@ -175,9 +138,81 @@ function solve!(sddp::SDDPInterface)
 end
 
 
+"""Run SDDP iteration."""
+function iteration!(sddp::SDDPInterface)
+    # Time execution of current pass:
+    tic()
+
+    ####################
+    # Forward pass : compute stockTrajectories
+    costs, states = forward_pass!(sddp)
+
+    ####################
+    # Backward pass : update polyhedral approximation of Bellman functions
+    costates = backward_pass!(sddp, states)
+
+    ####################
+    # Time execution of current pass
+    time_pass = toq()
+
+    ####################
+    # cut pruning
+    (sddp.params.prune) && prune!(sddp, states)
+
+    ####################
+    # In iteration lower bound estimation
+    lwb = lowerbound(sddp)
+
+    # TODO
+    upb = [mean(costs), Inf, Inf]
+    updateSDDP!(sddp, lwb, upb, time_pass, states)
+
+    checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+end
+
+
+function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
+    # Time execution of current pass:
+    tic()
+
+    ####################
+    # Forward pass : compute stockTrajectories
+    costs, states = forward_pass!(sddp)
+
+    ####################
+    # Backward pass : update polyhedral approximation of Bellman functions
+    costates = backward_pass!(sddp, states)
+    time_pass = toq()
+
+    # Dual Backward pass
+    tic()
+    stateback = backward_pass!(sddpdual, costates)
+    tdual = toq()
+
+
+    ####################
+    # cut pruning
+    (sddp.params.prune) && prune!(sddp, states)
+
+    ####################
+    # In iteration lower bound estimation
+    lwb = lowerbound(sddp)
+
+    ####################
+    # In iteration upper bound estimation
+    lwbdual = lowerbound(sddpdual)
+    upb = [mean(costs), 0., 0.]
+
+    updateSDDP!(sddp, lwb, upb, time_pass, states)
+
+    checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+    return tdual
+end
+
+
 """Init `sddp::SDDPInterface` object."""
 function init!(sddp::SDDPInterface)
-    random_pass!(sddp)
+    initialpass!(sddp)
     sddp.init = true
 end
 
@@ -255,10 +290,8 @@ $(SIGNATURES)
 * `verbosity::Int64`:
     Default is `0`, higher gives more printed information
 """
-function build_terminal_cost!(model::SPModel,
-                              problem::JuMP.Model,
-                              Vt::PolyhedralFunction,
-                              verbosity::Int64=0)
+function build_terminal_cost!(model::SPModel, problem::JuMP.Model,
+                              Vt::PolyhedralFunction, verbosity::Int64=0)
     # if shape is PolyhedralFunction, build terminal cost with it:
     alpha = problem[:alpha]
     xf = problem[:xf]
@@ -317,9 +350,9 @@ function build_model(model, param, t,verbosity::Int64=0)
     nw = model.dimNoises
 
     # define variables in JuMP:
-    @variable(m,  model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-    @variable(m,  model.xlim[i][1] <= xf[i=1:nx]<= model.xlim[i][2])
-    @variable(m,  model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
+    @variable(m,  model.xlim[i,t][1] <= x[i=1:nx] <= model.xlim[i,t][2])
+    @variable(m,  model.xlim[i,t][1] <= xf[i=1:nx]<= model.xlim[i,t][2])
+    @variable(m,  model.ulim[i,t][1] <= u[i=1:nu] <=  model.ulim[i,t][2])
     @variable(m, alpha)
 
     @variable(m, w[1:nw] == 0)
@@ -337,12 +370,7 @@ function build_model(model, param, t,verbosity::Int64=0)
 
     # Define objective function (could be linear or piecewise linear)
     if isa(model.costFunctions, Function)
-        try
             @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
-        catch
-            #FIXME: hacky redefinition of costs as JuMP Model
-            @objective(m, Min, model.costFunctions(m, t, x, u, w) + alpha)
-        end
 
     elseif isa(model.costFunctions, Vector{Function})
         @variable(m, cost)
@@ -365,6 +393,7 @@ function build_model(model, param, t,verbosity::Int64=0)
     return m
 end
 
+
 """Build model in Decision-Hazard."""
 function build_model_dh(model, param, t, verbosity::Int64=0)
     m = Model(solver=param.SOLVER)
@@ -378,9 +407,9 @@ function build_model_dh(model, param, t, verbosity::Int64=0)
     ξ = collect(law[t].support[:, :])
     πp = law[t].proba
 
-    @variable(m, model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
-    @variable(m, model.ulim[i][1] <= u[i=1:nu] <=  model.ulim[i][2])
-    @variable(m, model.xlim[i][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i][2])
+    @variable(m, model.xlim[i,t][1] <= x[i=1:nx] <= model.xlim[i,t][2])
+    @variable(m, model.ulim[i,t][1] <= u[i=1:nu] <=  model.ulim[i,t][2])
+    @variable(m, model.xlim[i,t][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i,t][2])
     @variable(m, alpha[1:ns])
 
     m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
@@ -462,7 +491,7 @@ $(SIGNATURES)
 * `sddp:SDDPInterface`
     SDDP instance
 """
-function random_pass!(sddp::SDDPInterface)
+function initialpass!(sddp::SDDPInterface)
     model = sddp.spmodel
     param = sddp.params
 
@@ -471,6 +500,11 @@ function random_pass!(sddp::SDDPInterface)
         stockTrajectories[i, j, :] = get_random_state(model)
     end
 
+    backward_pass!(sddp, stockTrajectories)
+end
+
+function initdry!(sddp::SDDPInterface)
+    stockTrajectories = zeros(model.stageNumber, param.forwardPassNumber, model.dimStates)
     backward_pass!(sddp, stockTrajectories)
 end
 
@@ -492,6 +526,14 @@ $(SIGNATURES)
 # Return
 * `Vector{JuMP.Model}`
 """
+function hotstart_SDDP end
+
+function reload!(sddp::SDDPInterface)
+    sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
+                                         sddp.params,
+                                         sddp.bellmanfunctions)
+end
+
 function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
 
     solverProblems = build_models(model, param)
@@ -553,11 +595,9 @@ Get lower bound of SDDP instance `sddp`.
 $(SIGNATURES)
 
 """
-function lowerbound(sddp::SDDPInterface)
-    return get_bellman_value(sddp.spmodel, sddp.params, 1,
-                             sddp.bellmanfunctions[1],
-                             sddp.spmodel.initialState)
-end
+lowerbound(sddp::SDDPInterface) = get_bellman_value(sddp.spmodel, sddp.params, 1,
+                                                    sddp.bellmanfunctions[1],
+                                                    sddp.spmodel.initialState)
 
 
 """
@@ -580,6 +620,7 @@ function get_lower_bound(model::SPModel, param::SDDPparameters,
                             V::Vector{PolyhedralFunction})
     return get_bellman_value(model, param, 1, V[1], model.initialState)
 end
+get_lower_bound(sddp::SDDPInterface)=lowerbound(sddp::SDDPInterface)
 
 
 """
@@ -642,3 +683,57 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
     problem.ext[:ncuts] = V.numCuts
 end
 
+
+"""
+Compute subgradient of the problem at time t and state x.
+
+# Arguments
+* `V::Vector{Polyhedral function}`:
+    Estimation of bellman function as Polyhedral function
+* `t::Int64`:
+    Timestep used to compute the derivative
+* `x::Vector{Float64}`:
+    State for which the derivative is computed
+
+# Return
+subgradient of the problem at time t and state x (Float64)
+"""
+function get_subgradient(V::Vector{PolyhedralFunction}, t::Int64, x::Vector{Float64})
+    return get_subgradient(V[t],x)
+end
+
+
+"""
+Compute subgradient of the problem at time t and state x.
+
+# Arguments
+* `Vt::PolyhedralFunction`:
+    Estimation of bellman function as Polyhedral function
+* `t::Int64`:
+    Timestep used to compute the subgradient
+* `x::Vector{Float64}`:
+    State for which the subgradient is computed
+
+# Return
+subgradient of the problem at time t and state x (Float64)
+"""
+function get_subgradient(Vt::PolyhedralFunction, x::Vector{Float64})
+    maxvalue = -Inf
+    index = 0
+    for i in 1:Vt.numCuts
+        lambda = vec(Vt.lambdas[i, :])
+        if Vt.betas[i] + dot(lambda, x) >= maxvalue
+            maxvalue = Vt.betas[i] + dot(lambda, x)
+            index = i
+        end
+    end
+    return Vt.lambdas[index, :]
+end
+
+"""Set upper bound to accelerate convergence."""
+function setupperbound!(sddp, ubp)
+    for m in sddp.solverinterface
+        alpha = m[:alpha]
+        JuMP.setupperbound.(alpha, ubp)
+    end
+end

@@ -7,7 +7,6 @@
 # algorithm for multi-stage stochastic convex optimization problem
 #############################################################################
 
-__precompile__()
 
 module StochDynamicProgramming
 include("sdpLoops.jl")

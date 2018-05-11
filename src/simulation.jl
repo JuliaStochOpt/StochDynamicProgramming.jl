@@ -94,6 +94,16 @@ end
 
 simulate(sddp::SDDPInterface, scen::Array{Float64, 3}) = forward_simulations(sddp.spmodel, sddp.params, sddp.solverinterface, scen)[1:3]
 
+function upperbound(sddp::SDDPInterface, scenarios::Array)
+    costs = forward_simulations(sddp.spmodel, sddp.params, sddp.solverinterface, scenarios)[1]
+    # discard unvalid values:
+    costs = costs[isfinite.(costs)]
+    μ = mean(costs)
+    σ = std(costs)
+    tol = upper_bound_confidence(costs, sddp.params.confidence_level)
+    return [μ, σ, tol]
+end
+
 """
 Estimate the upper bound with a distribution of costs
 
