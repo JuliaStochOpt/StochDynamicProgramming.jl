@@ -92,6 +92,8 @@ function simulate(sddp::SDDPInterface, nsimu::Int)
     forward_simulations(sddp.spmodel, sddp.params, sddp.solverinterface, scenarios)[1:3]
 end
 
+simulate(sddp::SDDPInterface, scen::Array{Float64, 3}) = forward_simulations(sddp.spmodel, sddp.params, sddp.solverinterface, scen)[1:3]
+
 """
 Estimate the upper bound with a distribution of costs
 

@@ -18,7 +18,7 @@ using CutPruners
 using Compat
 
 export solve_SDDP,
-        NoiseLaw, simulate_scenarios,
+        NoiseLaw, simulate_scenarios, simulate,
         SDDPparameters, LinearSPModel, set_state_bounds,
         extensive_formulation,
         PolyhedralFunction, forward_simulations,

@@ -160,10 +160,6 @@ function forward_simulations(model::SPModel,
             # update solvertime with ts
             push!(solvertime, ts)
 
-            # update cutpruners status with new point
-            if param.prune && ~isnull(pruner) && t < T-1
-                update!(pruner[t+1], sol.xf, sol.πc)
-            end
 
             # Check if the problem is effectively solved:
             if sol.status
@@ -175,6 +171,10 @@ function forward_simulations(model::SPModel,
                 costs[k] += sol.objval - sol.θ
                 if t==T-1
                     costs[k] += sol.θ
+                end
+                # update cutpruners status with new point
+                if param.prune && ~isnull(pruner) && t < T-1
+                    update!(pruner[t+1], sol.xf, sol.πc)
                 end
             else
                 # if problem is not properly solved, next position if equal
