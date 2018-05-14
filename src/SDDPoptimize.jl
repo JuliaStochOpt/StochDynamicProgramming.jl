@@ -170,18 +170,18 @@ function iteration!(sddp::SDDPInterface)
     checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
 end
 
-
-function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
+# If specified, run two joint iterations in the primal and in the dual.
+function iteration!(sddpprimal::SDDPInterface, sddpdual::SDDPInterface)
     # Time execution of current pass:
     tic()
 
     ####################
     # Forward pass : compute stockTrajectories
-    costs, states = forward_pass!(sddp)
+    costs, states = forward_pass!(sddpprimal)
 
     ####################
     # Backward pass : update polyhedral approximation of Bellman functions
-    costates = backward_pass!(sddp, states)
+    costates = backward_pass!(sddpprimal, states)
     time_pass = toq()
 
     # Dual Backward pass
@@ -192,20 +192,20 @@ function iteration!(sddp::SDDPInterface, sddpdual::SDDPInterface)
 
     ####################
     # cut pruning
-    (sddp.params.prune) && prune!(sddp, states)
+    (sddpprimal.params.prune) && prune!(sddpprimal, states)
 
     ####################
     # In iteration lower bound estimation
-    lwb = lowerbound(sddp)
+    lwb = lowerbound(sddpprimal)
 
     ####################
     # In iteration upper bound estimation
     lwbdual = lowerbound(sddpdual)
     upb = [mean(costs), 0., 0.]
 
-    updateSDDP!(sddp, lwb, upb, time_pass, states)
+    updateSDDP!(sddpprimal, lwb, upb, time_pass, states)
 
-    checkit(sddp.verbose_it, sddp.stats.niterations) && println(sddp.stats)
+    checkit(sddpprimal.verbose_it, sddpprimal.stats.niterations) && println(sddpprimal.stats)
     return tdual
 end
 
@@ -528,11 +528,6 @@ $(SIGNATURES)
 """
 function hotstart_SDDP end
 
-function reload!(sddp::SDDPInterface)
-    sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
-                                         sddp.params,
-                                         sddp.bellmanfunctions)
-end
 
 function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{PolyhedralFunction})
 
@@ -552,6 +547,11 @@ function hotstart_SDDP(model::SPModel, param::SDDPparameters, V::Vector{Polyhedr
     return solverProblems
 end
 
+function reload!(sddp::SDDPInterface)
+    sddp.solverinterface = hotstart_SDDP(sddp.spmodel,
+                                         sddp.params,
+                                         sddp.bellmanfunctions)
+end
 
 """
 Compute value of Bellman function at point `xt`. Return `V_t(xt)`.
