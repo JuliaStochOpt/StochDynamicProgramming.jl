@@ -40,7 +40,7 @@ function solve_SDDP(model::SPModel, param::SDDPparameters, verbosity=0::Int64, v
                     stopcrit::AbstractStoppingCriterion=IterLimit(param.max_iterations),
                     prunalgo::AbstractCutPruningAlgo=CutPruners.AvgCutPruningAlgo(-1),
                     regularization=nothing)
-                    
+
     sddp = SDDPInterface(model, param,
                          stopcrit,
                          prunalgo,
@@ -273,6 +273,10 @@ function build_terminal_cost!(model::SPModel,
                 for ww=1:length(model.noises[t].proba)
                     @constraint(problem, Vt.betas[i] + dot(lambda, xf[:, ww]) <= alpha[ww])
                 end
+            elseif model.info == :DHD
+                println("DHD not implemented yet in build_terminal_cost")
+                println("Code of HD for the moment")
+                @constraint(problem, Vt.betas[i] + dot(lambda, xf) <= alpha)
             end
         end
     else
@@ -303,8 +307,12 @@ linear problem.
 function build_models(model::SPModel, param::SDDPparameters)
     if model.info == :HD
         return JuMP.Model[build_model(model, param, t) for t=1:model.stageNumber-1]
-    else
+    elseif model.info == :DH
         return JuMP.Model[build_model_dh(model, param, t) for t=1:model.stageNumber-1]
+    elseif model.info == :DHD
+        println("DHD not implemented yet in build_models")
+        println("Solving in HD for the moment")
+        return JuMP.Model[build_model_dhd(model, param, t) for t=1:model.stageNumber-1]
     end
 end
 
@@ -406,6 +414,54 @@ function build_model_dh(model, param, t, verbosity::Int64=0)
     (verbosity >5) && print(m)
     return m
 end
+
+
+"""Build model in Decision-Hazard-Decision."""
+# Not finished yet 
+function build_model_dhd(model, param, t, verbosity::Int64=0)
+    m = Model(solver=param.SOLVER)
+    law = model.noises
+
+    nx = model.dimStates
+    nusharp = model.dimControls
+    nw = model.dimNoises
+    nuflat = model.dimControls
+
+    ns = law[t].supportSize
+    ξ = collect(law[t].support[:, :])
+    πp = law[t].proba
+
+    @variable(m, model.xlim[i][1] <= x[i=1:nx] <= model.xlim[i][2])
+    @variable(m, model.ulim[i][1] <= usharp[i=1:nu] <=  model.ulim[i][2])
+    @variable(m, model.ulim[i][1] <= uflat[i=1:nu] <=  model.ulim[i][2])
+    @variable(m, model.xlim[i][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i][2])
+    @variable(m, alpha[1:ns])
+
+    m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
+
+    for j=1:ns
+        @constraint(m, xf[:, j] .== model.dynamics(t, x, u, ξ[:, j]))
+    end
+
+    # add objective as minimization of expectancy:
+    try
+        @objective(m, Min,
+                        sum(πp[j]*(model.costFunctions(t, x, usharp, ξ[:, j],uflat[:,j]) +
+                                    alpha[j]) for j in 1:ns))
+    catch
+        @objective(m, Min,
+                        sum(πp[j]*(model.costFunctions(m, t, x, usharp, ξ[:, j],uflat[:,j]) +
+                        alpha[j]) for j in 1:ns))
+    end
+
+    # store number of cuts
+    m.ext[:ncuts] = 0
+
+    (verbosity >5) && print(m)
+    return m
+end
+
+
 
 
 
@@ -637,8 +693,11 @@ function add_cuts_to_model!(model::SPModel, t::Int64, problem::JuMP.Model, V::Po
             for j in 1:model.noises[t].supportSize
                 @constraint(problem, V.betas[i] + dot(lambda, xf[:, j]) <= alpha[j])
             end
+        elseif model.info == :DHD
+            println("DHD not implemented yet in add_cuts_to_model")
+            println("Code of HD for the moment")
+            @constraint(problem, V.betas[i] + dot(lambda, xf) <= alpha)
         end
     end
     problem.ext[:ncuts] = V.numCuts
 end
-

@@ -143,6 +143,70 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
 end
 
 
+"""Solve model in Decision-Hazard-Decision."""
+function solve_dhd(model,
+                                 param,
+                                 m::JuMP.Model,
+                                 t::Int64,
+                                 xt::Vector{Float64},
+                                 xi::Vector{Float64};
+                                 relaxation=false::Bool,
+                                 init=false::Bool,
+                                 verbosity::Int64=0)
+    println("solve_dhd not implemented yet")
+    println("Code of solve_one_step_one_alea (HD) for the moment")
+    # Get var defined in JuMP.model:
+    u = m[:u]
+    w = m[:w]
+    alpha = m[:alpha]
+
+    # Update value of w:
+    for ii in 1:model.dimNoises
+        JuMP.fix(w[ii], xi[ii])
+    end
+
+    # Update constraint x == xt
+    for i in 1:model.dimStates
+        JuMP.setRHS(m.ext[:cons][i], xt[i])
+    end
+
+    if verbosity > 5
+        println("One step one alea problem at time t=",t)
+        println("for x =",xt)
+        println("and w=",xi)
+        print(m)
+    end
+
+    if model.IS_SMIP
+        solved = relaxation ? solve_relaxed!(m, param,verbosity): solve_mip!(m, param,verbosity)
+    else
+        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=true)
+        solved = (status == :Optimal)
+    end
+
+    solvetime = try getsolvetime(m) catch 0 end
+
+    if solved
+        optimalControl = getvalue(u)
+        # Return object storing results:
+        result = NLDSSolution(
+                          solved,
+                          getobjectivevalue(m),
+                          model.dynamics(t, xt, optimalControl, xi),
+                          optimalControl,
+                          getdual(m.ext[:cons]),
+                          getvalue(alpha),
+                          getcutsmultipliers(m))
+    else
+        # If no solution is found, then return nothing
+        result = NLDSSolution()
+    end
+
+    return result, solvetime
+end
+
+
+
 # Solve local problem with a quadratic penalization:
 function regularize(model, param,
                     regularizer::AbstractRegularization,
