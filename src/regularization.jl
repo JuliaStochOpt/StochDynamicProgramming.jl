@@ -12,7 +12,7 @@ export SDDPRegularization
 abstract type AbstractRegularization end
 
 
-type SDDPRegularization <: AbstractRegularization
+mutable struct SDDPRegularization <: AbstractRegularization
     ρ::Float64
     alpha::Float64
     incumbents

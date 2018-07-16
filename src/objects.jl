@@ -10,13 +10,13 @@
 abstract type RiskMeasure end
 
 # Define an object to
-type Expectation <: RiskMeasure
+mutable struct Expectation <: RiskMeasure
     function Expectation()
         return new()
     end
 end
 
-type AVaR <: RiskMeasure
+mutable struct AVaR <: RiskMeasure
     # If the random variable is a cost and beta = 0.05,
     # it returns the average of the five worst costs solving the problem
     # minimize alpha + 1/beta * E[max(X - alpha; 0)]
@@ -28,13 +28,13 @@ type AVaR <: RiskMeasure
     end
 end
 
-type WorstCase <: RiskMeasure
+mutable struct WorstCase <: RiskMeasure
     function WorstCase()
         return new()
     end
 end
 
-type ConvexCombi <: RiskMeasure
+mutable struct ConvexCombi <: RiskMeasure
     # Define a convex combination between Expectation and AVaR_{beta}
     # with form lambda*E + (1-lambda)*AVaR
     # lambda = 1 ==> Expectation
@@ -46,7 +46,7 @@ type ConvexCombi <: RiskMeasure
     end
 end
 
-type PolyhedralRisk <: RiskMeasure
+mutable struct PolyhedralRisk <: RiskMeasure
     # Define a convex polyhedral set P of probability distributions
     # by its extreme points p1, ..., pn
     # In the case of costs X, the problem solved is
@@ -61,7 +61,7 @@ end
 abstract type SPModel end
 
 
-type PolyhedralFunction
+mutable struct PolyhedralFunction
     #function defined by max_k betas[k] + lambdas[k,:]*x
     betas::Vector{Float64}
     lambdas::Array{Float64,2} #lambdas[k,:] is the subgradient
@@ -81,7 +81,7 @@ function fetchnewcuts!(V::PolyhedralFunction)
     return β, λ
 end
 
-type LinearSPModel <: SPModel
+mutable struct LinearSPModel <: SPModel
     # problem dimension
     stageNumber::Int64 #number of information step + 1
     dimControls::Int64
@@ -139,7 +139,7 @@ type LinearSPModel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1, UInt64[], 0)
         end
 
-        isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimControls]
+        isbu = isa(control_cat, Vector{Symbol}) ? control_cat : [:Cont for i in 1:dimControls]
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
         if (x_bounds == nothing)
@@ -195,7 +195,7 @@ function max_bounds(bounds::Array)
     [(m_bounds[i,1], m_bounds[i,2]) for i in 1:size(bounds)[1]]
 end
 
-type StochDynProgModel <: SPModel
+mutable struct StochDynProgModel <: SPModel
     # problem dimension
     stageNumber::Int64
     dimControls::Int64
@@ -239,8 +239,8 @@ type StochDynProgModel <: SPModel
                                 finalCostFunction, dynamic, constraints, aleas, search_space_builder = Nullable{Function}())
         dimState = length(x0)
         dimControls = size(u_bounds)[1]
-        u_bounds1 = ndims(u_bounds) == 1? u_bounds : max_bounds(u_bounds)
-        x_bounds1 = ndims(x_bounds) == 1? x_bounds : max_bounds(x_bounds)
+        u_bounds1 = ndims(u_bounds) == 1 ? u_bounds : max_bounds(u_bounds)
+        x_bounds1 = ndims(x_bounds) == 1 ? x_bounds : max_bounds(x_bounds)
 
 
         return new(TF, dimControls, dimState, length(aleas[1].support[:, 1]),
@@ -252,7 +252,7 @@ type StochDynProgModel <: SPModel
 end
 
 
-type SDPparameters
+mutable struct SDPparameters
     stateSteps
     controlSteps
     totalStateSpaceSize
@@ -295,7 +295,7 @@ abstract type AbstractSDDPStats end
 
 # Define an object to store evolution of solution
 # along iterations:
-type SDDPStat <: AbstractSDDPStats
+mutable struct SDDPStat <: AbstractSDDPStats
     # Number of iterations:
     niterations::Int
     # evolution of lower bound:
@@ -361,7 +361,7 @@ end
 
 
 abstract type AbstractNLDSSolution end
-type NLDSSolution <: AbstractNLDSSolution
+mutable struct NLDSSolution <: AbstractNLDSSolution
     # solver status:
     status::Bool
     # cost:
@@ -378,7 +378,7 @@ type NLDSSolution <: AbstractNLDSSolution
     πc::Vector{Float64}
 end
 
-type DHNLDSSolution <: AbstractNLDSSolution
+mutable struct DHNLDSSolution <: AbstractNLDSSolution
     # solver status:
     status::Bool
     # cost:
