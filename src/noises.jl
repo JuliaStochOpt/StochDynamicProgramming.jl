@@ -9,7 +9,7 @@
 #############################################################################
 
 
-type NoiseLaw
+mutable struct NoiseLaw
     # Dimension of noise
     dimNoises::Int64
     # Number of points in distribution:

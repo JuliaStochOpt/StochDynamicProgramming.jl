@@ -6,7 +6,7 @@
 #  SDDP interface
 #############################################################################
 
-type SDDPInterface
+mutable struct SDDPInterface
     init::Bool
     # Stochastic model to solve
     spmodel::SPModel

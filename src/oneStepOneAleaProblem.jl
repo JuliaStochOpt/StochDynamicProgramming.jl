@@ -89,7 +89,7 @@ function solve_one_step_one_alea(model,
     end
 
     if model.IS_SMIP
-        solved = relaxation ? solve_relaxed!(m, param,verbosity): solve_mip!(m, param,verbosity)
+        solved = relaxation ? solve_relaxed!(m, param,verbosity) : solve_mip!(m, param,verbosity)
     else
         status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=false)
         solved = (status == :Optimal)

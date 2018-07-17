@@ -54,7 +54,7 @@ ncuts(V::PolyhedralFunction) = length(V.betas)
 ncuts(V::Array{PolyhedralFunction}) = sum([ncuts(v) for v in V])
 
 # Update cut pruner
-update!{T}(pruner::CutPruners.DeMatosCutPruner, x::Vector{T}, λ::Vector{T})=addposition!(pruner, x)
-update!{T}(pruner::CutPruners.AvgCutPruner, x::Vector{T}, λ::Vector{T})=addusage!(pruner, λ)
-update!{T}(pruner::CutPruners.DecayCutPruner, x::Vector{T}, λ::Vector{T})=addusage!(pruner, λ)
+update!(pruner::CutPruners.DeMatosCutPruner, x::Vector{T}, λ::Vector{T}) where {T}=addposition!(pruner, x)
+update!(pruner::CutPruners.AvgCutPruner, x::Vector{T}, λ::Vector{T}) where {T}=addusage!(pruner, λ)
+update!(pruner::CutPruners.DecayCutPruner, x::Vector{T}, λ::Vector{T}) where {T}=addusage!(pruner, λ)
 

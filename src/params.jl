@@ -6,7 +6,7 @@
 #  Definition of SDDP parameters
 #############################################################################
 
-type SDDPparameters
+mutable struct SDDPparameters
     # Solver used to solve LP
     SOLVER::MathProgBase.AbstractMathProgSolver
     # Solver used to solve MILP (default is nothing):
