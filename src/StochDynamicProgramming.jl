@@ -7,18 +7,15 @@
 # algorithm for multi-stage stochastic convex optimization problem
 #############################################################################
 
-__precompile__()
 
 module StochDynamicProgramming
-include("sdpLoops.jl")
 
 using MathProgBase, JuMP, Distributions
 using DocStringExtensions
 using CutPruners
-using Compat
 
 export solve_SDDP,
-        NoiseLaw, simulate_scenarios,
+        NoiseLaw, simulate_scenarios, simulate,
         SDDPparameters, LinearSPModel, set_state_bounds,
         extensive_formulation,
         PolyhedralFunction, forward_simulations,
@@ -39,6 +36,7 @@ include("oneStepOneAleaProblem.jl")
 include("forwardBackwardIterations.jl")
 include("SDDPoptimize.jl")
 include("extensiveFormulation.jl")
+include("sdpLoops.jl")
 include("sdp.jl")
 include("compare.jl")
 include("cutpruning.jl")

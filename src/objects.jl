@@ -7,7 +7,7 @@
 #############################################################################
 
 
-@compat abstract type RiskMeasure end
+abstract type RiskMeasure end
 
 # Define an object to
 type Expectation <: RiskMeasure
@@ -58,7 +58,7 @@ type PolyhedralRisk <: RiskMeasure
     end
 end
 
-@compat abstract type SPModel end
+abstract type SPModel end
 
 
 type PolyhedralFunction
@@ -83,14 +83,15 @@ end
 
 type LinearSPModel <: SPModel
     # problem dimension
-    stageNumber::Int64
+    stageNumber::Int64 #number of information step + 1
     dimControls::Int64
     dimStates::Int64
     dimNoises::Int64
 
-    # Bounds of states and controls:
-    xlim::Array{Tuple{Float64,Float64},1}
-    ulim::Array{Tuple{Float64,Float64},1}
+    # Bounds of states and controls (state and control are in column)
+    xlim::Array{Tuple{Float64,Float64},2}
+    ulim::Array{Tuple{Float64,Float64},2}
+
 
     initialState::Array{Float64, 1}
 
@@ -118,6 +119,7 @@ type LinearSPModel <: SPModel
                            dynamic,             # dynamic
                            aleas;               # modelling of noises
                            Vfinal=nothing,      # final cost
+                           x_bounds=nothing,
                            eqconstr=nothing,    # equality constraints
                            ineqconstr=nothing,  # inequality constraints
                            info=:HD,            # information structure
@@ -125,10 +127,9 @@ type LinearSPModel <: SPModel
                            riskMeasure = Expectation()
                            )
 
-        # infer the problem's dimension
-        dimStates = length(x0)
-        dimControls = length(u_bounds)
-        dimNoises = length(aleas[1].support[:, 1])
+        dimStates   = length(x0)
+        dimControls = size(u_bounds,1)
+        dimNoises   = aleas[1].dimNoises
 
         # First step: process terminal costs.
         # If not specified, default value is null function
@@ -138,11 +139,13 @@ type LinearSPModel <: SPModel
             Vf = PolyhedralFunction(zeros(1), zeros(1, dimStates), 1, UInt64[], 0)
         end
 
-        # control's category
         isbu = isa(control_cat, Vector{Symbol})? control_cat: [:Cont for i in 1:dimControls]
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
-        x_bounds = [(-Inf, Inf) for i=1:dimStates]
+        if (x_bounds == nothing)
+            x_bounds = repmat([(-Inf,Inf)],dimStates,n_stage)
+        end
+        u_bounds = test_and_reshape_bounds(u_bounds, dimControls,n_stage, "Controls")
 
         return new(n_stage, dimControls, dimStates, dimNoises, x_bounds, u_bounds,
                    x0, cost, dynamic, aleas, Vf, isbu, eqconstr, ineqconstr, info, is_smip, riskMeasure)
@@ -152,13 +155,45 @@ end
 
 """Set bounds on state."""
 function set_state_bounds(model::SPModel, x_bounds)
-    if length(x_bounds) != model.dimStates
-        error("Bounds dimension, must be ", model.dimStates)
-    else
-        model.xlim = x_bounds
-    end
+   nx = model.dimStates
+   ns = model.stageNumber
+   model.xlim = test_and_reshape_bounds(x_bounds, nx,ns, "State")
 end
 
+""" Checking state and control bounds and duplicating if needed
+
+If bounds is a vector of length nx (or nx*1 array) duplicate to a matrix nx*ns,
+if already a matrix keep it this way, else return an error"""
+function test_and_reshape_bounds(bounds, nx,ns, variable)
+    if (ndims(bounds) == 1 && length(bounds) == nx)||(ndims(bounds) == 2 && size(bounds) == (nx,1))
+        return repmat(bounds,1,ns)
+    elseif ndims(bounds) == 2 && size(bounds) == (nx,ns)
+        return bounds
+     else
+        error(variable, " bounds dimension should be ", nx," or (",nx,",",ns,")")
+     end
+ end
+
+
+function iswithinbounds(x, bounds::Array)
+    test = true
+    for (i, xi) in enumerate(x)
+        test = test&(xi <= bounds[i][2])&(xi >= bounds[i][1])
+    end
+    test
+end
+
+function max_bounds(bounds::Array)
+    warn("Varying bounds badly not in sdp, define in constraint function")
+    m_bounds = ones(size(bounds)[1],2)
+    for j in 1:size(bounds)[2]
+        for i in 1:size(bounds)[1]
+            m_bounds[i,1] = min(m_bounds[i,1], bounds[i,j][1])
+            m_bounds[i,2] = max(m_bounds[i,2], bounds[i,j][2])
+        end
+    end
+    [(m_bounds[i,1], m_bounds[i,2]) for i in 1:size(bounds)[1]]
+end
 
 type StochDynProgModel <: SPModel
     # problem dimension
@@ -168,10 +203,11 @@ type StochDynProgModel <: SPModel
     dimNoises::Int64
 
     # Bounds of states and controls:
-    xlim::Array{Tuple{Float64,Float64},1}
-    ulim::Array{Tuple{Float64,Float64},1}
+    xlim::Array
+    ulim::Array
 
-    initialState::Array{Float64, 1}
+
+    initialState::Array
 
     costFunctions::Function
     finalCostFunction::Function
@@ -199,12 +235,19 @@ type StochDynProgModel <: SPModel
                  model.noises)
     end
 
-    function StochDynProgModel(TF, x_bounds, u_bounds, x0, cost_t,
+    function StochDynProgModel(TF::Int, x_bounds, u_bounds, x0, costFunctions,
                                 finalCostFunction, dynamic, constraints, aleas, search_space_builder = Nullable{Function}())
-        return new(TF, length(u_bounds), length(x_bounds), length(aleas[1].support[:, 1]),
-                    x_bounds, u_bounds, x0, cost_t, finalCostFunction, dynamic,
+        dimState = length(x0)
+        dimControls = size(u_bounds)[1]
+        u_bounds1 = ndims(u_bounds) == 1? u_bounds : max_bounds(u_bounds)
+        x_bounds1 = ndims(x_bounds) == 1? x_bounds : max_bounds(x_bounds)
+
+
+        return new(TF, dimControls, dimState, length(aleas[1].support[:, 1]),
+                    x_bounds1, u_bounds1, x0, costFunctions, finalCostFunction, dynamic,
                     constraints, aleas, search_space_builder)
     end
+
 
 end
 
@@ -248,7 +291,7 @@ type SDPparameters
 end
 
 
-@compat abstract type AbstractSDDPStats end
+abstract type AbstractSDDPStats end
 
 # Define an object to store evolution of solution
 # along iterations:
@@ -317,7 +360,8 @@ function updateSDDPStat!(stats::SDDPStat,
 end
 
 
-type NLDSSolution
+abstract type AbstractNLDSSolution end
+type NLDSSolution <: AbstractNLDSSolution
     # solver status:
     status::Bool
     # cost:
@@ -333,5 +377,25 @@ type NLDSSolution
     # cuts' multipliers
     πc::Vector{Float64}
 end
+
+type DHNLDSSolution <: AbstractNLDSSolution
+    # solver status:
+    status::Bool
+    # cost:
+    objval::Float64
+    # next position:
+    xf::Array{Float64, 2}
+    # optimal control:
+    uopt::Array{Float64}
+    # Subgradient:
+    ρe::Array{Float64, 1}
+    # cost-to-go:
+    θ::Vector{Float64}
+    # cuts' multipliers
+    πc::Vector{Float64}
+end
+
+getnextposition(sol::NLDSSolution, idx::Int) = sol.xf, sol.θ
+getnextposition(sol::DHNLDSSolution, idx::Int) = sol.xf[:, idx], sol.θ[idx]
 
 NLDSSolution() = NLDSSolution(false, Inf, Array{Float64, 1}(), Array{Float64, 1}(), Array{Float64, 1}(), Inf, Array{Float64, 1}())

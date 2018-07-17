@@ -45,7 +45,7 @@ function forward_pass!(sddp::SDDPInterface)
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
                         problems_fp,
-                        noise_scenarios,
+                        noise_scenarios;
                         pruner=sddp.pruner,
                         regularizer=sddp.regularizer,
                         verbosity = sddp.verbosity)
@@ -135,8 +135,8 @@ function forward_simulations(model::SPModel,
     for t=1:T-1
         for k = 1:nb_forward
             # Collect current state and noise:
-            state_t = collect(stockTrajectories[t, k, :])
-            alea_t = collect(xi[t, k, :])
+            state_t = stockTrajectories[t, k, :]
+            wt = xi[t, k, :]
 
             callsolver += 1
 
@@ -145,36 +145,41 @@ function forward_simulations(model::SPModel,
                 reg = get(regularizer)
                 xp = getincumbent(reg, t, k)
                 sol, ts = regularize(model, param, reg,
-                                                  solverProblems[t], t, state_t, alea_t, xp, verbosity)
+                                     solverProblems[t], t, state_t, wt, xp,verbosity = verbosity)
             else
                 # switch between HD and DH info structure
                 if model.info == :HD
                     sol, ts = solve_one_step_one_alea(model, param,
-                                                           solverProblems[t], t, state_t, alea_t,verbosity=verbosity)
-                else
+                                                      solverProblems[t], t,
+                                                      state_t, wt,
+                                                      verbosity=verbosity)
+                elseif model.info == :DH
                     sol, ts = solve_dh(model, param, t, state_t,
-                                                solverProblems[t],verbosity=verbosity)
+                                       solverProblems[t], verbosity=verbosity)
                 end
             end
 
             # update solvertime with ts
             push!(solvertime, ts)
 
-            # update cutpruners status with new point
-            if param.prune && ~isnull(pruner) && t < T-1
-                update!(pruner[t+1], sol.xf, sol.πc)
-            end
 
             # Check if the problem is effectively solved:
             if sol.status
                 # Get the next position:
-                stockTrajectories[t+1, k, :] = sol.xf
+                idx = getindexnoise(model.noises[t], wt)
+                xf, θ = getnextposition(sol, idx)
+
+                stockTrajectories[t+1, k, :] = xf
                 # the optimal control just computed:
                 controls[t, k, :] = sol.uopt
                 # and the current cost:
-                costs[k] += sol.objval - sol.θ
+                costs[k] += sol.objval - θ
                 if t==T-1
-                    costs[k] += sol.θ
+                    costs[k] += θ
+                end
+                # update cutpruners status with new point
+                if param.prune && ~isnull(pruner) && t < T-1
+                    update!(pruner[t+1], sol.xf, sol.πc)
                 end
             else
                 # if problem is not properly solved, next position if equal
@@ -284,6 +289,8 @@ function backward_pass!(sddp::SDDPInterface,
     T = model.stageNumber
     nb_forward = size(stockTrajectories)[2]
 
+    costates = zeros(T, nb_forward, model.dimStates)
+
 
     for t = T-1:-1:1
         for k = 1:nb_forward
@@ -291,16 +298,19 @@ function backward_pass!(sddp::SDDPInterface,
             # We collect current state:
             state_t = stockTrajectories[t, k, :]
             if model.info == :HD
-                compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
+                λ = compute_cuts_hd!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             elseif model.info == :DH
-                compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
+                λ = compute_cuts_dh!(model, param, V, solverProblems, t, state_t, solvertime,sddp.verbosity)
             end
 
+            costates[t, k, :] = λ
         end
     end
     # update stats
     sddp.stats.nsolved += length(solvertime)
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
+
+    return costates
 end
 
 """Compute cuts in Hazard-Decision (classical SDDP)."""
@@ -326,7 +336,8 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
         sol, ts = solve_one_step_one_alea(model, param,
                                             solverProblems[t],
                                             t, state_t, alea_t,
-                                            relaxation=model.IS_SMIP)
+                                            relaxation=model.IS_SMIP,
+                                            verbosity=verbosity)
         push!(solvertime, ts)
 
         if sol.status
@@ -362,6 +373,8 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
             end
         end
     end
+
+    return subgradient
 end
 
 
@@ -392,4 +405,101 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
             add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
         end
     end
+
+    return subgradient
+end
+
+"""
+Run a single CUPPS forward pass on `sddp` SDDPInterface object.
+
+WARNING: this function is currently just a workaround for dual SDDP.
+"""
+function fwdcuts(sddp)
+
+    model = sddp.spmodel
+    param = sddp.params
+    solverProblems = sddp.solverinterface
+    V = sddp.bellmanfunctions
+
+    callsolver::Int = 0
+    solvertime = Float64[]
+
+    T = model.stageNumber
+    xi = simulate_scenarios(model.noises, param.forwardPassNumber)
+    nb_forward = size(xi)[2]
+
+    stockTrajectories = zeros(T, nb_forward, model.dimStates)
+    # We got T - 1 control, as terminal state is included into the total number of stages.
+    controls = zeros(T - 1, nb_forward, model.dimControls)
+
+    # Set first value of stocks equal to x0:
+    for k in 1:nb_forward
+        stockTrajectories[1, k, :] = model.initialState
+    end
+
+    # Store costs of different scenarios in an array:
+    costs = zeros(nb_forward)
+
+    for t=1:T-1
+        k = 1
+        # Collect current state and noise:
+        state_t = stockTrajectories[t, k, :]
+        wt = xi[t, k, :]
+        verbosity = 0
+
+        callsolver += 1
+
+        # Solve optimization problem corresponding to current position:
+        # switch between HD and DH info structure
+        if model.info == :HD
+            sol, ts = solve_one_step_one_alea(model, param,
+                                                solverProblems[t], t,
+                                                state_t, wt,
+                                                verbosity=verbosity)
+        elseif model.info == :DH
+            sol, ts = solve_dh(model, param, t, state_t,
+                                solverProblems[t], verbosity=verbosity)
+        end
+
+        # update solvertime with ts
+        push!(solvertime, ts)
+
+
+        # Check if the problem is effectively solved:
+        if sol.status
+            # Get the next position:
+            idx = getindexnoise(model.noises[t], wt)
+            xf, θ = getnextposition(sol, idx)
+
+            stockTrajectories[t+1, k, :] = xf
+            # the optimal control just computed:
+            controls[t, k, :] = sol.uopt
+            # and the current cost:
+            costs[k] += sol.objval - θ
+            if t==T-1
+                costs[k] += θ
+            end
+
+            # Compute expectation of subgradient λ:
+            subgradient = sol.ρe
+            # ... expectation of cost:
+            costs_npass = sol.objval
+            # ... and expectation of slope β:
+            beta = costs_npass - dot(subgradient, state_t)
+
+            # Add cut to polyhedral function and JuMP model:
+            add_cut!(model, t, V[t], beta, subgradient, verbosity)
+            if t > 1
+                add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
+            end
+        else
+            # if problem is not properly solved, next position if equal
+            # to current one:
+            stockTrajectories[t+1, k, :] = state_t
+            # this trajectory is unvalid, the cost is set to Inf to discard it:
+            costs[k] += Inf
+        end
+    end
+
+    return costs, stockTrajectories, controls, callsolver, solvertime
 end
