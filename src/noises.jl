@@ -22,6 +22,9 @@ mutable struct NoiseLaw
     function NoiseLaw(dimNoises, supportSize, support, proba)
         dimNoises = convert(Int64,dimNoises)
         supportSize = convert(Int64,supportSize)
+        if ndims(support)==1
+            support = reshape(support,length(support),1)
+        end
 
         support, proba = reshaping_noise(support, proba)
 

@@ -370,7 +370,12 @@ function build_model(model, param, t,verbosity::Int64=0)
 
     # Define objective function (could be linear or piecewise linear)
     if isa(model.costFunctions, Function)
+        try
             @objective(m, Min, model.costFunctions(t, x, u, w) + alpha)
+        catch
+            @objective(m, Min, model.costFunctions(m, t, x, u, w) + alpha)
+        end
+
 
     elseif isa(model.costFunctions, Vector{Function})
         @variable(m, cost)

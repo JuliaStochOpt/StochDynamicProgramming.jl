@@ -66,8 +66,11 @@ function solve_one_step_one_alea(model,
 
     #update objective
     if isa(model.costFunctions, Function)
-        @objective(m, Min, model.costFunctions(t, x, u, xi) + alpha)
-
+        try
+            @objective(m, Min, model.costFunctions(t, x, u, xi) + alpha)
+        catch
+            @objective(m, Min, model.costFunctions(m, t, x, u, xi) + alpha)
+        end
     elseif isa(model.costFunctions, Vector{Function})
         cost = getindex(m, :cost)
         for i in 1:length(model.costFunctions)
@@ -92,7 +95,7 @@ function solve_one_step_one_alea(model,
         solved = relaxation ? solve_relaxed!(m, param,verbosity) : solve_mip!(m, param,verbosity)
     else
         status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=false)
-        solved = (status == :Optimal)
+        solved = (status == :Optimal) || (status == :Suboptimal)
     end
 
     # get time taken by the solver:
@@ -114,6 +117,8 @@ function solve_one_step_one_alea(model,
         println(status)
         error("Foo")
         # If no solution is found, then return nothing
+        #= println(m) =#
+        #= error("Fail to solve") =#
         result = NLDSSolution()
     end
 
