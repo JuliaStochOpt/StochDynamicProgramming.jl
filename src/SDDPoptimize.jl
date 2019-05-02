@@ -206,7 +206,7 @@ function iteration!(sddpprimal::SDDPInterface, sddpdual::SDDPInterface)
     updateSDDP!(sddpprimal, lwb, upb, time_pass, states)
 
     checkit(sddpprimal.verbose_it, sddpprimal.stats.niterations) && println(sddpprimal.stats)
-    return tdual
+    return tdual, states
 end
 
 
