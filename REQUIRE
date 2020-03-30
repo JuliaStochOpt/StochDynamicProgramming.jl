@@ -1,7 +1,12 @@
-julia 0.6
-JuMP 0.18
+julia
+Nullables
+SpecialFunctions
+LinearAlgebra
+JuMP
 Distributions
+Statistics
 ProgressMeter
 Interpolations
-CutPruners 0.0.2 
+CutPruners
 DocStringExtensions
+DelimitedFiles
