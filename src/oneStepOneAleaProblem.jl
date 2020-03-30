@@ -80,8 +80,9 @@ function solve_one_step_one_alea(model,
      end
 
     # Update constraint x == xt
+
     for i in 1:model.dimStates
-        JuMP.setRHS(m.ext[:cons][i], xt[i])
+        JuMP.set_normalized_rhs(m.ext[:cons][i], xt[i])
     end
 
     if false
@@ -94,23 +95,25 @@ function solve_one_step_one_alea(model,
     if model.IS_SMIP
         solved = relaxation ? solve_relaxed!(m, param,verbosity) : solve_mip!(m, param,verbosity)
     else
-        status = (verbosity>3) ? solve(m, suppress_warnings=false) : solve(m, suppress_warnings=false)
-        solved = (status == :Optimal) || (status == :Suboptimal)
+        remove_infinite_constraint!(m)
+        JuMP.optimize!(m)
+        status = JuMP.termination_status(m)
+        solved = (status == MOI.OPTIMAL) || (status == MOI.TIME_LIMIT && JuMP.has_values(m))
     end
-
     # get time taken by the solver:
-    solvetime = try getsolvetime(m) catch 0 end
 
+    solvetime = try JuMP.solve_time(m) catch e 0.0 end
     if solved
-        optimalControl = getvalue(u)
+        optimalControl = JuMP.value.(u)
+        λ = JuMP.has_duals(m) ? Float64[JuMP.dual(m.ext[:cons][i]) for i in 1:model.dimStates] : Array{Float64, 1}()
         # Return object storing results:
         result = NLDSSolution(
                           solved,
-                          getobjectivevalue(m),
+                          JuMP.objective_value(m),
                           model.dynamics(t, xt, optimalControl, xi),
                           optimalControl,
-                          getdual(m.ext[:cons]),
-                          getvalue(alpha),
+                          λ,
+                          JuMP.value.(alpha),
                           getcutsmultipliers(m))
     else
         println(m)
@@ -121,7 +124,6 @@ function solve_one_step_one_alea(model,
         #= error("Fail to solve") =#
         result = NLDSSolution()
     end
-
     return result, solvetime
 end
 
@@ -132,34 +134,36 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     u = getindex(m, :u)
     alpha = getindex(m, :alpha)
     for i in 1:model.dimStates
-        JuMP.setRHS(m.ext[:cons][i], xt[i])
+        JuMP.set_normalized_rhs(m.ext[:cons][i], xt[i])
     end
 
     (verbosity>5) && println("Decision Hazard model")
     (verbosity>5) && print(m)
 
-    status = solve(m)
-    solved = status == :Optimal
+    remove_infinite_constraint!(m)
+    JuMP.optimize!(m)
+    status = JuMP.termination_status(m)
+    solved = status == MOI.OPTIMAL
 
     if ~solved
         println(m)
-        println(getvalue(u))
-        println(getvalue(alpha))
-        println(getvalue(xf))
-        warn("dh model not solved at time t=",t)
+        println(JuMP.value.(u))
+        println(JuMP.value.(alpha))
+        println(JuMP.value.(xf))
+        @warn("dh model not solved at time t=",t)
     end
 
-    solvetime = try getsolvetime(m) catch 0 end
+    solvetime = try JuMP.solve_time(m) catch e 0.0 end
 
     if solved
         # Computation of subgradient:
-        λ = Float64[getdual(m.ext[:cons][i]) for i in 1:model.dimStates]
+        λ = JuMP.has_duals(m) ? Float64[JuMP.dual(m.ext[:cons][i]) for i in 1:model.dimStates] : Array{Float64, 1}()
         result = DHNLDSSolution(solved,
-                              getobjectivevalue(m),
-                              getvalue(xf),
-                              getvalue(u)[:, 1],
+                              JuMP.objective_value(m),
+                              JuMP.value.(xf),
+                              JuMP.value.(u)[:, 1],
                               λ,
-                              getvalue(alpha),
+                              JuMP.value.(alpha),
                               getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
@@ -192,21 +196,29 @@ end
 
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param,verbosity::Int64=0)
-    setsolver(m, param.SOLVER)
-    status = solve(m, relaxation=true)
-    return status == :Optimal
+    JuMP.set_optimizer(m, param.OPTIMIZER)
+    #setsolver(m, param.SOLVER)
+    #status = JuMP.optimize!(m, relaxation=true)
+    remove_infinite_constraint!(m)
+    JuMP.optimize!(m)
+    status = JuMP.termination_status(m)
+    return status == MOI.OPTIMAL
 end
 
 
 """Solve original MILP problem."""
 function solve_mip!(m, param,verbosity::Int64=0)
-    setsolver(m, get(param.MIPSOLVER))
-    status = solve(m, relaxation=false)
-    return status == :Optimal
+    JuMP.set_optimizer(m, param.MIPOPTIMIZER)
+    #setsolver(m, get(param.MIPOPTIMIZER))
+    #remove_infinite_constraint!(m)
+    #JuMP.optimize!(m, relaxation=false)
+    status = JuMP.termination_status(m)
+    return status == MOI.OPTIMAL
 end
 
 
-getcutsmultipliers(m::JuMP.Model)=_getdual(m)[end-m.ext[:ncuts]+1:end]
+getcutsmultipliers(m::JuMP.Model)= try _getdual(m)[end-m.ext[:ncuts]+1:end] catch e Array{Float64,1}() end
 function _getdual(m::JuMP.Model)
-    return MathProgBase.SolverInterface.getconstrduals(m.internalModel)
+    return JuMP.has_duals(m) ? JuMP.dual.([m.ext[:cons][i] for i in 1:length(m.ext[:cons])]) : Array{Float64,1}()
+     #return MathProgBase.SolverInterface.getconstrduals(m.internalModel)
 end

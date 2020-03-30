@@ -7,10 +7,12 @@
 #############################################################################
 
 mutable struct SDDPparameters
+    OPTIMIZER
+    MIPOPTIMIZER
     # Solver used to solve LP
-    SOLVER::MathProgBase.AbstractMathProgSolver
+    #SOLVER::MathProgBase.AbstractMathProgSolver
     # Solver used to solve MILP (default is nothing):
-    MIPSOLVER::Nullable{MathProgBase.AbstractMathProgSolver}
+    #MIPSOLVER::Nullable{MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # max iterations
@@ -28,14 +30,24 @@ mutable struct SDDPparameters
     # Pruning:
     prune::Bool
 
-    function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
+    #function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
+    #                        max_iterations=20, prune_cuts=0,
+    #                        pruning_algo="none",
+    #                        compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
+    #                        mipsolver=nothing,
+    #                        rho0=0., alpha=1., reload=-1, prune=false)
+    #
+    #    return new(solver, mipsolver, passnumber, max_iterations, confidence,
+    #               compute_ub, montecarlo_final, montecarlo_in_iter, reload, prune)
+    #end
+    function SDDPparameters(optimizer; passnumber=10, gap=0., confidence=.975,
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="none",
                             compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
-                            mipsolver=nothing,
+                            mipoptimizer=nothing,
                             rho0=0., alpha=1., reload=-1, prune=false)
 
-        return new(solver, mipsolver, passnumber, max_iterations, confidence,
+        return new(optimizer, mipoptimizer, passnumber, max_iterations, confidence,
                    compute_ub, montecarlo_final, montecarlo_in_iter, reload, prune)
     end
 end
@@ -55,8 +67,8 @@ Test compatibility of parameters.
 `Bool`
 """
 function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbosity=0::Int64)
-    if model.IS_SMIP && isnull(param.MIPSOLVER)
-        error("MIP solver is not defined. Please set `param.MIPSOLVER`")
+    if model.IS_SMIP && isnull(param.MIPOPTIMIZER)
+        error("MIP Optimizer is not defined. Please set `param.MIPOPTIMIZER`")
     end
 
     (verbosity > 0) && (model.IS_SMIP) && println("SMIP SDDP")

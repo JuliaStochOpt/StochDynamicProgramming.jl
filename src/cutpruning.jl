@@ -44,7 +44,7 @@ function cleancuts!(sddp::SDDPInterface)
     for t in 1:sddp.spmodel.stageNumber-1
         ub = [x[2] for x in sddp.spmodel.xlim[:, t]]
         lb = [x[1] for x in sddp.spmodel.xlim[:, t]]
-        exactpruning!(sddp.pruner[t], sddp.params.SOLVER, ub=ub, lb=lb)
+        exactpruning!(sddp.pruner[t], sddp.params.OPTIMIZER, ub=ub, lb=lb)
     end
 end
 
@@ -57,4 +57,3 @@ ncuts(V::Array{PolyhedralFunction}) = sum([ncuts(v) for v in V])
 update!(pruner::CutPruners.DeMatosCutPruner, x::Vector{T}, λ::Vector{T}) where {T}=addposition!(pruner, x)
 update!(pruner::CutPruners.AvgCutPruner, x::Vector{T}, λ::Vector{T}) where {T}=addusage!(pruner, λ)
 update!(pruner::CutPruners.DecayCutPruner, x::Vector{T}, λ::Vector{T}) where {T}=addusage!(pruner, λ)
-

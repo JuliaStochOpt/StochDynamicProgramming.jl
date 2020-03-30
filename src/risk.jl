@@ -5,7 +5,7 @@
 #############################################################################
 #  Implement different functions to deal with risk in SDDP
 #############################################################################
-
+export risk_proba
 """
 Risk measures consider here can be written (in case of a minimization problem)
    sup     E_{p}[x]
@@ -80,7 +80,7 @@ Return a dirac on the worst cost as a probability distribution.
 """
 function risk_proba(prob,riskMeasure::WorstCase,costs)
     proba = zeros(length(prob))
-    proba[indmax(costs)] = 1
+    proba[findmax(costs)[2]] = 1
     return proba
 end
 
@@ -122,5 +122,5 @@ defining the convex set P
 function risk_proba(prob,riskMeasure::PolyhedralRisk,costs)
     P = riskMeasure.polyset
     valuesup = P*costs
-    return P[indmax(valuesup),:]
+    return P[findmax(valuesup)[2],:]
 end

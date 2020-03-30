@@ -8,7 +8,7 @@
 #############################################################################
 
 import Base: +, show, writecsv
-
+using Printf
 """
 Write Polyhedral functions in a CSV file.
 
@@ -52,7 +52,7 @@ function read_polyhedral_functions(dump::AbstractString)
     process = readdlm(dump, ',')
 
     ntime = round(Int, maximum(process[:, 1]))
-    V = Vector{PolyhedralFunction}(ntime)
+    V = Vector{PolyhedralFunction}(undef,ntime)
     total_cuts = size(process)[1]
     dim_state = size(process)[2] - 2
 
@@ -99,11 +99,11 @@ Pass number     Upper bound     Lower bound     exectime
 
 """
 function Base.show(io::IO, stats::SDDPStat)
-    print("Pass n\° ", stats.niterations)
+    print("Pass n ", stats.niterations)
     if stats.niterations == 0 return end
     (stats.upper_bounds[end] < Inf) && @printf("\tUpper-bound: %.4e", stats.upper_bounds[end])
     @printf("\tLower-bound: %.4e", stats.lower_bounds[end])
-    print("\tTime: ", round(stats.exectime[end], 2),"s")
+    print("\tTime: ", round(stats.exectime[end], digits=2),"s")
 end
 
 """Check if `k` is congruent with current iteration `it`."""
@@ -118,4 +118,22 @@ function showperformance(stats::SDDPStat)
     println("Time in backward pass: $tbw")
     println("Total solver time: $(tfw+tbw)")
     println("Total execution time: $titer")
+end
+
+"""
+remove constraint with Inf or -Inf at right side
+"""
+function remove_infinite_constraint!(m::JuMP.Model)
+    types = JuMP.list_of_constraint_types(m)
+    for (expr_type, opt_type) in types
+        con_lst = JuMP.all_constraints(m,expr_type,opt_type)
+        for con in con_lst
+            try
+                if abs(JuMP.normalized_rhs(con)) == Inf
+                    JuMP.delete(m,con)
+                end
+            catch e
+            end
+        end
+    end
 end

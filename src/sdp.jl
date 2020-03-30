@@ -8,7 +8,10 @@
 #############################################################################
 
 using ProgressMeter, Interpolations
+using SharedArrays
+using Distributed
 
+export get_control,get_bellman_value,solve_dp
 
 """
 Compute interpolation of the value function at time t
@@ -28,7 +31,8 @@ Compute interpolation of the value function at time t
 
 """
 function value_function_interpolation( dim_states::Int, V::Union{SharedArray, Array}, time::Int)
-    return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()), OnGrid())
+    #return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()), OnGrid())
+    return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()))
 end
 
 
@@ -106,10 +110,10 @@ function build_sdpmodel_from_spmodel(model::SPModel)
     end
 
     if isa(model,LinearSPModel)
-        
-        cons_fun(t,x,u,w) = true 
-        
-        if in(:finalCostFunction,fieldnames(model))
+
+        cons_fun(t,x,u,w) = true
+
+        if in(:finalCostFunction,fieldnames(typeof(model)))
             SDPmodel = StochDynProgModel(model, model.finalCostFunction, cons_fun)
         else
             SDPmodel = StochDynProgModel(model, zero_fun, cons_fun)
@@ -205,7 +209,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
     end
 
     if param.expectation_computation!="MonteCarlo" && param.expectation_computation!="Exact"
-        warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'.
+        @warn("param.expectation_computation should be 'MonteCarlo' or 'Exact'.
                 Defaulted to 'exact'")
         param.expectation_computation="Exact"
     end
@@ -215,7 +219,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
     elseif param.infoStructure == "HD"
         get_V_t_x = SdpLoops.sdp_w_u_loop
     else
-        warn("Information structure should be DH or HD. Defaulted to DH")
+        @warn("Information structure should be DH or HD. Defaulted to DH")
         param.infoStructure = "DH"
         get_V_t_x = SdpLoops.sdp_u_w_loop
     end
@@ -246,7 +250,7 @@ function compute_value_functions_grid(model::StochDynProgModel,
 
         Vitp = value_function_interpolation(x_dim, V, t+1)
 
-        @sync @parallel for indx in 1:length(product_states)
+        @sync @distributed for indx in 1:length(product_states)
             x = product_states[indx]
             ind_x = SdpLoops.index_from_variable(x, x_bounds, x_steps)
             V[ind_x..., t] = get_V_t_x(sampling_size, samples, probas,
@@ -277,9 +281,9 @@ Get the optimal value of the problem from the optimal Bellman Function
 """
 function get_bellman_value(model::SPModel, param::SDPparameters,
                             V::Union{SharedArray, Array})
-    ind_x0 = SdpLoops.real_index_from_variable(model.initialState, model.xlim, param.stateSteps)
+    ind_x0 = SdpLoops.index_from_variable(model.initialState, model.xlim, param.stateSteps)
     Vi = value_function_interpolation(model.dimStates, V, 1)
-    return Vi[ind_x0...,1]
+    return Vi[ind_x0...]
 end
 
 
@@ -306,7 +310,7 @@ hazard case
 
 """
 function get_control(model::SPModel,param::SDPparameters,
-                     V, t::Int64, x::Array, w::Union{Void, Array} = nothing)
+                     V, t::Int64, x::Array, w::Union{Nothing, Array} = nothing)
 
     sdp_model = build_sdpmodel_from_spmodel(model)
 
@@ -320,7 +324,7 @@ function get_control(model::SPModel,param::SDPparameters,
             sampling_size = param.monteCarloSize
             push!(args,sampling_size,
                     [sampling(law,t) for i in 1:sampling_size],
-                    (1./sampling_size)*ones(sampling_size))
+                    (1.0/sampling_size)*ones(sampling_size))
         else
             push!(args,law[t].supportSize, law[t].support, law[t].proba)
         end
@@ -404,14 +408,14 @@ function forward_simulations(model::SPModel,
     elseif info == "HD"
         get_u = SdpLoops.sdp_hd_get_u
     else
-        warn("Information structure should be DH or HD. Defaulted to DH")
+        @warn("Information structure should be DH or HD. Defaulted to DH")
         get_u = SdpLoops.sdp_dh_get_u
     end
 
-    build_Ux = Nullable{Function}(SDPmodel.build_search_space)
+    # build_Ux = Nullable{Function}(SDPmodel.build_search_space)
+    build_Ux = SDPmodel.build_search_space
 
-
-    @sync @parallel for s in 1:nb_scenarios
+    @sync @distributed for s in 1:nb_scenarios
 
         current_scen = scenarios[:,s,:]
 
@@ -428,7 +432,7 @@ function forward_simulations(model::SPModel,
                     sampling_size = param.monteCarloSize
                     push!(args_w,sampling_size,
                             [sampling(law,t) for i in 1:sampling_size],
-                            (1./sampling_size)*ones(sampling_size))
+                            (1.0/sampling_size)*ones(sampling_size))
                 else
                     push!(args_w,law[t].supportSize, law[t].support, law[t].proba)
                 end
@@ -455,5 +459,3 @@ function forward_simulations(model::SPModel,
 
     return costs, states, controls
 end
-
-

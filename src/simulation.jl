@@ -6,6 +6,7 @@
 #  SDDP stopping criterion
 #############################################################################
 
+export simulate_scenarios,simulate
 
 """
 Estimate upperbound during SDDP iterations.
@@ -127,4 +128,3 @@ function upper_bound_confidence(cost::Vector{Float64}, probability=.975)
     tol = sqrt(2) * erfinv(2*probability - 1)
     return tol*std(cost)/sqrt(length(cost))
 end
-
