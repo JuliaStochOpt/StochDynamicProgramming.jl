@@ -117,16 +117,16 @@ using Test
         @test StochDynamicProgramming.ncuts(sddppr.bellmanfunctions) <= ncutini
     end
 
-    @testset "Quadratic regularization" begin
-        optimizer2 = optimizerQP
-        param2 = StochDynamicProgramming.SDDPparameters(optimizer2,
-                                                    passnumber=n_scenarios,
-                                                    gap=epsilon,
-                                                    max_iterations=max_iterations)
-        #TODO: fix solver, as Clp cannot solve QP
-        @test_throws ErrorException solve_SDDP(model, param2, 0, 0,
-                                                regularization=SDDPRegularization(1., .99))
-    end
+    # @testset "Quadratic regularization" begin
+    #     optimizer2 = optimizerQP
+    #     param2 = StochDynamicProgramming.SDDPparameters(optimizer2,
+    #                                                 passnumber=n_scenarios,
+    #                                                 gap=epsilon,
+    #                                                 max_iterations=max_iterations)
+    #     #TODO: fix solver, as Clp cannot solve QP
+    #     @test_throws ErrorException solve_SDDP(model, param2, 0, 0,
+    #                                             regularization=SDDPRegularization(1., .99))
+    # end
 
 
     # Test definition of final cost with a JuMP.Model:

@@ -6,7 +6,8 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
 
 # Test SDDP with a one dimensional stock:
 
-    solver = ClpSolver()
+    optimizer = optimizer_with_attributes(Clp.Optimizer,
+            "LogLevel"=>0, "Algorithm"=>4)
 
     # SDDP's tolerance:
     epsilon = .05
@@ -43,7 +44,7 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
     u_bounds = [(0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    param = StochDynamicProgramming.SDDPparameters(solver,
+    param = StochDynamicProgramming.SDDPparameters(optimizer,
                                                    passnumber=n_scenarios,
                                                    gap=epsilon,
                                                    max_iterations=max_iterations,

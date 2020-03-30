@@ -1,24 +1,18 @@
-using StochDynamicProgramming,  JuMP, Clp, Cbc, Gurobi,KNITRO #, ECOS#,Gurobi, CPLEX#
-
-    #solverLP = ClpSolver()
-    #solverQP = ClpSolver() #ECOSSolver()# GurobiSolver(OutputFlag=0)#  #CplexSolver(CPX_PARAM_SIMDISPLAY=0)
-    #solverMILP = CbcSolver(logLevel=0) #GurobiSolver(OutputFlag=0)# CbcSolver(OutputFlag=0)
+using StochDynamicProgramming,  JuMP, Clp, Cbc, Ipopt #, KNITRO , ECOS ,Gurobi, CPLEX#
 
     #optimizerLP = Gurobi.Optimizer #Clp.Optimizer
 
     # optimizerLP = optimizer_with_attributes(Gurobi.Optimizer,
     #     "Presolve"=>0, "OutputFlag"=>0)
-    optimizerLP = optimizer_with_attributes(Gurobi.Optimizer,
-        "OutputFlag"=>0)
+    # optimizerLP = optimizer_with_attributes(Gurobi.Optimizer,
+    #     "OutputFlag"=>0)
 
-    # optimizerLP = optimizer_with_attributes(Clp.Optimizer,
-    #    "LogLevel"=>0)
-
-
+    optimizerLP = optimizer_with_attributes(Clp.Optimizer,
+       "LogLevel"=>0, "Algorithm"=>4)
 
     #optimizerQP = KNITRO.Optimizer #Clp.Optimizer
-    optimizerQP = optimizer_with_attributes(KNITRO.Optimizer,
-       "outlev"=>0)
+    # optimizerQP = optimizer_with_attributes(KNITRO.Optimizer,
+    #    "outlev"=>0)
     #optimizerMILP = Cbc.Optimizer
     optimizerMILP = optimizer_with_attributes(Cbc.Optimizer,
        "logLevel"=>0)

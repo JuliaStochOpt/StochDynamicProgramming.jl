@@ -69,7 +69,7 @@ const EPSILON = 0.0001
         prob = 1/n*ones(n)
 
         optimizer = optimizer_with_attributes(Clp.Optimizer,
-           "LogLevel"=>0)
+           "LogLevel"=>0,"Algorithm"=>4)
 
         m = Model(optimizer)
 

@@ -6,7 +6,7 @@ using StochDynamicProgramming, Test, Clp
 
 @testset "Extensive formulation" begin
     optimizer = optimizer_with_attributes(Clp.Optimizer,
-               "LogLevel"=>0)
+               "LogLevel"=>0,"Algorithm"=>4)
 
     # SDDP's tolerance:
     epsilon = .05
