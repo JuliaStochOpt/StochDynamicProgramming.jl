@@ -31,7 +31,10 @@
 
 
 
-import StochDynamicProgramming, Distributions
+using StochDynamicProgramming, Distributions
+using Statistics
+using Distributed
+
 println("library loaded")
 
 # We have to define the instance on all the workers (processes)
@@ -62,7 +65,7 @@ println("library loaded")
 
     # create law of noises
     proba = 1/N_XI*ones(N_XI) # uniform probabilities
-    xi_support = collect(linspace(XI_MIN,XI_MAX,N_XI))
+    xi_support = collect(range(XI_MIN,stop=XI_MAX,length=N_XI))
     xi_law = StochDynamicProgramming.NoiseLaw(xi_support, proba)
     xi_laws = StochDynamicProgramming.NoiseLaw[xi_law for t in 1:N_STAGES-1]
 
@@ -112,4 +115,3 @@ lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
 println("Value obtained by SDP: "*string(lb_sdp))
 costsdp, states, stocks = StochDynamicProgramming.forward_simulations(spmodel,paramSDP,Vs,scenarios)
 println(mean(costsdp))
-

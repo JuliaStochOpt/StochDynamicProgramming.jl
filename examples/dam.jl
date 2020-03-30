@@ -22,7 +22,7 @@ alea_year = Array([7.0 7.0 8.0 3.0 1.0 1.0 3.0 4.0 3.0 2.0 6.0 5.0 2.0 6.0 4.0 7
 
 
 # COST:
-const COST = -66*2.7*(1 + .5*(rand(N_STAGES) - .5))
+const COST = -66*2.7*(1 .+ .5*(rand(N_STAGES) .- .5))
 
 # Constants:
 const VOLUME_MAX = 100
@@ -42,7 +42,7 @@ const X0 = [90]
 
 # Define aleas' space:
 const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
-const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
+const ALEAS = range(W_MIN,stop=W_MAX,length=N_ALEAS)
 
 
 # Define dynamic of the dam:
@@ -60,7 +60,7 @@ end
 in advance."""
 function solve_determinist_problem()
     println(alea_year)
-    m = Model(solver=SOLVER)
+    m = JuMP.Model(OPTIMIZER)
 
     @variable(m,  0           <= x[1:N_STAGES]  <= 100)
     @variable(m,  0.          <= u[1:N_STAGES-1]  <= 7)
@@ -74,10 +74,10 @@ function solve_determinist_problem()
 
     @constraint(m, x[1] .==X0)
 
-    status = solve(m)
+    status = JuMP.optimize!(m)
     println(status)
-    println(getObjectiveValue(m))
-    return getValue(u), getValue(x)
+    println(JuMP.getobjectivevalue(m))
+    return  JuMP.value.(u), JuMP.value.(x)
 end
 
 
@@ -86,7 +86,7 @@ function build_aleas()
     aleas = zeros(N_ALEAS, N_STAGES)
 
     # take into account seasonality effects:
-    unorm_prob = linspace(1, N_ALEAS, N_ALEAS)
+    unorm_prob = range(1,stop=N_ALEAS,length=N_ALEAS)
     proba1 = unorm_prob / sum(unorm_prob)
     proba2 = proba1[N_ALEAS:-1:1]
 
@@ -149,8 +149,8 @@ function init_problem()
 
     set_state_bounds(model, x_bounds)
 
-    solver = SOLVER
-    params = StochDynamicProgramming.SDDPparameters(solver,
+    optimizer = OPTIMIZER
+    params = StochDynamicProgramming.SDDPparameters(optimizer,
                                                     passnumber=N_SCENARIOS,
                                                     gap=EPSILON,
                                                     max_iterations=MAX_ITER)
