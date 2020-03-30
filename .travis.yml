@@ -2,13 +2,13 @@ language: julia
 os:
   - linux
 julia:
-  - 1.3.1
+  - 1.3
+  - 1.4
 notifications:
   email: false
 
-script:
- - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
- - julia -e 'Pkg.clone(pwd()); Pkg.build("StochDynamicProgramming"); Pkg.test("StochDynamicProgramming"; coverage=true)'
 after_success:
-  - echo $TRAVIS_JULIA_VERSION
-  - julia -e 'Pkg.add("Coverage"); cd(Pkg.dir("StochDynamicProgramming")); using Coverage; Coveralls.submit(Coveralls.process_folder()); Codecov.submit(Codecov.process_folder())'
+  # push coverage results to Coveralls
+  - julia -e 'using Pkg; cd(Pkg.dir("StochDynamicProgramming")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  # push coverage results to Codecov
+  - julia -e 'using Pkg; cd(Pkg.dir("StochDynamicProgramming")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
