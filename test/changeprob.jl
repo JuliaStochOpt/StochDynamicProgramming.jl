@@ -1,5 +1,5 @@
 using StochDynamicProgramming, JuMP, Clp
-using Base.Test
+using Test,Random
 
 const EPSILON = 0.0001
 
@@ -68,7 +68,10 @@ const EPSILON = 0.0001
         beta = rand()
         prob = 1/n*ones(n)
 
-        m = Model(solver = ClpSolver())
+        optimizer = optimizer_with_attributes(Clp.Optimizer,
+           "LogLevel"=>0)
+
+        m = Model(optimizer)
 
         @variable(m, alpha)
         @variable(m,theta[1:n] >= 0)
@@ -77,11 +80,11 @@ const EPSILON = 0.0001
 
         @objective(m, Min, alpha + 1/(beta)*sum(prob[i]*theta[i] for i in 1:n))
 
-        status = solve(m)
+        status = JuMP.optimize!(m)
 
         probaAVaR = risk_proba(prob, AVaR(beta), X)
 
-        @test abs(probaAVaR'*X - getobjectivevalue(m))[1] <= EPSILON
+        @test abs(probaAVaR'*X - JuMP.objective_value(m))[1] <= EPSILON
     end
 
     # The convex set of probabilty distributions of AVaR_{beta} is defined by
@@ -89,11 +92,11 @@ const EPSILON = 0.0001
     # We check equality between polyhedral formulation and AVaR formulation
     @testset "Equality AVaR Polyhedral" begin
         n = 10
-        X = shuffle(collect(linspace(1,100,n)))
+        X = shuffle(collect(range(1,stop=100,length=n)))
         beta = 0.999
-        prob = 1/n*ones(n)
+        prob = 1.0/n*ones(n)
 
-        polyset = repmat(1/beta*prob',n)
+        polyset = repeat(1.0/beta*prob',n)
         for i = 1:n
             polyset[i,i] = (beta*n-n+1)/(n*beta)
         end

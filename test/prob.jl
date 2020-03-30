@@ -1,7 +1,7 @@
 ################################################################################
 # Test probability functions
 ################################################################################
-using Base.Test, StochDynamicProgramming
+using Test, StochDynamicProgramming
 
 @testset "Probability functions" begin
     support = [1, 2, 3]

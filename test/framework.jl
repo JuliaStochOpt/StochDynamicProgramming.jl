@@ -1,8 +1,27 @@
-using StochDynamicProgramming,  JuMP, Clp, Cbc#, ECOS#,Gurobi, CPLEX#
+using StochDynamicProgramming,  JuMP, Clp, Cbc, Gurobi,KNITRO #, ECOS#,Gurobi, CPLEX#
 
-    solverLP = ClpSolver()
-    solverQP = ClpSolver() #ECOSSolver()# GurobiSolver(OutputFlag=0)#  #CplexSolver(CPX_PARAM_SIMDISPLAY=0)
-    solverMILP = CbcSolver(logLevel=0) #GurobiSolver(OutputFlag=0)# CbcSolver(OutputFlag=0)
+    #solverLP = ClpSolver()
+    #solverQP = ClpSolver() #ECOSSolver()# GurobiSolver(OutputFlag=0)#  #CplexSolver(CPX_PARAM_SIMDISPLAY=0)
+    #solverMILP = CbcSolver(logLevel=0) #GurobiSolver(OutputFlag=0)# CbcSolver(OutputFlag=0)
+
+    #optimizerLP = Gurobi.Optimizer #Clp.Optimizer
+
+    # optimizerLP = optimizer_with_attributes(Gurobi.Optimizer,
+    #     "Presolve"=>0, "OutputFlag"=>0)
+    optimizerLP = optimizer_with_attributes(Gurobi.Optimizer,
+        "OutputFlag"=>0)
+
+    # optimizerLP = optimizer_with_attributes(Clp.Optimizer,
+    #    "LogLevel"=>0)
+
+
+
+    #optimizerQP = KNITRO.Optimizer #Clp.Optimizer
+    optimizerQP = optimizer_with_attributes(KNITRO.Optimizer,
+       "outlev"=>0)
+    #optimizerMILP = Cbc.Optimizer
+    optimizerMILP = optimizer_with_attributes(Cbc.Optimizer,
+       "logLevel"=>0)
 
     # SDDP's tolerance:
     epsilon = .05
@@ -23,9 +42,12 @@ using StochDynamicProgramming,  JuMP, Clp, Cbc#, ECOS#,Gurobi, CPLEX#
     function cost(t, x, u, w)
         return -u[1]*w[2]
     end
-
+    # define cost:
+    function cost(m, t, x, u, w)
+        return -u[1]*w[2]
+    end
     # Generate probability laws:
-    laws = Vector{NoiseLaw}(n_stages)
+    laws = Vector{NoiseLaw}(undef,n_stages)
     proba = 1/n_aleas*ones(n_aleas)
     for t=1:n_stages
         laws[t] = NoiseLaw([0 1; 1 2; 3 1; 4 2; 6 1]', proba)#
@@ -39,7 +61,7 @@ using StochDynamicProgramming,  JuMP, Clp, Cbc#, ECOS#,Gurobi, CPLEX#
     u_bounds = [(0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    param = StochDynamicProgramming.SDDPparameters(solverLP,
+    param = StochDynamicProgramming.SDDPparameters(optimizerLP,
                                                    passnumber=n_scenarios,
                                                    gap=epsilon,
                                                    max_iterations=max_iterations,

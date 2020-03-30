@@ -29,7 +29,7 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
     end
 
     # Generate probability laws:
-    laws = Vector{NoiseLaw}(n_stages)
+    laws = Vector{NoiseLaw}(undef,n_stages)
     proba = 1/n_aleas*ones(n_aleas)
     for t=1:n_stages
         laws[t] = NoiseLaw([0, 1, 3, 4, 6], proba)

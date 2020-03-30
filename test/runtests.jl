@@ -8,9 +8,11 @@
 
 
 using StochDynamicProgramming
-using Clp, JuMP
-using Base.Test
-
+using Clp, JuMP, Gurobi, Nullables
+using MathProgBase,Printf
+using Statistics
+using Test
+using CutPruners
 
 # Test utility functions:
 include("prob.jl")
