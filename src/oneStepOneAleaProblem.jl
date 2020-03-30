@@ -197,8 +197,6 @@ end
 """Solve relaxed MILP problem."""
 function solve_relaxed!(m, param,verbosity::Int64=0)
     JuMP.set_optimizer(m, param.OPTIMIZER)
-    #setsolver(m, param.SOLVER)
-    #status = JuMP.optimize!(m, relaxation=true)
     remove_infinite_constraint!(m)
     JuMP.optimize!(m)
     status = JuMP.termination_status(m)
@@ -209,9 +207,6 @@ end
 """Solve original MILP problem."""
 function solve_mip!(m, param,verbosity::Int64=0)
     JuMP.set_optimizer(m, param.MIPOPTIMIZER)
-    #setsolver(m, get(param.MIPOPTIMIZER))
-    #remove_infinite_constraint!(m)
-    #JuMP.optimize!(m, relaxation=false)
     status = JuMP.termination_status(m)
     return status == MOI.OPTIMAL
 end
@@ -220,5 +215,4 @@ end
 getcutsmultipliers(m::JuMP.Model)= try _getdual(m)[end-m.ext[:ncuts]+1:end] catch e Array{Float64,1}() end
 function _getdual(m::JuMP.Model)
     return JuMP.has_duals(m) ? JuMP.dual.([m.ext[:cons][i] for i in 1:length(m.ext[:cons])]) : Array{Float64,1}()
-     #return MathProgBase.SolverInterface.getconstrduals(m.internalModel)
 end

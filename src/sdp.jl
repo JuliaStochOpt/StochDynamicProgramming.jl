@@ -31,7 +31,6 @@ Compute interpolation of the value function at time t
 
 """
 function value_function_interpolation( dim_states::Int, V::Union{SharedArray, Array}, time::Int)
-    #return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()), OnGrid())
     return interpolate(V[[Colon() for i in 1:dim_states]...,time], BSpline(Linear()))
 end
 

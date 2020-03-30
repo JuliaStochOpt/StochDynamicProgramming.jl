@@ -395,7 +395,6 @@ end
 
 """Build model in Decision-Hazard."""
 function build_model_dh(model, param, t, verbosity::Int64=0)
-    #m = Model(solver=param.SOLVER)
     m = JuMP.Model(param.OPTIMIZER)
     law = model.noises
 
@@ -574,7 +573,6 @@ Bellman value (Float64)
 function get_bellman_value(model::SPModel, param::SDDPparameters,
                            t::Int64, Vt::PolyhedralFunction, xt::Vector{Float64})
 
-    #m = Model(solver=param.SOLVER)
     m = JuMP.Model(param.OPTIMIZER)
     @variable(m, alpha)
 
@@ -584,7 +582,6 @@ function get_bellman_value(model::SPModel, param::SDDPparameters,
     end
 
     @objective(m, Min, alpha)
-    #solve(m)
     JuMP.optimize!(m)
     return JuMP.value.(alpha)
 end

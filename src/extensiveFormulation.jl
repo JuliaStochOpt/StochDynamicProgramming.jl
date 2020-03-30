@@ -28,7 +28,6 @@ function extensive_formulation(model, param; verbosity=0)
 
     X_init = model.initialState
     T = model.stageNumber-1
-    #mod = Model(solver=param.SOLVER)
     mod = JuMP.Model(param.OPTIMIZER)
 
     #Calculate the number of nodes n at each step on the scenario tree

@@ -7,12 +7,10 @@
 #############################################################################
 
 mutable struct SDDPparameters
+    # OPTIMIZER used to solve LP
     OPTIMIZER
+    # MIPOPTIMIZER used to solve MILP (default is nothing):
     MIPOPTIMIZER
-    # Solver used to solve LP
-    #SOLVER::MathProgBase.AbstractMathProgSolver
-    # Solver used to solve MILP (default is nothing):
-    #MIPSOLVER::Nullable{MathProgBase.AbstractMathProgSolver}
     # number of scenarios in the forward pass
     forwardPassNumber::Int64
     # max iterations
@@ -30,16 +28,6 @@ mutable struct SDDPparameters
     # Pruning:
     prune::Bool
 
-    #function SDDPparameters(solver; passnumber=10, gap=0., confidence=.975,
-    #                        max_iterations=20, prune_cuts=0,
-    #                        pruning_algo="none",
-    #                        compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
-    #                        mipsolver=nothing,
-    #                        rho0=0., alpha=1., reload=-1, prune=false)
-    #
-    #    return new(solver, mipsolver, passnumber, max_iterations, confidence,
-    #               compute_ub, montecarlo_final, montecarlo_in_iter, reload, prune)
-    #end
     function SDDPparameters(optimizer; passnumber=10, gap=0., confidence=.975,
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="none",
@@ -73,4 +61,3 @@ function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbosity=0
 
     (verbosity > 0) && (model.IS_SMIP) && println("SMIP SDDP")
 end
-
