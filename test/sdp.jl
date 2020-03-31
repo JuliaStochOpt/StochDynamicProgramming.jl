@@ -87,14 +87,14 @@ end
         aleas = zeros(N_SCENARIOS, N_STAGES, 1)
         aleas[:, :, 1] = build_scenarios(N_SCENARIOS, N_STAGES)
 
-        laws = Vector{NoiseLaw}(undef,N_STAGES)
+        laws = Vector{NoiseLaw}([])
 
         # uniform probabilities:
         proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
 
         for t=1:N_STAGES
             aleas_t = reshape(aleas[:, t, :], N_SCENARIOS, 1)'
-            laws[t] = NoiseLaw(aleas_t, proba)
+            push!(laws, NoiseLaw(aleas_t, proba))
         end
 
         return laws
