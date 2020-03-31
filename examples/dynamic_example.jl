@@ -122,13 +122,13 @@ Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
     aleas = build_scenarios(N_SCENARIOS, build_aleas())
 
-    laws = Vector{NoiseLaw}(undef,N_STAGES)
+    laws = Vector{NoiseLaw}([])
 
     # uniform probabilities:
     proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
 
     for t=1:N_STAGES
-        laws[t] = NoiseLaw(aleas[:, t], proba)
+        push!(laws, NoiseLaw(aleas[:, t], proba))
     end
 
     return laws
