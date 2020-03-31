@@ -52,7 +52,7 @@ function read_polyhedral_functions(dump::AbstractString)
     process = readdlm(dump, ',')
 
     ntime = round(Int, maximum(process[:, 1]))
-    V = Vector{PolyhedralFunction}(undef,ntime)
+    V = Vector{PolyhedralFunction}([])
     total_cuts = size(process)[1]
     dim_state = size(process)[2] - 2
 
@@ -67,7 +67,7 @@ function read_polyhedral_functions(dump::AbstractString)
             V[t].betas = vcat(V[t].betas, beta)
             V[t].numCuts += 1
         catch
-            V[t] = PolyhedralFunction([beta], reshape(lambda, 1, dim_state))
+            push!(V, PolyhedralFunction([beta], reshape(lambda, 1, dim_state)))
         end
     end
     return V
