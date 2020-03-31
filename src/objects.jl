@@ -145,7 +145,7 @@ mutable struct LinearSPModel <: SPModel
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
         if (x_bounds == nothing)
-            x_bounds = repeat([(-Inf,Inf)],outer=[dimStates,n_stage])
+            x_bounds = repeat([(-Inf,Inf)],outer=[dimStates, n_stage])
         end
         u_bounds = test_and_reshape_bounds(u_bounds, dimControls,n_stage, "Controls")
 
