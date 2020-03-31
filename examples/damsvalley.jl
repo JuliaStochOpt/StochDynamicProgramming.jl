@@ -92,13 +92,13 @@ const MAX_ITER = 40
 """Build probability distribution at each timestep.
 Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
-    laws = Vector{NoiseLaw}(undef,N_STAGES-1)
+    laws = Vector{NoiseLaw}([])
     # uniform probabilities:
     proba = 1/N_ALEAS*ones(N_ALEAS)
 
     for t=1:N_STAGES-1
         support = rand(0:9, N_DAMS, N_ALEAS)
-        laws[t] = NoiseLaw(support, proba)
+        push!(laws, NoiseLaw(support, proba))
     end
     return laws
 end
