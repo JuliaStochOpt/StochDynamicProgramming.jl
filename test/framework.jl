@@ -41,10 +41,10 @@ using StochDynamicProgramming,  JuMP, Clp, Cbc, Ipopt #, KNITRO , ECOS ,Gurobi, 
         return -u[1]*w[2]
     end
     # Generate probability laws:
-    laws = Vector{NoiseLaw}(undef,n_stages)
+    laws = Vector{NoiseLaw}([])
     proba = 1/n_aleas*ones(n_aleas)
     for t=1:n_stages
-        laws[t] = NoiseLaw([0 1; 1 2; 3 1; 4 2; 6 1]', proba)#
+        push!(laws, NoiseLaw([0 1; 1 2; 3 1; 4 2; 6 1]', proba))
     end
 
     # set initial position:
