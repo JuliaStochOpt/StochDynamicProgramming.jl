@@ -45,9 +45,9 @@ function extensive_formulation(model, param; verbosity=0)
 
     #Computes the total probability of each node from the conditional probabilities
     proba = Vector{typeof(laws[1].proba}[]
-    proba[1] = laws[1].proba
+    push!(proba,laws[1].proba)
     for t = 2 : T
-        proba[t] = zeros(N[t+1])
+        push!(proba,zeros(N[t+1]))
         for j = 1 : N[t]
             for k = 1 : laws[t].supportSize
                 proba[t][laws[t].supportSize*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]
