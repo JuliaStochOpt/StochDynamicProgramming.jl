@@ -17,6 +17,7 @@ using SpecialFunctions
 using Statistics
 using DelimitedFiles
 using Random
+using Printf
 
 export solve_SDDP,solve!,
        NoiseLaw, simulate_scenarios, simulate,

@@ -8,7 +8,6 @@
 #############################################################################
 
 import Base: +, show
-using Printf
 
 """
 Write Polyhedral functions in a CSV file.
