@@ -6,6 +6,8 @@
 #  SDDP interface
 #############################################################################
 
+import Base: show
+
 mutable struct SDDPInterface
     init::Bool
     # Stochastic model to solve
@@ -75,6 +77,14 @@ mutable struct SDDPInterface
                         verbose_it::Int=1)
         return SDDPInterface(model,params,stopcrit,prunalgo,regularization=regularization,verbosity = verbosity,verbose_it=verbose_it)
     end
+end
+
+function Base.show(io::IO, sddp::SDDPInterface)
+    @printf("* Multistage stochastic model with %d stages\n", sddp.spmodel.stageNumber)
+    @printf("  - state dimension: %d\n", sddp.spmodel.dimStates)
+    @printf("* Resolved with SDDP in %d iterations\n", sddp.stats.niterations)
+    @printf("  - Final lowerbound: %.4e\n", sddp.stats.lowerbound)
+    @printf("  - Total number of cuts: %d\n", sum(ncuts.(sddp.bellmanfunctions)))
 end
 
 
