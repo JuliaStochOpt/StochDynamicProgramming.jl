@@ -120,13 +120,13 @@ Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
     aleas = build_scenarios(N_SCENARIOS, build_aleas())
 
-    laws = Vector{NoiseLaw}(N_STAGES-1)
+    laws = NoiseLaw[]
 
     # uniform probabilities:
     proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
 
     for t=1:(N_STAGES-1)
-        laws[t] = NoiseLaw(aleas[:, t], proba)
+        push!(laws, NoiseLaw(aleas[:, t], proba))
     end
 
     return laws
@@ -146,15 +146,12 @@ function init_problem()
                                                   x0,
                                                   cost_t,
                                                   dynamic, aleas)
-
     set_state_bounds(model, x_bounds)
-
     optimizer = OPTIMIZER
     params = StochDynamicProgramming.SDDPparameters(optimizer,
-                                                    passnumber=N_SCENARIOS,
+                                                    passnumber=1,
                                                     gap=EPSILON,
                                                     max_iterations=MAX_ITER)
-
     return model, params
 end
 
@@ -162,10 +159,8 @@ end
 """Solve the problem."""
 function solve_dams(display=0)
     model, params = init_problem()
-
     sddp = solve_SDDP(model, params, display)
     aleas = simulate_scenarios(model.noises, params.forwardPassNumber)
-
     costs, stocks = forward_simulations(model, params, sddp.solverinterface, aleas)
     println("SDDP cost: ", costs)
     return stocks

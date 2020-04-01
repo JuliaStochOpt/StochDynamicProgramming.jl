@@ -10,6 +10,7 @@ using LinearAlgebra
 using LinearAlgebra: dot
 
 export forward_simulations
+
 """
 Run a forward pass of the algorithm with `sddp` object
 

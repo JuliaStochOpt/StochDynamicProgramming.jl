@@ -348,9 +348,9 @@ function build_model(model, param, t,verbosity::Int64=0)
     nw = model.dimNoises
 
     # define variables in JuMP:
-    @variable(m,  model.xlim[i,t][1] <= x[i=1:nx] <= model.xlim[i,t][2])
-    @variable(m,  model.xlim[i,t][1] <= xf[i=1:nx]<= model.xlim[i,t][2])
-    @variable(m,  model.ulim[i,t][1] <= u[i=1:nu] <=  model.ulim[i,t][2])
+    @variable(m, model.xlim[i, t][1] <= x[i=1:nx] <= model.xlim[i, t][2])
+    @variable(m, model.xlim[i, t][1] <= xf[i=1:nx]<= model.xlim[i, t][2])
+    @variable(m, model.ulim[i, t][1] <= u[i=1:nu] <= model.ulim[i, t][2])
     @variable(m, alpha)
 
     @variable(m, w[1:nw] == 0)
@@ -388,7 +388,7 @@ function build_model(model, param, t,verbosity::Int64=0)
     if model.IS_SMIP
         m.colCat[2*nx+1:2*nx+nu] = model.controlCat
     end
-    (verbosity >5) && print(m)
+    (verbosity > 5) && println(m)
     return m
 end
 
