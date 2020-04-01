@@ -238,7 +238,7 @@ function finalpass!(sddp::SDDPInterface)
         println("\n", "#"^60)
         println("SDDP CONVERGENCE")
         @printf("- Exact lower bound:          %.4e [Gap < %.2f%s]\n",
-                lwb, 100*(upb+tol-lwb)/lwb, '%')
+                lwb, 100*(upb+tol-lwb)/(1.0 + abs(lwb)), '%')
         @printf("- Estimation of upper-bound:  %.4e\n", upb)
         @printf("- Upper-bound's s.t.d:        %.4e\n", σ)
         @printf("- Confidence interval (%d%s):  [%.4e , %.4e]",
