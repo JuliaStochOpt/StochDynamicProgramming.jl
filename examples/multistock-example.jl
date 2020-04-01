@@ -12,7 +12,7 @@
 #         u^i_t choosen knowing xi_1 .. xi_t
 #############################################################################
 
-using StochDynamicProgramming, Clp
+using StochDynamicProgramming, Clp, JuMP
 println("library loaded")
 
 run_sddp = true # false if you don't want to run sddp
@@ -21,7 +21,8 @@ test_simulation = false # false if you don't want to test your strategies
 
 ######## Optimization parameters  ########
 # choose the LP solver used.
-const SOLVER = ClpSolver() 			   # require "using Clp"
+const OPTIMIZER = optimizer_with_attributes(Clp.Optimizer,
+                        "LogLevel"=>0) 			   # require "using Clp"
 #const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0) # require "using CPLEX"
 
 # convergence test
@@ -49,7 +50,7 @@ const S0 = [0.5 for i=1:N_STOCKS]     # initial stock
 
 # create law of noises
 proba = 1/N_XI*ones(N_XI) # uniform probabilities
-xi_support = collect(linspace(XI_MIN,XI_MAX,N_XI))
+xi_support = collect(range(XI_MIN,stop=XI_MAX,length=N_XI))
 xi_law = StochDynamicProgramming.noiselaw_product([NoiseLaw(xi_support, proba) for i=1:N_STOCKS]...)
 xi_laws = NoiseLaw[xi_law for t in 1:N_STAGES-1]
 
@@ -77,22 +78,23 @@ println("Model set up")
 
 ######### Solving the problem via SDDP
 if run_sddp
-    tic()
+    @time begin
     println("Starting resolution by SDDP")
     # 10 forward pass, stop at MAX_ITER
-    paramSDDP = SDDPparameters(SOLVER,
+    paramSDDP = SDDPparameters(OPTIMIZER,
                                passnumber=1,
                                max_iterations=MAX_ITER)
     sddp = @time solve_SDDP(spmodel, paramSDDP, 2,  # display information every 2 iterations
                       stopcrit=IterLimit(MAX_ITER))
     lb_sddp = StochDynamicProgramming.get_lower_bound(spmodel, paramSDDP, sddp.bellmanfunctions)
-    println("Lower bound obtained by SDDP: "*string(round(lb_sddp,4)))
-    toc(); println();
+    println("Lower bound obtained by SDDP: "*string(round(lb_sddp,digits=4)))
+    end
+    println();
 end
 
 ######### Solving the problem via Dynamic Programming
 if run_sdp
-    tic()
+    @time begin
     println("Starting resolution by SDP")
     stateSteps = [step for i=1:N_STOCKS] # discretization step of the state
     controlSteps = [step for i=1:N_STOCKS] # discretization step of the control
@@ -104,8 +106,9 @@ if run_sdp
 
     Vs = solve_dp(spmodel_sdp, paramSDP, 1)
     value_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
-    println("Value obtained by SDP: "*string(round(value_sdp,4)))
-    toc(); println();
+    println("Value obtained by SDP: "*string(round(value_sdp,digits=4)))
+    end
+    println();
 end
 
 ######### Comparing the solutions on simulated scenarios.
@@ -115,6 +118,5 @@ if run_sddp && run_sdp && test_simulation
     costsddp, stocks = forward_simulations(spmodel, paramSDDP, sddp.solverinterface, scenarios)
     costsdp, states, controls = forward_simulations(spmodel,paramSDP, Vs, scenarios)
     println("Simulated relative gain of sddp over sdp: "
-            *string(round(200*mean(costsdp-costsddp)/abs(mean(costsddp+costsdp)),3))*"%")
+            *string(round(200*mean(costsdp-costsddp)/abs(mean(costsddp+costsdp)),digits=3))*"%")
 end
-

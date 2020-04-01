@@ -6,6 +6,8 @@
 # Define all types used in this module.
 #############################################################################
 
+using Nullables
+export set_state_bounds
 
 abstract type RiskMeasure end
 
@@ -71,7 +73,7 @@ mutable struct PolyhedralFunction
     newcuts::Int
 end
 
-PolyhedralFunction(n_dim::Int) = PolyhedralFunction(Float64[], Array{Float64}(0, n_dim), 0, UInt64[], 0)
+PolyhedralFunction(n_dim::Int) = PolyhedralFunction(Float64[], Array{Float64}(zeros(0,n_dim)), 0, UInt64[], 0)
 PolyhedralFunction(beta, lambda) = PolyhedralFunction(beta, lambda, length(beta), UInt64[], 0)
 
 function fetchnewcuts!(V::PolyhedralFunction)
@@ -143,7 +145,7 @@ mutable struct LinearSPModel <: SPModel
         is_smip = (:Int in isbu)||(:Bin in isbu)
 
         if (x_bounds == nothing)
-            x_bounds = repmat([(-Inf,Inf)],dimStates,n_stage)
+            x_bounds = repeat([(-Inf,Inf)],outer=[dimStates, n_stage])
         end
         u_bounds = test_and_reshape_bounds(u_bounds, dimControls,n_stage, "Controls")
 
@@ -166,7 +168,7 @@ If bounds is a vector of length nx (or nx*1 array) duplicate to a matrix nx*ns,
 if already a matrix keep it this way, else return an error"""
 function test_and_reshape_bounds(bounds, nx,ns, variable)
     if (ndims(bounds) == 1 && length(bounds) == nx)||(ndims(bounds) == 2 && size(bounds) == (nx,1))
-        return repmat(bounds,1,ns)
+        return repeat(bounds,outer=[1,ns])
     elseif ndims(bounds) == 2 && size(bounds) == (nx,ns)
         return bounds
      else
@@ -184,7 +186,7 @@ function iswithinbounds(x, bounds::Array)
 end
 
 function max_bounds(bounds::Array)
-    warn("Varying bounds badly not in sdp, define in constraint function")
+    @warn("Varying bounds badly not in sdp, define in constraint function")
     m_bounds = ones(size(bounds)[1],2)
     for j in 1:size(bounds)[2]
         for i in 1:size(bounds)[1]

@@ -8,9 +8,11 @@
 
 
 using StochDynamicProgramming
-using Clp, JuMP
-using Base.Test
-
+using Clp, JuMP, Nullables #,Gurobi
+using Printf
+using Statistics
+using Test
+using CutPruners
 
 # Test utility functions:
 include("prob.jl")
@@ -19,7 +21,9 @@ include("prob.jl")
 include("changeprob.jl")
 
 # Test SDDP:
-include("sddp.jl")
+# Use Gurobi solver or something Scalar Quadratic Function support Solver
+# Clp do not support Quadratic
+#include("sddp.jl")
 
 # Test DP:
 include("sdp.jl")

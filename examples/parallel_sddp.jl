@@ -1,9 +1,9 @@
 
-import StochDynamicProgramming
-
+using StochDynamicProgramming
+using Distributed
 
 """
-Solve SDDP in parallel, dispatching both forward and backward passes to process, 
+Solve SDDP in parallel, dispatching both forward and backward passes to process,
 which is not the most standard parallelization of SDDP.
 
 # Arguments

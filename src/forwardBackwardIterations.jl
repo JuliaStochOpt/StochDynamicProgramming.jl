@@ -6,6 +6,10 @@
 # Define the Forward / Backward iterations of the SDDP algorithm
 #############################################################################
 
+using LinearAlgebra
+using LinearAlgebra: dot
+
+export forward_simulations
 """
 Run a forward pass of the algorithm with `sddp` object
 
@@ -35,12 +39,12 @@ function forward_pass!(sddp::SDDPInterface)
     problems = sddp.solverinterface
     # Draw a set of scenarios according to the probability
     # law specified in model.noises:
+
     noise_scenarios = simulate_scenarios(model.noises, param.forwardPassNumber)
 
     # If regularization is ON, need to build a new array of problem to
     # avoid side effect:
     problems_fp = isregularized(sddp) ? hotstart_SDDP(model, param, V) : problems
-
     # run forward pass
     costs, stockTrajectories,_,callsolver_forward, tocfw = forward_simulations(model,
                         param,
@@ -49,7 +53,6 @@ function forward_pass!(sddp::SDDPInterface)
                         pruner=sddp.pruner,
                         regularizer=sddp.regularizer,
                         verbosity = sddp.verbosity)
-
     # update SDDP's stats
     sddp.stats.nsolved += callsolver_forward
     sddp.stats.solverexectime_fw = vcat(sddp.stats.solverexectime_fw, tocfw)
@@ -110,10 +113,9 @@ function forward_simulations(model::SPModel,
 
     T = model.stageNumber
     nb_forward = size(xi)[2]
-
     if ndims(xi)!=3
         if ndims(xi)==2
-            warn("noise scenario are not given in the right shape. Assumed to be real valued noise.")
+            @warn("noise scenario are not given in the right shape. Assumed to be real valued noise.")
             xi = reshape(xi,(T,nb_forward,1))
         else
             error("wrong dimension of noise scenarios")
@@ -167,11 +169,10 @@ function forward_simulations(model::SPModel,
             if sol.status
                 # Get the next position:
                 idx = getindexnoise(model.noises[t], wt)
-                xf, θ = getnextposition(sol, idx)
-
-                stockTrajectories[t+1, k, :] = xf
+                xf, θ = idx > 0 ? getnextposition(sol, idx) : (0,0)
+                stockTrajectories[t+1, k, :] .= xf
                 # the optimal control just computed:
-                controls[t, k, :] = sol.uopt
+                controls[t, k, :] .= sol.uopt
                 # and the current cost:
                 costs[k] += sol.objval - θ
                 if t==T-1
@@ -291,7 +292,6 @@ function backward_pass!(sddp::SDDPInterface,
 
     costates = zeros(T, nb_forward, model.dimStates)
 
-
     for t = T-1:-1:1
         for k = 1:nb_forward
 
@@ -309,7 +309,6 @@ function backward_pass!(sddp::SDDPInterface,
     # update stats
     sddp.stats.nsolved += length(solvertime)
     sddp.stats.solverexectime_bw = vcat(sddp.stats.solverexectime_bw, solvertime)
-
     return costates
 end
 
@@ -326,10 +325,8 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
     # It is initialized at 0. If all problem are infeasible for
     # current timestep, then proba remains equal to 0 and not cut is added.
     proba = zeros(model.noises[t].supportSize)
-
     # We iterate other the possible realization of noise:
     for w in 1:model.noises[t].supportSize
-
         # We get current noise:
         alea_t  = collect(model.noises[t].support[:, w])
         # We solve LP problem with current noise and position:
@@ -349,17 +346,14 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
             proba[w] = law[t].proba[w]
         end
     end
-
     # We add cuts only if one solution was being found:
     if sum(proba) > 0
         # Scale probability (useful when some problems where infeasible):
         proba /= sum(proba)
-
         #Modify the probability vector to compute the value of the risk measure
         proba = risk_proba(proba,model.riskMeasure,costs)
-
         # Compute expectation of subgradient λ:
-        subgradient = vec(sum(proba' .* subgradient_array, 2))
+        subgradient = vec(sum(proba' .* subgradient_array, dims=2))
         # ... expectation of cost:
         costs_npass = dot(proba, costs)
         # ... and expectation of slope β:
@@ -373,7 +367,6 @@ function compute_cuts_hd!(model::SPModel, param::SDDPparameters,
             end
         end
     end
-
     return subgradient
 end
 
@@ -386,7 +379,6 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
     # We solve LP problem in decision-hazard, considering all possible
     # outcomes of randomness:
     sol, ts = solve_dh(model, param, t, state_t, solverProblems[t])
-
     push!(solvertime, ts)
 
     # We add cuts only if one solution was being found:
@@ -405,7 +397,6 @@ function compute_cuts_dh!(model::SPModel, param::SDDPparameters,
             add_cut_dh!(model, solverProblems[t-1], t, beta, subgradient,verbosity)
         end
     end
-
     return subgradient
 end
 
@@ -500,6 +491,5 @@ function fwdcuts(sddp)
             costs[k] += Inf
         end
     end
-
     return costs, stockTrajectories, controls, callsolver, solvertime
 end

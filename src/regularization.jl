@@ -6,6 +6,8 @@
 #  SDDP regularization
 #############################################################################
 
+using LinearAlgebra
+using LinearAlgebra: dot
 
 export SDDPRegularization
 

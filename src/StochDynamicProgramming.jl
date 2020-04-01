@@ -10,11 +10,15 @@
 
 module StochDynamicProgramming
 
-using MathProgBase, JuMP, Distributions
+using JuMP, Distributions, Nullables
 using DocStringExtensions
 using CutPruners
+using SpecialFunctions
+using Statistics
+using DelimitedFiles
+using Random
 
-export solve_SDDP,
+export solve_SDDP,solve!,
         NoiseLaw, simulate_scenarios, simulate,
         SDDPparameters, LinearSPModel, set_state_bounds,
         extensive_formulation,

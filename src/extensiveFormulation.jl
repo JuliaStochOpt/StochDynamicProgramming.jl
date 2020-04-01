@@ -6,7 +6,7 @@
 #  Define the extensive formulation to check the results of small problems.
 #  The problem is instantiate on a tree.
 #############################################################################
-
+export extensive_formulation
 """ Contruct the scenario tree and solve the problem with
 measurability constraints.
 
@@ -21,7 +21,6 @@ measurability constraints.
 * `status of optimization problem`
 """
 function extensive_formulation(model, param; verbosity=0)
-
     #Recover all the constant in the model or in param
     laws = model.noises
     DIM_STATE = model.dimStates
@@ -29,7 +28,7 @@ function extensive_formulation(model, param; verbosity=0)
 
     X_init = model.initialState
     T = model.stageNumber-1
-    mod = Model(solver=param.SOLVER)
+    mod = JuMP.Model(param.OPTIMIZER)
 
     #Calculate the number of nodes n at each step on the scenario tree
     N = Array{Int64,2}(zeros(T+1,1))
@@ -45,10 +44,10 @@ function extensive_formulation(model, param; verbosity=0)
     @variable(mod,  c[t=1:T,n=1:laws[t].supportSize*N[t]])
 
     #Computes the total probability of each node from the conditional probabilities
-    proba    = Vector{typeof(laws[1].proba)}(T)
-    proba[1] = laws[1].proba
+    proba = Vector{typeof(laws[1].proba)}([])
+    push!(proba,laws[1].proba)
     for t = 2 : T
-        proba[t] = zeros(N[t+1])
+        push!(proba,zeros(N[t+1]))
         for j = 1 : N[t]
             for k = 1 : laws[t].supportSize
                 proba[t][laws[t].supportSize*(j-1)+k] = laws[t].proba[k]*proba[t-1][j]
@@ -67,11 +66,9 @@ function extensive_formulation(model, param; verbosity=0)
         for n = 1 : N[t]
             for xi = 1 : laws[t].supportSize
                 m = (n-1)*laws[t].supportSize+xi
-
                 #Add bounds constraint on the control
                 @constraint(mod,[u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL] .>= [model.ulim[k][1] for k = 1:DIM_CONTROL])
                 @constraint(mod,[u[t,DIM_CONTROL*(m-1)+k] for k = 1:DIM_CONTROL] .<= [model.ulim[k][2] for k = 1:DIM_CONTROL])
-
                 #Add dynamic constraints
                 @constraint(mod,
                 [x[t+1,DIM_STATE*(m-1)+k] for k = 1:DIM_STATE] .== model.dynamics(t,
@@ -88,26 +85,25 @@ function extensive_formulation(model, param; verbosity=0)
             end
         end
     end
-
     #Initial state
     @constraint(mod, [x[1,k] for k = 1:DIM_STATE] .== X_init)
-
     #Define the objective of the function
     @objective(mod, Min,
     sum(
         sum(proba[t][laws[t].supportSize*(n-1)+k]*c[t,laws[t].supportSize*(n-1)+k]
             for k = 1:laws[t].supportSize)
         for t = 1:T,  n=1:div(N[t+1],laws[t].supportSize)))
-
-    status = solve(mod)
-    solved = (status == :Optimal)
+    #status = solve(mod)
+    remove_infinite_constraint!(mod)
+    JuMP.optimize!(mod)
+    status = JuMP.termination_status(mod)
+    solved = (status == MOI.OPTIMAL)
 
     if solved
-        (verbosity > 0) && println("EF value: "*string(getobjectivevalue(mod)))
-        firstControl = collect(values(getvalue(u)))[1:DIM_CONTROL*laws[1].supportSize]
-        return getobjectivevalue(mod), firstControl, status
+        (verbosity > 0) && println("EF value: "*string(JuMP.objective_value(mod)))
+        firstControl = JuMP.value.(u)
+        return JuMP.objective_value(mod), firstControl, status
     else
         error("Extensive formulation not solved to optimality. Change the model")
     end
 end
-

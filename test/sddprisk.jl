@@ -6,7 +6,8 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
 
 # Test SDDP with a one dimensional stock:
 
-    solver = ClpSolver()
+    optimizer = optimizer_with_attributes(Clp.Optimizer,
+            "LogLevel"=>0, "Algorithm"=>4)
 
     # SDDP's tolerance:
     epsilon = .05
@@ -29,10 +30,10 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
     end
 
     # Generate probability laws:
-    laws = Vector{NoiseLaw}(n_stages)
+    laws = Vector{NoiseLaw}([])
     proba = 1/n_aleas*ones(n_aleas)
     for t=1:n_stages
-        laws[t] = NoiseLaw([0, 1, 3, 4, 6], proba)
+        push!(laws, NoiseLaw([0, 1, 3, 4, 6], proba))
     end
 
     # set initial position:
@@ -43,7 +44,7 @@ using StochDynamicProgramming, JuMP, Clp, CutPruners
     u_bounds = [(0., 7.), (0., Inf)]
 
     # Instantiate parameters of SDDP:
-    param = StochDynamicProgramming.SDDPparameters(solver,
+    param = StochDynamicProgramming.SDDPparameters(optimizer,
                                                    passnumber=n_scenarios,
                                                    gap=epsilon,
                                                    max_iterations=max_iterations,

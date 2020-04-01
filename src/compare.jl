@@ -6,7 +6,7 @@
 #  Compare the optimal values and control returned by different instances
 #  of SDDP on the same problem
 #############################################################################
-
+export benchmark_parameters
 """
 Compare different sets of parameters to solve an instance of SDDP
 
@@ -36,9 +36,11 @@ function benchmark_parameters(model,
                                verbosity=0)
 
     #Execute a first time each function to compile them
-    (V, pbs, callsolver), t1, m1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0)
-     V0, t2, m2 = @timed get_bellman_value(model, SDDParametersCollection[1], 1, V[1], model.initialState)
-    (upb, costs), t3, m3 = @timed estimate_upper_bound(model, SDDParametersCollection[1], scenarios, pbs)
+    sddp,t1,m1,gctime1,malloc1 = @timed solve_SDDP(model, SDDParametersCollection[1], 0,0)
+    V = sddp.bellmanfunctions
+    pbs = sddp.solverinterface
+    V0,t2,m2,gctime2,malloc2 = @timed get_bellman_value(model, SDDParametersCollection[1], 1, V[1], model.initialState)
+    (upb,sigma,tol),t3,m3,gctime3,malloc3 = @timed StochDynamicProgramming.estimate_upper_bound(model, SDDParametersCollection[1], scenarios,pbs)
 
     # Define arrays to store results of benchmark
     solver_calls = []
@@ -48,11 +50,13 @@ function benchmark_parameters(model,
 
     for sddpparams in SDDParametersCollection
 
-        srand(seeds)
+        Random.seed!(seeds)
 
-        (V, pbs, sddpstats), t1, m1 = @timed solve_SDDP(model, sddpparams, 0)
-        V0, t2, m2 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
-        (upb, costs), t3, m3 = @timed estimate_upper_bound(model, sddpparams, scenarios, pbs)
+        sddp,t1,m1,gctime1,malloc1 = @timed solve_SDDP(model, sddpparams, 0)
+        V = sddp.bellmanfunctions
+        pbs = sddp.solverinterface
+        V0,t2,m2,gctime2,malloc2 = @timed get_bellman_value(model, sddpparams, 1, V[1], model.initialState)
+        (upb,sigma,tol),t3,m3,gctime3,malloc3 = @timed StochDynamicProgramming.estimate_upper_bound(model, sddpparams, scenarios, pbs)
 
         solvingtime = t1
         simulationtime = t2+t3
@@ -60,19 +64,19 @@ function benchmark_parameters(model,
         simulationmemory = m2+m3
         g = round(100*(upb-V0)/V0)
 
-        push!(solver_calls, sddpstats.nsolved)
+        push!(solver_calls, sddp.stats.nsolved)
         push!(solving_times, t1)
         push!(solving_mem, m1)
         push!(gap_sols, g)
 
         if verbosity > 0
             print("Instance \t")
-            print("Solving time = ",round(solvingtime,4),"\t")
+            print("Solving time = ",round(solvingtime,digits=4),"\t")
             print("Solving memory = ", solvingmemory,"\t")
-            print("Simulation time = ",round(simulationtime,4),"\t")
+            print("Simulation time = ",round(simulationtime,digits=4),"\t")
             print("Simulation memory = ", simulationmemory,"\t")
             print("Gap < ", g,"% with prob 97.5%\t")
-            println("number external solver call = ", sddpstats.nsolved)
+            println("number external solver call = ", sddp.stats.nsolved)
         end
     end
     return solver_calls, solving_times, solving_mem, gap_sols

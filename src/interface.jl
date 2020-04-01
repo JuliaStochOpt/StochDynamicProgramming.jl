@@ -41,7 +41,6 @@ mutable struct SDDPInterface
         # initialize value functions:
         V, problems = initialize_value_functions(model, param)
         (verbosity > 0) && println("SDDP Interface initialized")
-
         pruner = initpruner(pruner, model.stageNumber, model.dimStates)
         #Initialization of stats
         stats = SDDPStat()
@@ -62,7 +61,6 @@ mutable struct SDDPInterface
         # First step: process value functions if hotstart is called
         problems = hotstart_SDDP(model, params, V)
         pruner = initpruner(pruner, model.stageNumber, model.dimStates)
-
         stats = SDDPStat()
         return new(false, model, params, stats, stopcrit, pruner, regularization,
                    V, problems, verbosity,verbose_it)

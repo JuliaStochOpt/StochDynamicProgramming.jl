@@ -1,7 +1,7 @@
 
 push!(LOAD_PATH, "../examples")
 
-using Base.Test
+using Test
 using lqr
 
 function test_lqr()

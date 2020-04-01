@@ -9,7 +9,7 @@
 #############################################################################
 
 module SdpLoops
-using Interpolations
+using Interpolations, Nullables
 
 export index_from_variable, real_index_from_variable
 
@@ -159,9 +159,10 @@ function sdp_u_w_loop(sampling_size::Int, samples::Array,
 
                 count_admissible_w = count_admissible_w + proba
 
-                ind_next_state = real_index_from_variable(next_state, x_bounds,
-                                                            x_steps)
-                next_V = Vitp[ind_next_state...]
+                #ind_next_state = real_index_from_variable(next_state, x_bounds, x_steps)
+                ind_next_state = index_from_variable(next_state, x_bounds,x_steps)
+                #next_V = Vitp[ind_next_state...]
+                next_V = Vitp(ind_next_state...)
                 expected_V_u += proba*(cost(t, x, u, w_sample) + next_V)
 
             end
@@ -381,9 +382,10 @@ function sdp_hd_get_u(u_bounds::Array, x_bounds::Array,
         if constraints(t, x, u, w)&&is_next_state_feasible(next_state, x_dim,
                                                             x_bounds)
             admissible_u_w_count  += 1
-            ind_next_state = real_index_from_variable(next_state, x_bounds,
-                                                        x_steps)
-            next_V_x_w = cost(t, x, u, w) + Vitp[ind_next_state...]
+            #ind_next_state = real_index_from_variable(next_state, x_bounds,x_steps)
+            ind_next_state = index_from_variable(next_state, x_bounds,x_steps)
+            #next_V_x_w = cost(t, x, u, w) + Vitp[ind_next_state...]
+            next_V_x_w = cost(t, x, u, w) + Vitp(ind_next_state...)
 
             if (next_V_x_w < best_V_x_w)
                 best_V_x_w = next_V_x_w

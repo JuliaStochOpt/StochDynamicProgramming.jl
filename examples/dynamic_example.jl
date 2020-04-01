@@ -7,12 +7,14 @@
 # Source: Adrien Cassegrain
 #############################################################################
 
-#srand(2713)
+using Random
+#Random.seed!(2713)
 
 using StochDynamicProgramming, JuMP, Clp
 
 #Constant that the user have to define himself
-const SOLVER = ClpSolver()
+const OPTIMIZER = optimizer_with_attributes(Clp.Optimizer,
+                                            "LogLevel"=>0)
 # const SOLVER = CplexSolver(CPX_PARAM_SIMDISPLAY=0)
 
 const N_STAGES = 3
@@ -36,7 +38,7 @@ const DW = 1
 
 # Define aleas' space:
 const N_ALEAS = Int(round(Int, (W_MAX - W_MIN) / DW + 1))
-const ALEAS = linspace(W_MIN, W_MAX, N_ALEAS)
+const ALEAS = range(W_MIN,stop=W_MAX,length=N_ALEAS)
 
 const EPSILON = .05
 const MAX_ITER = 20
@@ -86,7 +88,7 @@ function build_aleas()
     aleas = zeros(N_ALEAS, N_STAGES)
 
     # take into account seasonality effects:
-    unorm_prob = linspace(1, N_ALEAS, N_ALEAS)
+    unorm_prob = range(1,stop=N_ALEAS,length=N_ALEAS)
     proba1 = unorm_prob / sum(unorm_prob)
     proba2 = proba1[N_ALEAS:-1:1]
 
@@ -120,13 +122,13 @@ Return a Vector{NoiseLaw}"""
 function generate_probability_laws()
     aleas = build_scenarios(N_SCENARIOS, build_aleas())
 
-    laws = Vector{NoiseLaw}(N_STAGES)
+    laws = Vector{NoiseLaw}([])
 
     # uniform probabilities:
     proba = 1/N_SCENARIOS*ones(N_SCENARIOS)
 
     for t=1:N_STAGES
-        laws[t] = NoiseLaw(aleas[:, t], proba)
+        push!(laws, NoiseLaw(aleas[:, t], proba))
     end
 
     return laws
@@ -142,15 +144,17 @@ function init_problem()
     #Define bounds for the control
     u_bounds  = [(CONTROL_MIN, CONTROL_MAX) for i in 1:DIM_CONTROLS]
 
-    model = LinearDynamicLinearCostSPmodel(N_STAGES,
-                                                u_bounds,
-                                                x0,
-                                                cost_t,
-                                                dynamic,
-                                                aleas)
+    model = LinearSPModel(N_STAGES,
+                            u_bounds,
+                            x0,
+                            cost_t,
+                            dynamic,
+                            aleas)
 
-    params = SDDPparameters(SOLVER, N_SCENARIOS, EPSILON, MAX_ITER)
-
+    params = SDDPparameters(OPTIMIZER,
+    passnumber=N_SCENARIOS,
+    gap=EPSILON,
+    max_iterations=MAX_ITER)
     return model, params
 end
 
@@ -181,6 +185,7 @@ i = 0
 nb_iter = 10
 
 while i<nb_iter
+    global model,params,i
     sol, firstControl, status = extensive_formulation(model,params)
     if (status == :Optimal)
         unsolve = false
@@ -207,4 +212,3 @@ else
     println("firstControl =", firstControl)
     println("V0 = ", b[1].lambdas[1,:]*X0+b[1].betas[1])
 end
-

@@ -8,6 +8,7 @@
 # - add functions to build scenarios with given probability laws
 #############################################################################
 
+export sampling
 
 mutable struct NoiseLaw
     # Dimension of noise
@@ -196,4 +197,3 @@ function simulate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
 
     return scenarios
 end
-

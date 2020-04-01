@@ -2,10 +2,11 @@
 # Test extensive formulation
 ################################################################################
 
-using StochDynamicProgramming, Base.Test, Clp
+using StochDynamicProgramming, Test, Clp
 
 @testset "Extensive formulation" begin
-    solver = ClpSolver()
+    optimizer = optimizer_with_attributes(Clp.Optimizer,
+               "LogLevel"=>0,"Algorithm"=>4)
 
     # SDDP's tolerance:
     epsilon = .05
@@ -28,10 +29,10 @@ using StochDynamicProgramming, Base.Test, Clp
     end
 
     # Generate probability laws:
-    laws = Vector{NoiseLaw}(n_stages)
+    laws = Vector{NoiseLaw}([])
     proba = 1/n_aleas*ones(n_aleas)
     for t=1:n_stages
-        laws[t] = NoiseLaw([0, 1, 3, 4, 6], proba)
+        push!(laws, NoiseLaw([0, 1, 3, 4, 6], proba))
     end
 
     # set initial position:
@@ -44,7 +45,7 @@ using StochDynamicProgramming, Base.Test, Clp
     set_state_bounds(model_ef, x_bounds_ef)
 
     # Instantiate parameters of SDDP:
-    params = StochDynamicProgramming.SDDPparameters(solver,
+    params = StochDynamicProgramming.SDDPparameters(optimizer,
                                                     passnumber=n_scenarios,
                                                     gap=epsilon,
                                                     max_iterations=max_iterations)
