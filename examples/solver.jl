@@ -1,8 +1,8 @@
 
-#= using Clp =#
-#= OPTIMIZER = optimizer_with_attributes(Clp.Optimizer, "LogLevel"=>0) =#
-using Xpress
-OPTIMIZER = optimizer_with_attributes(Xpress.Optimizer, "OUTPUTLOG"=>0)
+using Clp
+OPTIMIZER = optimizer_with_attributes(Clp.Optimizer, "LogLevel"=>0)
+#= using Xpress =#
+#= OPTIMIZER = optimizer_with_attributes(Xpress.Optimizer, "OUTPUTLOG"=>0) =#
 #= using Gurobi =#
 #SOLVER = Gurobi.GurobiSolver(OutputFlag=false, Threads=1)
 #= OPTIMIZER = optimizer_with_attributes(Gurobi.Optimizer, =#

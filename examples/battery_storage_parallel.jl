@@ -29,13 +29,9 @@
 # (d) : we don't sell electricity
 
 
-
-
 using StochDynamicProgramming, Distributions
 using Statistics
 using Distributed
-
-println("library loaded")
 
 # We have to define the instance on all the workers (processes)
 @everywhere begin
@@ -104,7 +100,6 @@ println("library loaded")
     stateSteps = [0.01]
     controlSteps = [0.001]
     infoStruct = "HD" # noise at time t is not known before taking the decision at time t
-
     paramSDP = StochDynamicProgramming.SDPparameters(spmodel, stateSteps,
                                                     controlSteps, infoStruct)
 end
@@ -112,6 +107,6 @@ end
 Vs = StochDynamicProgramming.solve_dp(spmodel,paramSDP, 1)
 
 lb_sdp = StochDynamicProgramming.get_bellman_value(spmodel,paramSDP,Vs)
-println("Value obtained by SDP: "*string(lb_sdp))
+println("Value obtained by SDP: ", lb_sdp)
 costsdp, states, stocks = StochDynamicProgramming.forward_simulations(spmodel,paramSDP,Vs,scenarios)
 println(mean(costsdp))

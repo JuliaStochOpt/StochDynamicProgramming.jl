@@ -9,28 +9,21 @@ using StochDynamicProgramming, JuMP, LinearAlgebra
 Random.seed!(2713)
 
 include("solver.jl")
-##################################################
-
 
 ##################################################
 # PROBLEM DEFINITION
 ##################################################
 # We consider here a valley with 5 dams:
 const N_DAMS = 5
-
 const N_STAGES = 12
 const N_ALEAS = 10
-
 # Cost are negative as we sell the electricity produced by
 # dams (and we want to minimize our problem)
 const COST = -66*2.7*(1 .+ .5*(rand(N_STAGES) .- .5))
-
-# Constants:
-const VOLUME_MAX = 80
-const VOLUME_MIN = 0
-
-const CONTROL_MAX = 40
-const CONTROL_MIN = 0
+const VOLUME_MAX = 80.0
+const VOLUME_MIN = 0.0
+const CONTROL_MAX = 40.0
+const CONTROL_MIN = 0.0
 
 # Define initial status of stocks:
 const X0 = [40 for i in 1:N_DAMS]
@@ -46,14 +39,9 @@ const B =  [-1  0.  0.  0.  0.  -1  0.  0.  0.  0.;
             0.  0.  1.  -1  0.  0.  0.  1.  -1  0.;
             0.  0.  0.  1.  -1  0.  0.  0.  1.  -1]
 # Define dynamic of the dam:
-function dynamic(t, x, u, w)
-    return A*x + B*u + w
-end
-
+dynamic(t, x, u, w) = A*x + B*u + w
 # Define cost corresponding to each timestep:
-function cost_t(t, x, u, w)
-    return COST[t] * sum(u[1:N_DAMS])
-end
+cost_t(t, x, u, w) = COST[t] * sum(u[1:N_DAMS])
 
 # We define here final cost a quadratic problem
 # we penalize the final costs if it is greater than 40.
@@ -65,18 +53,19 @@ function final_cost_dams(model, m)
     x = m[:x]
     u = m[:u]
     xf = m[:xf]
-    @JuMP.variable(m, z1 >= 0)
-    @JuMP.variable(m, z2 >= 0)
-    @JuMP.variable(m, z3 >= 0)
-    @JuMP.variable(m, z4 >= 0)
-    @JuMP.variable(m, z5 >= 0)
-    @JuMP.constraint(m, alpha == 0.)
-    @JuMP.constraint(m, z1 >= 40 - xf[1])
-    @JuMP.constraint(m, z2 >= 40 - xf[2])
-    @JuMP.constraint(m, z3 >= 40 - xf[3])
-    @JuMP.constraint(m, z4 >= 40 - xf[4])
-    @JuMP.constraint(m, z5 >= 40 - xf[5])
-    @JuMP.objective(m, Min, model.costFunctions(model.stageNumber-1, x, u, w) + 500. *(z1*z1+z2*z2+z3*z3+z4*z4+z5*z5))
+    @JuMP.variable(m, z1 >= 0.0)
+    @JuMP.variable(m, z2 >= 0.0)
+    @JuMP.variable(m, z3 >= 0.0)
+    @JuMP.variable(m, z4 >= 0.0)
+    @JuMP.variable(m, z5 >= 0.0)
+    @JuMP.constraint(m, alpha == 0.0)
+    @JuMP.constraint(m, z1 >= 40.0 - xf[1])
+    @JuMP.constraint(m, z2 >= 40.0 - xf[2])
+    @JuMP.constraint(m, z3 >= 40.0 - xf[3])
+    @JuMP.constraint(m, z4 >= 40.0 - xf[4])
+    @JuMP.constraint(m, z5 >= 40.0 - xf[5])
+    @JuMP.objective(m, Min, model.costFunctions(model.stageNumber-1, x, u, w)
+                            + 500.0 * (z1*z1+z2*z2+z3*z3+z4*z4+z5*z5))
 end
 
 ##################################################
@@ -86,7 +75,7 @@ end
 const FORWARD_PASS = 10.
 const EPSILON = .01
 # Maximum number of iterations
-const MAX_ITER = 40
+const MAX_ITER = 10
 ##################################################
 
 """Build probability distribution at each timestep.
@@ -113,13 +102,10 @@ function init_problem()
                           X0, cost_t,
                           dynamic, aleas,
                           Vfinal=final_cost_dams)
-
     # Add bounds for stocks:
     set_state_bounds(model, x_bounds)
-
-
     params = SDDPparameters(OPTIMIZER,
-                            passnumber=FORWARD_PASS,
+                            passnumber=1,
                             compute_ub=10,
                             gap=EPSILON,
                             max_iterations=MAX_ITER)
