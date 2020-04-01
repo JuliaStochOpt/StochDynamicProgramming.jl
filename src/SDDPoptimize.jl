@@ -290,7 +290,6 @@ $(SIGNATURES)
 function build_terminal_cost!(model::SPModel, problem::JuMP.Model,
                               Vt::PolyhedralFunction, verbosity::Int64=0)
     # if shape is PolyhedralFunction, build terminal cost with it:
-
     alpha = problem[:alpha]
     xf = problem[:xf]
     t = model.stageNumber -1
@@ -354,7 +353,10 @@ function build_model(model, param, t,verbosity::Int64=0)
     @variable(m, alpha)
 
     @variable(m, w[1:nw] == 0)
-    m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
+    # This workaround is far from optimal. We should replace this line
+    # with ParameterJuMP.jl
+    @variable(m, x_constant[1:nx])
+    m.ext[:cons] = @constraint(m, state_constraint, x .== x_constant)
 
     @constraint(m, xf .== model.dynamics(t, x, u, w))
 
@@ -411,7 +413,8 @@ function build_model_dh(model, param, t, verbosity::Int64=0)
     @variable(m, model.xlim[i,t][1] <= xf[i=1:nx, j=1:ns]<= model.xlim[i,t][2])
     @variable(m, alpha[1:ns])
 
-    m.ext[:cons] = @constraint(m, state_constraint, x .== 0)
+    @variable(m, x_constant[1:nx])
+    m.ext[:cons] = @constraint(m, state_constraint, x .== x_constant)
 
     for j=1:ns
         @constraint(m, xf[:, j] .== model.dynamics(t, x, u, ξ[:, j]))

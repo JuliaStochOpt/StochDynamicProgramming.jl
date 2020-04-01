@@ -43,10 +43,10 @@ end
 
 
 function getindexnoise(law::NoiseLaw, wt::Vector{Float64})
-    idx = 0
+    idx = 1
 
     for idx in 1:law.supportSize
-        if law.support[:, idx] == wt
+        if isequal(law.support[:, idx], wt)
             break
         end
     end

@@ -51,7 +51,7 @@ u_bounds = [(0., 7.), (0., Inf)]
 
 # Instantiate parameters of SDDP:
 param = StochDynamicProgramming.SDDPparameters(optimizerLP,
-                                               passnumber=n_scenarios,
+                                               passnumber=1,
                                                gap=epsilon,
                                                max_iterations=max_iterations,
                                                prune_cuts=0)
