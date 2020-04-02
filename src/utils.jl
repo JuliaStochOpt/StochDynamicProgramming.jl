@@ -7,8 +7,8 @@
 #
 #############################################################################
 
-import Base: +, show, writecsv
-using Printf
+import Base: +, show
+
 """
 Write Polyhedral functions in a CSV file.
 

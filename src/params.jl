@@ -28,12 +28,12 @@ mutable struct SDDPparameters
     # Pruning:
     prune::Bool
 
-    function SDDPparameters(optimizer; passnumber=10, gap=0., confidence=.975,
+    function SDDPparameters(optimizer; passnumber=10, gap=0.0, confidence=0.975,
                             max_iterations=20, prune_cuts=0,
                             pruning_algo="none",
                             compute_ub=-1, montecarlo_final=1000, montecarlo_in_iter=100,
                             mipoptimizer=nothing,
-                            rho0=0., alpha=1., reload=-1, prune=false)
+                            rho0=0.0, alpha=1.0, reload=-1, prune=false)
 
         return new(optimizer, mipoptimizer, passnumber, max_iterations, confidence,
                    compute_ub, montecarlo_final, montecarlo_in_iter, reload, prune)
@@ -58,6 +58,6 @@ function check_SDDPparameters(model::SPModel, param::SDDPparameters, verbosity=0
     if model.IS_SMIP && isnull(param.MIPOPTIMIZER)
         error("MIP Optimizer is not defined. Please set `param.MIPOPTIMIZER`")
     end
-
     (verbosity > 0) && (model.IS_SMIP) && println("SMIP SDDP")
+    return
 end

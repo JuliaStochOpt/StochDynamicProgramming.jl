@@ -17,17 +17,18 @@ using SpecialFunctions
 using Statistics
 using DelimitedFiles
 using Random
+using Printf
 
 export solve_SDDP,solve!,
-        NoiseLaw, simulate_scenarios, simulate,
-        SDDPparameters, LinearSPModel, set_state_bounds,
-        extensive_formulation,
-        PolyhedralFunction, forward_simulations,
-        StochDynProgModel, SDPparameters, solve_dp,
-        sampling, get_control, get_bellman_value,
-        benchmark_parameters, SDDPInterface,
-        risk_proba,
-        RiskMeasure, AVaR, Expectation, WorstCase, ConvexCombi, PolyhedralRisk
+       NoiseLaw, simulate_scenarios, simulate,
+       SDDPparameters, LinearSPModel, set_state_bounds,
+       extensive_formulation,
+       PolyhedralFunction, forward_simulations,
+       StochDynProgModel, SDPparameters, solve_dp,
+       sampling, get_control, get_bellman_value,
+       benchmark_parameters, SDDPInterface,
+       risk_proba,
+       RiskMeasure, AVaR, Expectation, WorstCase, ConvexCombi, PolyhedralRisk
 
 include("noises.jl")
 include("objects.jl")

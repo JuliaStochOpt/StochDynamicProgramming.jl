@@ -57,12 +57,13 @@ function solve_one_step_one_alea(model,
 
     # Get var defined in JuMP.model:
     x = getindex(m, :x)
+    xk = getindex(m, :x_constant)
     u = getindex(m, :u)
     w = getindex(m, :w)
     alpha = getindex(m, :alpha)
 
     # Update value of w:
-    JuMP.fix.(w,xi)
+    JuMP.fix.(w, xi)
 
     #update objective
     if isa(model.costFunctions, Function)
@@ -80,10 +81,7 @@ function solve_one_step_one_alea(model,
      end
 
     # Update constraint x == xt
-
-    for i in 1:model.dimStates
-        JuMP.set_normalized_rhs(m.ext[:cons][i], xt[i])
-    end
+    JuMP.fix.(xk, xt)
 
     if false
         println("One step one alea problem at time t=",t)
@@ -95,13 +93,12 @@ function solve_one_step_one_alea(model,
     if model.IS_SMIP
         solved = relaxation ? solve_relaxed!(m, param,verbosity) : solve_mip!(m, param,verbosity)
     else
-        remove_infinite_constraint!(m)
+        #= remove_infinite_constraint!(m) =#
         JuMP.optimize!(m)
         status = JuMP.termination_status(m)
         solved = (status == MOI.OPTIMAL) || (status == MOI.TIME_LIMIT && JuMP.has_values(m))
     end
     # get time taken by the solver:
-
     solvetime = try JuMP.solve_time(m) catch e 0.0 end
     if solved
         optimalControl = JuMP.value.(u)
@@ -118,10 +115,7 @@ function solve_one_step_one_alea(model,
     else
         println(m)
         println(status)
-        error("Foo")
         # If no solution is found, then return nothing
-        #= println(m) =#
-        #= error("Fail to solve") =#
         result = NLDSSolution()
     end
     return result, solvetime
@@ -131,16 +125,16 @@ end
 """Solve model in Decision-Hazard."""
 function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
     xf = getindex(m, :xf)
+    xk = getindex(m, :x_constant)
     u = getindex(m, :u)
     alpha = getindex(m, :alpha)
-    for i in 1:model.dimStates
-        JuMP.set_normalized_rhs(m.ext[:cons][i], xt[i])
-    end
+
+    # Update constraint x == xt
+    JuMP.fix.(xk, xt)
 
     (verbosity>5) && println("Decision Hazard model")
     (verbosity>5) && print(m)
 
-    remove_infinite_constraint!(m)
     JuMP.optimize!(m)
     status = JuMP.termination_status(m)
     solved = status == MOI.OPTIMAL
@@ -150,7 +144,7 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
         println(JuMP.value.(u))
         println(JuMP.value.(alpha))
         println(JuMP.value.(xf))
-        @warn("dh model not solved at time t=",t)
+        @warn("DH model not solved at time t=",t)
     end
 
     solvetime = try JuMP.solve_time(m) catch e 0.0 end
@@ -159,12 +153,12 @@ function solve_dh(model, param, t, xt, m; verbosity::Int64=0)
         # Computation of subgradient:
         λ = JuMP.has_duals(m) ? Float64[JuMP.dual(m.ext[:cons][i]) for i in 1:model.dimStates] : Array{Float64, 1}()
         result = DHNLDSSolution(solved,
-                              JuMP.objective_value(m),
-                              JuMP.value.(xf),
-                              JuMP.value.(u)[:, 1],
-                              λ,
-                              JuMP.value.(alpha),
-                              getcutsmultipliers(m))
+                                JuMP.objective_value(m),
+                                JuMP.value.(xf),
+                                JuMP.value.(u)[:, 1],
+                                λ,
+                                JuMP.value.(alpha),
+                                getcutsmultipliers(m))
     else
         # If no solution is found, then return nothing
         result = NLDSSolution()

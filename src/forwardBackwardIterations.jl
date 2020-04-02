@@ -10,6 +10,7 @@ using LinearAlgebra
 using LinearAlgebra: dot
 
 export forward_simulations
+
 """
 Run a forward pass of the algorithm with `sddp` object
 
@@ -164,12 +165,11 @@ function forward_simulations(model::SPModel,
             # update solvertime with ts
             push!(solvertime, ts)
 
-
             # Check if the problem is effectively solved:
             if sol.status
                 # Get the next position:
                 idx = getindexnoise(model.noises[t], wt)
-                xf, θ = idx > 0 ? getnextposition(sol, idx) : (0,0)
+                xf, θ = getnextposition(sol, idx)
                 stockTrajectories[t+1, k, :] .= xf
                 # the optimal control just computed:
                 controls[t, k, :] .= sol.uopt
@@ -454,7 +454,6 @@ function fwdcuts(sddp)
 
         # update solvertime with ts
         push!(solvertime, ts)
-
 
         # Check if the problem is effectively solved:
         if sol.status

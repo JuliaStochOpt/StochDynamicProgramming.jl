@@ -6,7 +6,6 @@
 # Define all types used in this module.
 #############################################################################
 
-using Nullables
 export set_state_bounds
 
 abstract type RiskMeasure end

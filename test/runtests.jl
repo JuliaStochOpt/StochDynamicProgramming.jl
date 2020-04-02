@@ -23,7 +23,7 @@ include("changeprob.jl")
 # Test SDDP:
 # Use Gurobi solver or something Scalar Quadratic Function support Solver
 # Clp do not support Quadratic
-#include("sddp.jl")
+include("sddp.jl")
 
 # Test DP:
 include("sdp.jl")
