@@ -1,72 +1,78 @@
 # StochDynamicProgramming
 
 
-**WARNING:** *This package is currently in development. Any help or feedback is appreciated.*
-
-
-**Latest release:** v0.5.0
-
 | **Documentation** | **Build Status** | **Social** |
 |:-----------------:|:----------------:|:----------:|
 | | [![Build Status][build-img]][build-url] | [![Gitter][gitter-img]][gitter-url] |
 | [![][docs-stable-img]][docs-stable-url] |  [![Codecov branch][codecov-img]][codecov-url] | [<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/Discourse_logo.png/799px-Discourse_logo.png" width="64">][discourse-url] |
 
-
-
-This is a Julia package for optimizing controlled stochastic dynamic system (in discrete time). It offers three methods of resolution :
+This is a Julia package for optimizing controlled stochastic dynamic system,
+in discrete time. It offers three methods of resolution :
 
 - *Stochastic Dual Dynamic Programming* (SDDP) algorithm.
 - *Extensive formulation*.
 - *Stochastic Dynamic Programming*.
 
+It is built on top of [JuMP](https://github.com/JuliaOpt/JuMP.jl).
 
-It is built upon [JuMP]
+StochDynamicProgramming asks the user to provide explicit the cost `c(t, x, u, w)` and
+dynamics `f(t, x, u, w)` functions. Also, the package was developed back
+in 2016, and some parts of its API are not idiomatic, in a Julia sense.
+For other implementations of the SDDP algorithm in Julia, we advise to
+have a look at these two packages:
 
-## What problem can we solve with this package ?
+* [SDDP.jl](https://github.com/odow/SDDP.jl)
+* [StructDualDynProg.jl](https://github.com/JuliaStochOpt/StructDualDynProg.jl)
+
+
+
+## What problems solves this package ?
+
+StochDynamicProgramming targets problems with
 
 - Stage-wise independent discrete noise
 - Linear dynamics
-- Linear or convex piecewise linear cost
+- Linear or convex piecewise linear costs
 
 Extension to non-linear formulation are under development.
-Extension to more complex alea dependance are under developpment.
 
-## Why Extensive formulation ?
 
-An extensive formulation approach consists in representing the stochastic problem as a deterministic
-one with more variable and call a standard deterministic solver. Mainly usable in a linear
-setting. Computational complexity is exponential in the number of stages.
+### Why SDDP?
 
-## Why Stochastic Dynamic Programming ?
-
-Dynamic Programming is a standard tool to solve stochastic optimal control problem with
-independent noise. The method require discretisation of the state space, and is exponential
-in the dimension of the state space.
-
-## Why SDDP?
-
-SDDP is a dynamic programming algorithm relying on cutting planes. The algorithm require convexity
+SDDP is a dynamic programming algorithm relying on cutting planes. The algorithm requires convexity
 of the value function but does not discretize the state space. The complexity is linear in the
-number of stage, and can accomodate higher dimension state than standard dynamic programming.
-The algorithm return exact lower bound and estimated upper bound as well as approximate optimal
+number of stage, and can accomodate higher dimension state spaces than standard dynamic programming.
+The algorithm returns exact lower bound and estimated upper bound as well as approximate optimal
 control strategies.
 
+### Why Extensive formulation ?
+
+An extensive formulation approach consists in representing the stochastic problem as a deterministic
+one and then calling a standard deterministic solver. It is mainly usable in a linear
+setting. Computational complexity is exponential in the number of stages.
+
+### Why Stochastic Dynamic Programming ?
+
+Dynamic Programming is a standard tool to solve stochastic optimal control problem with
+independent noise. The method requires discretizing the state space, and its
+complexity is exponential in the dimension of the state space.
+
+
 ## Installation
-Installing StochDynamicProgramming is an easy process.
-Currently, the package depends upon `StochasticDualDynamicProgramming.jl`, which is not
-yet registered in Julia's METADATA. To install the package,
-open Julia and enter
+
+StochDynamicProgramming is a registered Julia package.
+To install the package, open Julia and enter
 
 ```julia
-julia> Pkg.update()
-julia> Pkg.add("StochDynamicProgramming")
+julia> ]
+pkg> add StochDynamicProgramming
 
 ```
 
 
 ## Usage
 
-IJulia Notebooks will be provided to explain how this package work.
+IJulia Notebooks are provided to explain how this package works.
 A first example on a two dams valley [here](http://nbviewer.jupyter.org/github/leclere/StochDP-notebooks/blob/master/notebooks/damsvalley.ipynb).
 
 

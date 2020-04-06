@@ -8,7 +8,7 @@
 
 
 using StochDynamicProgramming
-using Clp, JuMP, Nullables #,Gurobi
+using Clp, JuMP, Nullables
 using Printf
 using Statistics
 using Test
