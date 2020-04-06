@@ -99,12 +99,12 @@ Released under Mozilla Public License (see LICENSE.md for further details).
 
 
 
-[build-img]: https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl.svg?branch=master
-[build-url]: https://travis-ci.org/JuliaOpt/StochDynamicProgramming.jl
-[codecov-img]: https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl/coverage.svg?branch=master
-[codecov-url]: https://codecov.io/github/JuliaOpt/StochDynamicProgramming.jl?branch=master
+[build-img]: https://travis-ci.org/JuliaStochOpt/StochDynamicProgramming.jl.svg?branch=master
+[build-url]: https://travis-ci.org/JuliaStochOpt/StochDynamicProgramming.jl
+[codecov-img]: https://codecov.io/github/JuliaStochOpt/StochDynamicProgramming.jl/coverage.svg?branch=master
+[codecov-url]: https://codecov.io/github/JuliaStochOpt/StochDynamicProgramming.jl?branch=master
 [gitter-url]: https://gitter.im/JuliaOpt/StochasticDualDynamicProgramming.jl
-[gitter-img]: https://badges.gitter.im/JuliaOpt/StochasticDualDynamicProgramming.jl.svg
+[gitter-img]: https://badges.gitter.im/JuliaStochOpt/StochasticDualDynamicProgramming.jl.svg
 [discourse-url]: https://discourse.julialang.org/c/domain/opt
 [JuMP]: https://github.com/JuliaOpt/JuMP.jl
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
