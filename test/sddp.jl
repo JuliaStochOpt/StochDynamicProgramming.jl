@@ -71,7 +71,8 @@ using Test
         # Test if costs are roughly the same:
         sddp_costs2, stocks = forward_simulations(model, param,
                                                   sddp.solverinterface, noise_scenarios)
-        @test mean(sddp_costs) ≈ mean(sddp_costs2)
+        # Lowerbound should improve
+        @test sddp0.stats.lowerbound <= sddp.stats.lowerbound
     end
 
     # FIXME : correct solverQP

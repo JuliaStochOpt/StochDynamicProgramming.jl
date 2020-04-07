@@ -10,13 +10,12 @@ using Test, StochDynamicProgramming
     # test reshaping_noise
     @test typeof(StochDynamicProgramming.reshaping_noise(support, proba))==Tuple{Array{Int64,2},Array{Float64,1}}
     @test typeof(StochDynamicProgramming.reshaping_noise([1 2 3], proba))==Tuple{Array{Int64,2},Array{Float64,1}}
-    
+
     law = NoiseLaw(support, proba)
     @test typeof(law) == NoiseLaw
     @test law.supportSize == 3
     @test_throws ErrorException NoiseLaw(support, [proba 0.1])
-
-
+    @test isa(rand(law), Vector{Float64})
 
     dims = (2, 2, 1)
     scenarios = simulate_scenarios([law, law], 2)
