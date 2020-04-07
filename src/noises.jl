@@ -8,6 +8,7 @@
 # - add functions to build scenarios with given probability laws
 #############################################################################
 
+import Base: rand
 export sampling
 
 mutable struct NoiseLaw
@@ -21,39 +22,31 @@ mutable struct NoiseLaw
     proba::Vector{Float64}
 
     function NoiseLaw(dimNoises, supportSize, support, proba)
-        dimNoises = convert(Int64,dimNoises)
-        supportSize = convert(Int64,supportSize)
-        if ndims(support)==1
-            support = reshape(support,length(support),1)
+        dimNoises = convert(Int64, dimNoises)
+        supportSize = convert(Int64, supportSize)
+        if ndims(support) == 1
+            support = reshape(support,length(support), 1)
         end
-
         support, proba = reshaping_noise(support, proba)
-
         if length(proba) !=  supportSize
             error("The probability vector has not the same length as the support array")
          end
-
-        if size(support) != (dimNoises,supportSize)
+        if size(support) != (dimNoises, supportSize)
             error("The support array has the wrong shape")
          end
-
-        return new(dimNoises,supportSize,support,proba)
+        return new(dimNoises, supportSize, support, proba)
     end
 end
 
-
 function getindexnoise(law::NoiseLaw, wt::Vector{Float64})
     idx = 1
-
     for idx in 1:law.supportSize
         if isequal(law.support[:, idx], wt)
             break
         end
     end
-
     return idx
 end
-
 
 """
 Generic constructor to instantiate NoiseLaw
@@ -71,22 +64,20 @@ Generic constructor to instantiate NoiseLaw
 function NoiseLaw(support, proba)
     support, proba = reshaping_noise(support, proba)
     (dimNoises,supportSize) = size(support)
-    return NoiseLaw(dimNoises,supportSize, support, proba)
+    return NoiseLaw(dimNoises, supportSize, support, proba)
 end
 
 function reshaping_noise(support, proba)
-    if ndims(support)==1
-        support = reshape(support,1,length(support))
+    if ndims(support) == 1
+        support = reshape(support, 1, length(support))
     end
-
     if ndims(proba) == 2
         proba = vec(proba)
     elseif  ndims(proba) >= 2
-        proba = squeeze(proba,1)
+        proba = squeeze(proba, 1)
     end
     return support, proba
 end
-
 
 """
 Generate all permutations between discrete probabilities specified in args.
@@ -145,6 +136,12 @@ function noiselaw_product(law, laws...)
     end
 end
 
+"Generate a realization of discrete random variable with law `NoiseLaw`."
+function rand(law::NoiseLaw)
+    r = rand()
+    pindex = findfirst(cumsum(law.proba) .>= r)
+    return law.support[:, pindex]
+end
 
 """
 Generate one sample of the aleas of the problem at time t
@@ -159,10 +156,7 @@ Generate one sample of the aleas of the problem at time t
 * `sample::Array(Float64, dimAlea}`:
     an Array of size dimAlea containing a sample w
 """
-function sampling(law::Vector{NoiseLaw}, t::Int64)
-    return law[t].support[:, rand(Categorical(law[t].proba))]
-end
-
+sampling(law::Vector{NoiseLaw}, t::Int64) = rand(law[t])
 
 """
 Simulate n scenarios and return a 3D array
@@ -180,20 +174,12 @@ Simulate n scenarios and return a 3D array
 function simulate_scenarios(laws::Vector{NoiseLaw}, n::Int64)
     T = length(laws)
     dimAlea = size(laws[1].support)[1]
-    dims =(T,n,dimAlea)
-    if typeof(laws) == Distributions.Normal
-        scenarios = rand(laws, dims)
-    else
-        scenarios = zeros(dims)
-
-        for k=1:dims[2]
-            for t=1:dims[1]
-                gen = Categorical(laws[t].proba)
-                scenarios[t, k, :] = laws[t].support[:, rand(gen)]
-            end
-
+    dims = (T, n, dimAlea)
+    scenarios = zeros(T, n, dimAlea)
+    @inbounds for k in 1:n
+        @inbounds for t in 1:T
+            scenarios[t, k, :] = rand(laws[t])
         end
     end
-
     return scenarios
 end

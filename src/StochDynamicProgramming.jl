@@ -10,7 +10,7 @@
 
 module StochDynamicProgramming
 
-using JuMP, Distributions, Nullables
+using JuMP, Nullables
 using DocStringExtensions
 using CutPruners
 using SpecialFunctions
